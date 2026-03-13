@@ -11,6 +11,10 @@ contract ArenaEconomy {
     error NotOperator();
     error MatchAlreadySettled();
     error NoEntryPool();
+    error MatchLocked();
+    error MatchNotLocked();
+    error AlreadyEnteredMatch();
+    error WinnerDidNotEnterMatch();
 
     uint256 public constant SKILL_BAND_ONE_PRICE = 0.001 ether;
     uint256 public constant SKILL_BAND_TWO_PRICE = 0.002 ether;
@@ -28,7 +32,9 @@ contract ArenaEconomy {
     mapping(bytes32 => AgentAccount) public agents;
     mapping(bytes32 => uint256[5]) private skillPurchaseCounts;
     mapping(bytes32 => bool) public settledMatches;
-    uint256 public unsettledEntryPool;
+    mapping(bytes32 => bool) public lockedMatches;
+    mapping(bytes32 => uint256) public matchPots;
+    mapping(bytes32 => mapping(bytes32 => bool)) private matchEntries;
 
     address public immutable appTreasury;
     address public operator;
@@ -36,6 +42,7 @@ contract ArenaEconomy {
     event AgentRegistered(bytes32 indexed agentId, address treasury, address owner);
     event SkillPurchased(bytes32 indexed agentId, uint8 skillId, uint256 price, uint256 purchaseCount);
     event MatchEntered(bytes32 indexed matchId, bytes32 indexed agentId, uint256 price);
+    event MatchSealed(bytes32 indexed matchId, uint256 pot);
     event MatchSettled(bytes32 indexed matchId, bytes32 indexed winnerAgentId, bytes32 combatDigest, uint256 winnerPayout, uint256 treasuryPayout);
 
     constructor(address _appTreasury, address _operator) {
@@ -78,29 +85,44 @@ contract ArenaEconomy {
         emit SkillPurchased(agentId, skillId, price, skillPurchaseCounts[agentId][skillId]);
     }
 
-    function enterMatch(bytes32 agentId) external payable {
+    function enterMatch(bytes32 matchId, bytes32 agentId) external payable {
         AgentAccount memory agent = agents[agentId];
         if (!agent.exists) revert AgentNotRegistered();
         if (agent.owner != msg.sender) revert NotAgentOwner();
+        if (lockedMatches[matchId]) revert MatchLocked();
+        if (matchEntries[matchId][agentId]) revert AlreadyEnteredMatch();
         if (msg.value < MATCH_ENTRY_FEE) revert InsufficientPayment();
 
-        unsettledEntryPool += MATCH_ENTRY_FEE;
+        matchEntries[matchId][agentId] = true;
+        matchPots[matchId] += MATCH_ENTRY_FEE;
         _refundExcess(MATCH_ENTRY_FEE);
 
-        emit MatchEntered(bytes32(0), agentId, MATCH_ENTRY_FEE);
+        emit MatchEntered(matchId, agentId, MATCH_ENTRY_FEE);
+    }
+
+    function lockMatch(bytes32 matchId) external onlyOperator {
+        lockedMatches[matchId] = true;
+        emit MatchSealed(matchId, matchPots[matchId]);
+    }
+
+    function hasEnteredMatch(bytes32 matchId, bytes32 agentId) external view returns (bool) {
+        return matchEntries[matchId][agentId];
     }
 
     function settleMatch(bytes32 matchId, bytes32 winnerAgentId, bytes32 combatDigest) external onlyOperator {
         if (settledMatches[matchId]) revert MatchAlreadySettled();
+        if (!lockedMatches[matchId]) revert MatchNotLocked();
         AgentAccount memory winner = agents[winnerAgentId];
         if (!winner.exists) revert AgentNotRegistered();
-        if (unsettledEntryPool == 0) revert NoEntryPool();
+        if (!matchEntries[matchId][winnerAgentId]) revert WinnerDidNotEnterMatch();
+        uint256 matchPot = matchPots[matchId];
+        if (matchPot == 0) revert NoEntryPool();
 
         settledMatches[matchId] = true;
+        matchPots[matchId] = 0;
 
-        uint256 winnerPayout = (unsettledEntryPool * WINNER_SHARE_BPS) / 10000;
-        uint256 treasuryPayout = unsettledEntryPool - winnerPayout;
-        unsettledEntryPool = 0;
+        uint256 winnerPayout = (matchPot * WINNER_SHARE_BPS) / 10000;
+        uint256 treasuryPayout = matchPot - winnerPayout;
 
         (bool sentWinner, ) = winner.treasury.call{value: winnerPayout}("");
         require(sentWinner, "Winner payout failed");

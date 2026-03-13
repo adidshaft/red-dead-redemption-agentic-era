@@ -1,9 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Crosshair, Gem, LoaderCircle, PlugZap, RadioTower, ShieldPlus, Sword, Wallet } from "lucide-react";
-import { useAccount, useConnect, useDisconnect, usePublicClient, useSignMessage, useSwitchChain, useWalletClient } from "wagmi";
-import { formatEther, keccak256, stringToHex, type Address, type Hex } from "viem";
+import {
+  Bot,
+  Crosshair,
+  Gem,
+  LoaderCircle,
+  PlugZap,
+  RadioTower,
+  ShieldPlus,
+  Sword,
+  Wallet,
+} from "lucide-react";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  usePublicClient,
+  useSignMessage,
+  useSwitchChain,
+  useWalletClient,
+} from "wagmi";
+import { formatEther, keccak256, stringToHex, type Address } from "viem";
 import {
   arenaEconomyAbi,
   calculateSkillPurchasePrice,
@@ -58,17 +76,21 @@ export function GameShell() {
   const [recentEvents, setRecentEvents] = useState<MatchEvent[]>([]);
   const [liveMatches, setLiveMatches] = useState<MatchSnapshot[]>([]);
   const [baseName, setBaseName] = useState("Marshal");
-  const [status, setStatus] = useState<string>("Connect a wallet on X Layer testnet to enter the frontier.");
+  const [status, setStatus] = useState<string>(
+    "Connect a wallet on X Layer testnet to enter the frontier.",
+  );
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [autonomyHint, setAutonomyHint] = useState<string | null>(null);
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
 
   const selectedAgent = useMemo(
-    () => agents.find((agent) => agent.id === selectedAgentId) ?? agents[0] ?? null,
+    () =>
+      agents.find((agent) => agent.id === selectedAgentId) ?? agents[0] ?? null,
     [agents, selectedAgentId],
   );
-  const deployedContractAddress = contractAddress ?? process.env.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS ?? null;
+  const deployedContractAddress =
+    contractAddress ?? process.env.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS ?? null;
 
   useEffect(() => {
     const existing = window.localStorage.getItem(authStorageKey);
@@ -113,7 +135,11 @@ export function GameShell() {
       setQueueState(payload);
       if (payload.matchId) {
         socket.emit("match:join", { matchId: payload.matchId });
-        setStatus(payload.status === "ready" ? "Match found. Ride in." : "Searching for rivals.");
+        setStatus(
+          payload.status === "ready"
+            ? "Match found. Ride in."
+            : "Searching for rivals.",
+        );
       }
     });
     socket.on("match:snapshot", (nextSnapshot: MatchSnapshot) => {
@@ -125,7 +151,11 @@ export function GameShell() {
     });
     socket.on("match:result", (result: MatchSnapshot) => {
       setSnapshot(result);
-      setStatus(result.winnerAgentId === selectedAgent?.id ? "You won the showdown." : "The showdown is over.");
+      setStatus(
+        result.winnerAgentId === selectedAgent?.id
+          ? "You won the showdown."
+          : "The showdown is over.",
+      );
     });
 
     socketRef.current = socket;
@@ -181,7 +211,11 @@ export function GameShell() {
       const signature = await signMessageAsync({
         message: noncePayload.message,
       });
-      const verified = await verifySignature(address, noncePayload.nonce, signature);
+      const verified = await verifySignature(
+        address,
+        noncePayload.nonce,
+        signature,
+      );
       window.localStorage.setItem(authStorageKey, verified.token);
       setAuthToken(verified.token);
       setStatus("Signed in. Create or command your agents.");
@@ -202,7 +236,9 @@ export function GameShell() {
       const response = await createAgent(authToken, baseName);
       if (response.registrationRequired) {
         if (!walletClient || !publicClient || !deployedContractAddress) {
-          throw new Error("Wallet connection and contract deployment are required to register this agent onchain.");
+          throw new Error(
+            "Wallet connection and contract deployment are required to register this agent onchain.",
+          );
         }
         await ensureXLayer();
         const registrationTx = await walletClient.writeContract({
@@ -211,10 +247,17 @@ export function GameShell() {
           address: deployedContractAddress as Address,
           abi: arenaEconomyAbi,
           functionName: "registerAgent",
-          args: [agentIdToBytes32(response.agent.id), response.agent.walletAddress as Address],
+          args: [
+            agentIdToBytes32(response.agent.id),
+            response.agent.walletAddress as Address,
+          ],
         });
         await publicClient.waitForTransactionReceipt({ hash: registrationTx });
-        await registerAgentOnServer(authToken, response.agent.id, registrationTx);
+        await registerAgentOnServer(
+          authToken,
+          response.agent.id,
+          registrationTx,
+        );
       }
       setAgents((current) => [...current, response.agent]);
       setSelectedAgentId(response.agent.id);
@@ -222,7 +265,9 @@ export function GameShell() {
       setBaseName("Gunslinger");
       setStatus(`${response.agent.displayName} is ready for the frontier.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Agent creation failed.");
+      setStatus(
+        error instanceof Error ? error.message : "Agent creation failed.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -236,17 +281,29 @@ export function GameShell() {
     setBusyAction(`mode-${mode}`);
     try {
       const response = await updateAgentMode(authToken, selectedAgent.id, mode);
-      setAgents((current) => current.map((agent) => (agent.id === response.agent.id ? response.agent : agent)));
+      setAgents((current) =>
+        current.map((agent) =>
+          agent.id === response.agent.id ? response.agent : agent,
+        ),
+      );
       setStatus(`${response.agent.displayName} is now ${mode}.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to switch mode.");
+      setStatus(
+        error instanceof Error ? error.message : "Unable to switch mode.",
+      );
     } finally {
       setBusyAction(null);
     }
   }
 
   async function handleBuySkill(skill: SkillKey) {
-    if (!selectedAgent || !authToken || !walletClient || !publicClient || !deployedContractAddress) {
+    if (
+      !selectedAgent ||
+      !authToken ||
+      !walletClient ||
+      !publicClient ||
+      !deployedContractAddress
+    ) {
       return;
     }
 
@@ -263,12 +320,25 @@ export function GameShell() {
         value: calculateSkillPurchasePrice(selectedAgent.skills[skill]),
       });
       await publicClient.waitForTransactionReceipt({ hash });
-      const response = await registerSkillPurchase(authToken, selectedAgent.id, skill, hash);
-      setAgents((current) => current.map((agent) => (agent.id === response.agent.id ? response.agent : agent)));
+      const response = await registerSkillPurchase(
+        authToken,
+        selectedAgent.id,
+        skill,
+        hash,
+      );
+      setAgents((current) =>
+        current.map((agent) =>
+          agent.id === response.agent.id ? response.agent : agent,
+        ),
+      );
       await loadTransactions(selectedAgent.id);
-      setStatus(`${skillLabels[skill]} improved for ${selectedAgent.displayName}.`);
+      setStatus(
+        `${skillLabels[skill]} improved for ${selectedAgent.displayName}.`,
+      );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Skill purchase failed.");
+      setStatus(
+        error instanceof Error ? error.message : "Skill purchase failed.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -281,27 +351,54 @@ export function GameShell() {
 
     setBusyAction(paid ? "paid-queue" : "practice-queue");
     try {
-      let txHash: Hex | undefined;
       if (paid) {
         if (!walletClient || !publicClient || !deployedContractAddress) {
-          throw new Error("Deploy the ArenaEconomy contract before paid queueing.");
+          throw new Error(
+            "Deploy the ArenaEconomy contract before paid queueing.",
+          );
         }
+
+        const preparation = await queueForMatch(
+          authToken,
+          selectedAgent.id,
+          true,
+        );
+        if (preparation.status !== "payment_required" || !preparation.matchId) {
+          throw new Error("The server did not return a paid match ticket.");
+        }
+
         await ensureXLayer();
-        txHash = await walletClient.writeContract({
+        const txHash = await walletClient.writeContract({
           account: walletClient.account!,
           chain: xLayerTestnetChain,
           address: deployedContractAddress as Address,
           abi: arenaEconomyAbi,
           functionName: "enterMatch",
-          args: [agentIdToBytes32(selectedAgent.id)],
+          args: [
+            matchIdToBytes32(preparation.matchId),
+            agentIdToBytes32(selectedAgent.id),
+          ],
           value: matchEntryFeeWei,
         });
         await publicClient.waitForTransactionReceipt({ hash: txHash });
-      }
 
-      await queueForMatch(authToken, selectedAgent.id, paid, txHash);
-      setQueueState({ status: "queued" });
-      setStatus(paid ? "Paid queue confirmed onchain." : "Practice queue started.");
+        const queued = await queueForMatch(
+          authToken,
+          selectedAgent.id,
+          true,
+          preparation.matchId,
+          txHash,
+        );
+        setQueueState({
+          status: "queued",
+          matchId: queued.matchId ?? preparation.matchId,
+        });
+        setStatus("Paid queue confirmed onchain.");
+      } else {
+        await queueForMatch(authToken, selectedAgent.id, false);
+        setQueueState({ status: "queued" });
+        setStatus("Practice queue started.");
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Queueing failed.");
     } finally {
@@ -325,7 +422,11 @@ export function GameShell() {
         setStatus("Autonomy pass activated.");
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Autonomy pass request failed.");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Autonomy pass request failed.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -343,7 +444,8 @@ export function GameShell() {
     });
   }
 
-  const buyDisabled = !deployedContractAddress || !walletClient || busyAction !== null;
+  const buyDisabled =
+    !deployedContractAddress || !walletClient || busyAction !== null;
   const liveAgentStats = selectedAgent?.skills ?? null;
 
   return (
@@ -361,7 +463,9 @@ export function GameShell() {
                   Red Dead Redemption: Agentic Era
                 </h1>
                 <p className="max-w-2xl text-base text-stone-200/78 md:text-lg">
-                  Name your outlaw, forge a treasury-backed subwallet, buy skill upgrades on X Layer, then fight manual or fully autonomous duels in a live western arena.
+                  Name your outlaw, forge a treasury-backed subwallet, buy skill
+                  upgrades on X Layer, then fight manual or fully autonomous
+                  duels in a live western arena.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -376,7 +480,11 @@ export function GameShell() {
                     }}
                     className="inline-flex items-center gap-2 rounded-full bg-[#d5752d] px-5 py-3 font-medium text-black transition hover:bg-[#eb9150]"
                   >
-                    {isConnecting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+                    {isConnecting ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wallet className="h-4 w-4" />
+                    )}
                     Connect Wallet
                   </button>
                 ) : (
@@ -387,7 +495,11 @@ export function GameShell() {
                       disabled={busyAction === "sign-in"}
                       className="inline-flex items-center gap-2 rounded-full bg-[#d5752d] px-5 py-3 font-medium text-black transition hover:bg-[#eb9150] disabled:opacity-60"
                     >
-                      {busyAction === "sign-in" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />}
+                      {busyAction === "sign-in" ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <PlugZap className="h-4 w-4" />
+                      )}
                       {authToken ? "Refresh Session" : "Sign In"}
                     </button>
                     <button
@@ -407,16 +519,32 @@ export function GameShell() {
                 )}
               </div>
               <div className="grid gap-3 text-sm text-stone-200/72 md:grid-cols-3">
-                <StatCard icon={<Wallet className="h-4 w-4" />} label="Wallet" value={address ? truncateAddress(address) : "Disconnected"} />
-                <StatCard icon={<RadioTower className="h-4 w-4" />} label="Chain" value={chainId ? `#${chainId}` : "Not ready"} />
-                <StatCard icon={<ShieldPlus className="h-4 w-4" />} label="Status" value={status} />
+                <StatCard
+                  icon={<Wallet className="h-4 w-4" />}
+                  label="Wallet"
+                  value={address ? truncateAddress(address) : "Disconnected"}
+                />
+                <StatCard
+                  icon={<RadioTower className="h-4 w-4" />}
+                  label="Chain"
+                  value={chainId ? `#${chainId}` : "Not ready"}
+                />
+                <StatCard
+                  icon={<ShieldPlus className="h-4 w-4" />}
+                  label="Status"
+                  value={status}
+                />
               </div>
             </div>
             <div className="grid gap-4 rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">Operator Notes</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">Build Your Crew</h2>
+                  <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">
+                    Operator Notes
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">
+                    Build Your Crew
+                  </h2>
                 </div>
                 <Bot className="h-8 w-8 text-[#f0bf76]" />
               </div>
@@ -435,11 +563,20 @@ export function GameShell() {
                 disabled={!authToken || busyAction === "create-agent"}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200/20 bg-amber-100/10 px-4 py-3 text-sm font-medium text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-50"
               >
-                {busyAction === "create-agent" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Gem className="h-4 w-4" />}
+                {busyAction === "create-agent" ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Gem className="h-4 w-4" />
+                )}
                 Mint a New Agent Profile
               </button>
               <p className="text-sm text-stone-300/68">
-                Every agent is named as <span className="font-semibold text-[#f6dfb7]">BaseName-ULIDSuffix</span>, starts with five core stats, and gets a linked subwallet for settlement.
+                Every agent is named as{" "}
+                <span className="font-semibold text-[#f6dfb7]">
+                  BaseName-ULIDSuffix
+                </span>
+                , starts with five core stats, and gets a linked subwallet for
+                settlement.
               </p>
             </div>
           </div>
@@ -449,10 +586,16 @@ export function GameShell() {
           <section className="western-card rounded-[30px] border p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">Roster</p>
-                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">Your Agents</h2>
+                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+                  Roster
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+                  Your Agents
+                </h2>
               </div>
-              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-stone-200/70">{agents.length}/3</span>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-stone-200/70">
+                {agents.length}/3
+              </span>
             </div>
             <div className="scrollbar-thin flex max-h-[740px] flex-col gap-3 overflow-auto pr-1">
               {agents.map((agent) => {
@@ -466,35 +609,53 @@ export function GameShell() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-[#f6ead7]">{agent.displayName}</h3>
+                        <h3 className="text-lg font-semibold text-[#f6ead7]">
+                          {agent.displayName}
+                        </h3>
                         <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">
-                          {agent.mode} • {agent.isStarter ? "starter" : "secondary"}
+                          {agent.mode} •{" "}
+                          {agent.isStarter ? "starter" : "secondary"}
                         </p>
                       </div>
-                      <div className={`rounded-full px-3 py-1 text-xs ${agent.mode === "autonomous" ? "bg-[#df6c39]/20 text-[#ffd0ae]" : "bg-[#7ed2b4]/15 text-[#bdece0]"}`}>
+                      <div
+                        className={`rounded-full px-3 py-1 text-xs ${agent.mode === "autonomous" ? "bg-[#df6c39]/20 text-[#ffd0ae]" : "bg-[#7ed2b4]/15 text-[#bdece0]"}`}
+                      >
                         {agent.mode}
                       </div>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-stone-200/72">
                       {skillKeys.map((skill) => (
-                        <div key={skill} className="rounded-2xl border border-white/8 bg-black/12 px-3 py-2">
-                          <div className="text-stone-300/60">{skillLabels[skill]}</div>
-                          <div className="mt-1 text-base font-semibold text-[#f6ead7]">{agent.skills[skill]}</div>
+                        <div
+                          key={skill}
+                          className="rounded-2xl border border-white/8 bg-black/12 px-3 py-2"
+                        >
+                          <div className="text-stone-300/60">
+                            {skillLabels[skill]}
+                          </div>
+                          <div className="mt-1 text-base font-semibold text-[#f6ead7]">
+                            {agent.skills[skill]}
+                          </div>
                         </div>
                       ))}
                     </div>
                   </button>
                 );
               })}
-              {agents.length === 0 && <EmptyState label="No agents yet. Sign in and create your first outlaw." />}
+              {agents.length === 0 && (
+                <EmptyState label="No agents yet. Sign in and create your first outlaw." />
+              )}
             </div>
           </section>
 
           <section className="western-card rounded-[30px] border p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">Arena</p>
-                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">The Dust Circuit</h2>
+                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+                  Arena
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+                  The Dust Circuit
+                </h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -503,7 +664,11 @@ export function GameShell() {
                   disabled={!selectedAgent || busyAction !== null}
                   className="inline-flex items-center gap-2 rounded-full bg-[#d5752d] px-4 py-2 text-sm font-medium text-black transition hover:bg-[#eb9150] disabled:opacity-50"
                 >
-                  {busyAction === "paid-queue" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sword className="h-4 w-4" />}
+                  {busyAction === "paid-queue" ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sword className="h-4 w-4" />
+                  )}
                   Paid Queue
                 </button>
                 <button
@@ -528,20 +693,35 @@ export function GameShell() {
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm text-stone-200/72">
                   <Crosshair className="h-4 w-4 text-[#f0bf76]" />
-                  <span>Manual controls: WASD move, mouse to aim, click to fire, space to dodge.</span>
+                  <span>
+                    Manual controls: WASD move, mouse to aim, click to fire,
+                    space to dodge.
+                  </span>
                 </div>
                 <div className="space-y-2 text-sm text-stone-200/72">
                   <div>Queue: {queueState?.status ?? "idle"}</div>
-                  <div>Current match: {snapshot?.matchId ?? "No active showdown"}</div>
+                  <div>
+                    Current match: {snapshot?.matchId ?? "No active showdown"}
+                  </div>
                   <div>Winner: {snapshot?.winnerAgentId ?? "TBD"}</div>
                 </div>
               </div>
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">Event Feed</p>
+                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
+                  Event Feed
+                </p>
                 <div className="scrollbar-thin max-h-44 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
-                  {recentEvents.length === 0 && <EmptyState label="No events yet. Queue a match to start the duel." compact />}
+                  {recentEvents.length === 0 && (
+                    <EmptyState
+                      label="No events yet. Queue a match to start the duel."
+                      compact
+                    />
+                  )}
                   {recentEvents.map((event) => (
-                    <div key={event.id} className="rounded-2xl border border-white/7 bg-white/4 px-3 py-2">
+                    <div
+                      key={event.id}
+                      className="rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
+                    >
                       {event.message}
                     </div>
                   ))}
@@ -553,8 +733,12 @@ export function GameShell() {
           <section className="western-card rounded-[30px] border p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">Loadout</p>
-                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">Skill Shop</h2>
+                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+                  Loadout
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+                  Skill Shop
+                </h2>
               </div>
               <button
                 type="button"
@@ -571,8 +755,12 @@ export function GameShell() {
                 <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-[#f6ead7]">{selectedAgent.displayName}</h3>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">{selectedAgent.walletAddress}</p>
+                      <h3 className="text-lg font-semibold text-[#f6ead7]">
+                        {selectedAgent.displayName}
+                      </h3>
+                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">
+                        {selectedAgent.walletAddress}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -597,11 +785,18 @@ export function GameShell() {
 
                 <div className="space-y-3">
                   {skillKeys.map((skill) => (
-                    <div key={skill} className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                    <div
+                      key={skill}
+                      className="rounded-[24px] border border-white/8 bg-black/12 p-4"
+                    >
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <div className="text-sm font-semibold text-[#f6ead7]">{skillLabels[skill]}</div>
-                          <div className="mt-1 text-xs text-stone-200/60">Current: {selectedAgent.skills[skill]} / 100</div>
+                          <div className="text-sm font-semibold text-[#f6ead7]">
+                            {skillLabels[skill]}
+                          </div>
+                          <div className="mt-1 text-xs text-stone-200/60">
+                            Current: {selectedAgent.skills[skill]} / 100
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -609,7 +804,12 @@ export function GameShell() {
                           disabled={buyDisabled}
                           className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
                         >
-                          Buy +5 • {formatWeiToOkb(calculateSkillPurchasePrice(selectedAgent.skills[skill]))}
+                          Buy +5 •{" "}
+                          {formatWeiToOkb(
+                            calculateSkillPurchasePrice(
+                              selectedAgent.skills[skill],
+                            ),
+                          )}
                         </button>
                       </div>
                     </div>
@@ -617,9 +817,16 @@ export function GameShell() {
                 </div>
 
                 <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                  <p className="mb-3 text-sm font-semibold text-[#f6ead7]">Onchain History</p>
+                  <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
+                    Onchain History
+                  </p>
                   <div className="scrollbar-thin max-h-56 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
-                    {transactions.length === 0 && <EmptyState label="No confirmed X Layer receipts yet." compact />}
+                    {transactions.length === 0 && (
+                      <EmptyState
+                        label="No confirmed X Layer receipts yet."
+                        compact
+                      />
+                    )}
                     {transactions.map((receipt) => (
                       <a
                         key={receipt.txHash}
@@ -629,12 +836,18 @@ export function GameShell() {
                         className="block rounded-2xl border border-white/8 bg-white/4 px-3 py-3 transition hover:border-white/14"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-medium text-[#f6ead7]">{receipt.purpose.replaceAll("_", " ")}</span>
-                          <span className={`rounded-full px-2 py-1 text-[11px] uppercase ${receipt.status === "confirmed" ? "bg-emerald-200/12 text-emerald-200" : "bg-stone-200/10 text-stone-200/70"}`}>
+                          <span className="font-medium text-[#f6ead7]">
+                            {receipt.purpose.replaceAll("_", " ")}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[11px] uppercase ${receipt.status === "confirmed" ? "bg-emerald-200/12 text-emerald-200" : "bg-stone-200/10 text-stone-200/70"}`}
+                          >
                             {receipt.status}
                           </span>
                         </div>
-                        <div className="mt-2 text-xs text-stone-200/62">{truncateHash(receipt.txHash)}</div>
+                        <div className="mt-2 text-xs text-stone-200/62">
+                          {truncateHash(receipt.txHash)}
+                        </div>
                       </a>
                     ))}
                   </div>
@@ -655,8 +868,12 @@ export function GameShell() {
         <section className="western-card rounded-[30px] border p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">Observer</p>
-              <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">Live Frontier</h2>
+              <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+                Observer
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+                Live Frontier
+              </h2>
             </div>
             <button
               type="button"
@@ -670,14 +887,26 @@ export function GameShell() {
             </button>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {liveMatches.length === 0 && <EmptyState label="No public matches are live right now." />}
+            {liveMatches.length === 0 && (
+              <EmptyState label="No public matches are live right now." />
+            )}
             {liveMatches.map((match) => (
-              <div key={match.matchId} className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-stone-200/60">{match.status}</div>
-                <div className="mt-2 text-lg font-semibold text-[#f6ead7]">{match.matchId}</div>
+              <div
+                key={match.matchId}
+                className="rounded-[24px] border border-white/8 bg-black/10 p-4"
+              >
+                <div className="text-xs uppercase tracking-[0.18em] text-stone-200/60">
+                  {match.status}
+                </div>
+                <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                  {match.matchId}
+                </div>
                 <div className="mt-3 space-y-2 text-sm text-stone-200/68">
                   {match.players.map((player) => (
-                    <div key={player.agentId} className="flex items-center justify-between gap-3 rounded-2xl border border-white/7 bg-white/4 px-3 py-2">
+                    <div
+                      key={player.agentId}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
+                    >
                       <span>{player.displayName}</span>
                       <span>{player.health} HP</span>
                     </div>
@@ -692,7 +921,15 @@ export function GameShell() {
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="rounded-[22px] border border-white/8 bg-black/10 px-4 py-3">
       <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-stone-300/58">
@@ -704,9 +941,17 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function EmptyState({ label, compact = false }: { label: string; compact?: boolean }) {
+function EmptyState({
+  label,
+  compact = false,
+}: {
+  label: string;
+  compact?: boolean;
+}) {
   return (
-    <div className={`rounded-[24px] border border-dashed border-white/10 bg-white/4 text-center text-stone-300/66 ${compact ? "px-3 py-4 text-sm" : "px-5 py-8 text-sm"}`}>
+    <div
+      className={`rounded-[24px] border border-dashed border-white/10 bg-white/4 text-center text-stone-300/66 ${compact ? "px-3 py-4 text-sm" : "px-5 py-8 text-sm"}`}
+    >
       {label}
     </div>
   );
@@ -726,4 +971,8 @@ function formatWeiToOkb(value: bigint) {
 
 function agentIdToBytes32(agentId: string) {
   return keccak256(stringToHex(agentId));
+}
+
+function matchIdToBytes32(matchId: string) {
+  return keccak256(stringToHex(matchId));
 }

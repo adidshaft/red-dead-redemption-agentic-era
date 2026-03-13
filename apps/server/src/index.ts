@@ -19,11 +19,24 @@ import {
   x402AutonomyPassInputSchema,
 } from "@rdr/shared";
 
-import { buildNonceMessage, issueAccessToken, readAddressFromToken, verifyWalletSignature } from "./auth.js";
+import {
+  buildNonceMessage,
+  issueAccessToken,
+  readAddressFromToken,
+  verifyWalletSignature,
+} from "./auth.js";
 import { config } from "./config.js";
 import { Database } from "./db.js";
-import { AgentWalletFactory, OnchainOsClient, XLayerChainService } from "./onchain.js";
-import { ArenaCoordinator, createStarterSkills, generateAgentIdentity } from "./game.js";
+import {
+  AgentWalletFactory,
+  OnchainOsClient,
+  XLayerChainService,
+} from "./onchain.js";
+import {
+  ArenaCoordinator,
+  createStarterSkills,
+  generateAgentIdentity,
+} from "./game.js";
 
 const app = Fastify({ logger: true });
 const io = new Server(app.server, {
@@ -54,7 +67,10 @@ const coordinator = new ArenaCoordinator(db, chainService, {
 });
 
 io.use((socket, next) => {
-  const token = typeof socket.handshake.auth.token === "string" ? socket.handshake.auth.token : "";
+  const token =
+    typeof socket.handshake.auth.token === "string"
+      ? socket.handshake.auth.token
+      : "";
   const address = readAddressFromToken(token, config.SESSION_SECRET);
   if (!address) {
     next(new Error("Unauthorized"));
@@ -77,14 +93,21 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("match:command", async (payload: { matchId: string; agentId: string; command: unknown }) => {
-    const agent = await db.getAgentById(payload.agentId);
-    if (!agent || agent.ownerAddress !== address) {
-      return;
-    }
+  socket.on(
+    "match:command",
+    async (payload: { matchId: string; agentId: string; command: unknown }) => {
+      const agent = await db.getAgentById(payload.agentId);
+      if (!agent || agent.ownerAddress !== address) {
+        return;
+      }
 
-    coordinator.applyCommand(payload.matchId, payload.agentId, payload.command as never);
-  });
+      coordinator.applyCommand(
+        payload.matchId,
+        payload.agentId,
+        payload.command as never,
+      );
+    },
+  );
 
   socket.on("match:leave", (payload: { matchId: string }) => {
     socket.leave(`match:${payload.matchId}`);
@@ -107,7 +130,9 @@ function getBearerToken(authorizationHeader?: string) {
   return authorizationHeader.slice("Bearer ".length);
 }
 
-async function requireAddress(request: { headers: { authorization?: string } }) {
+async function requireAddress(request: {
+  headers: { authorization?: string };
+}) {
   const token = getBearerToken(request.headers.authorization);
   if (!token) {
     return null;
@@ -128,7 +153,9 @@ app.get("/health", async () => ({
 app.post("/auth/nonce", async (request, reply) => {
   const parsed = createNonceInputSchema.safeParse(request.body);
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
   const nonce = crypto.randomUUID();
@@ -142,7 +169,9 @@ app.post("/auth/nonce", async (request, reply) => {
 app.post("/auth/verify", async (request, reply) => {
   const parsed = verifySignatureInputSchema.safeParse(request.body);
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
   const user = await db.getUser(parsed.data.address);
@@ -183,7 +212,9 @@ app.post("/agents", async (request, reply) => {
 
   const parsed = createAgentInputSchema.safeParse(request.body);
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
   const count = await db.countAgentsByOwner(address);
@@ -236,12 +267,20 @@ app.post("/agents/:id/register", async (request, reply) => {
     agentId,
   });
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
-  const receipt = await chainService.verifyRegistrationTx(parsed.data.txHash, agent.id, agent.walletAddress);
+  const receipt = await chainService.verifyRegistrationTx(
+    parsed.data.txHash,
+    agent.id,
+    agent.walletAddress,
+  );
   if (!receipt) {
-    return reply.status(400).send({ error: "Registration transaction could not be verified" });
+    return reply
+      .status(400)
+      .send({ error: "Registration transaction could not be verified" });
   }
 
   await db.createOrUpdateTransaction(receipt);
@@ -264,7 +303,9 @@ app.post("/agents/:id/mode", async (request, reply) => {
 
   const parsed = setAgentModeInputSchema.safeParse(request.body);
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
   const updated = await db.updateAgentMode(agentId, parsed.data.mode);
@@ -307,12 +348,20 @@ app.post("/agents/:id/skills", async (request, reply) => {
     agentId,
   });
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
-  const receipt = await chainService.verifySkillPurchaseTx(parsed.data.txHash, agentId, parsed.data.skill);
+  const receipt = await chainService.verifySkillPurchaseTx(
+    parsed.data.txHash,
+    agentId,
+    parsed.data.skill,
+  );
   if (!receipt) {
-    return reply.status(400).send({ error: "Skill purchase transaction could not be verified" });
+    return reply
+      .status(400)
+      .send({ error: "Skill purchase transaction could not be verified" });
   }
 
   const updatedSkills = applySkillUpgrade(agent.skills, parsed.data.skill);
@@ -322,7 +371,9 @@ app.post("/agents/:id/skills", async (request, reply) => {
   return {
     agent: updatedAgent,
     receipt,
-    nextPriceWei: calculateSkillPurchasePrice(updatedSkills[parsed.data.skill]).toString(),
+    nextPriceWei: calculateSkillPurchasePrice(
+      updatedSkills[parsed.data.skill],
+    ).toString(),
   };
 });
 
@@ -334,7 +385,9 @@ app.post("/matches/queue", async (request, reply) => {
 
   const parsed = queueForMatchInputSchema.safeParse(request.body);
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
   const agent = await db.getAgentById(parsed.data.agentId);
@@ -342,20 +395,55 @@ app.post("/matches/queue", async (request, reply) => {
     return reply.status(404).send({ error: "Agent not found" });
   }
 
-  let entryReceipt = null;
-  const maybeEntryTxHash = (request.body as { txHash?: string }).txHash;
-  if (parsed.data.paid && maybeEntryTxHash) {
-    entryReceipt = await chainService.verifyMatchEntryTx(maybeEntryTxHash, agent.id);
-    if (!entryReceipt) {
-      return reply.status(400).send({ error: "Match entry transaction could not be verified" });
+  if (parsed.data.paid) {
+    if (!chainService.isOperatorReady()) {
+      return reply.status(503).send({
+        error: "Paid matches require a deployed contract and operator wallet.",
+      });
     }
+
+    if (!parsed.data.txHash) {
+      const prepared = coordinator.preparePaidMatch(address, agent);
+      return {
+        status: "payment_required",
+        matchId: prepared.matchId,
+      };
+    }
+
+    if (!parsed.data.matchId) {
+      return reply
+        .status(400)
+        .send({ error: "matchId is required to confirm a paid queue entry" });
+    }
+
+    const entryReceipt = await chainService.verifyMatchEntryTx(
+      parsed.data.txHash,
+      parsed.data.matchId,
+      agent.id,
+    );
+    if (!entryReceipt) {
+      return reply
+        .status(400)
+        .send({ error: "Match entry transaction could not be verified" });
+    }
+
     await db.createOrUpdateTransaction(entryReceipt);
+    const queued = await coordinator.confirmPaidEntry(
+      address,
+      agent,
+      parsed.data.matchId,
+      parsed.data.txHash,
+    );
+    return {
+      status: "queued",
+      matchId: queued.matchId,
+      entryReceipt,
+    };
   }
 
-  await coordinator.enqueue(address, agent, maybeEntryTxHash);
+  await coordinator.enqueuePractice(address, agent);
   return {
     status: "queued",
-    entryReceipt,
   };
 });
 
@@ -370,7 +458,9 @@ app.post("/matches/:id/settle-webhook", async (request, reply) => {
   });
 
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
   return {
@@ -388,7 +478,9 @@ app.post("/payments/x402/autonomy-pass", async (request, reply) => {
 
   const parsed = x402AutonomyPassInputSchema.safeParse(request.body);
   if (!parsed.success) {
-    return reply.status(400).send({ error: "Invalid request", details: parsed.error.flatten() });
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
   }
 
   const agent = await db.getAgentById(parsed.data.agentId);
@@ -409,15 +501,27 @@ app.post("/payments/x402/autonomy-pass", async (request, reply) => {
     });
   }
 
-  const verification = await onchainOsClient.verifyPayment(String(config.XLAYER_TESTNET_CHAIN_ID), parsed.data.paymentPayload);
+  const verification = await onchainOsClient.verifyPayment(
+    String(config.XLAYER_TESTNET_CHAIN_ID),
+    parsed.data.paymentPayload,
+  );
   const verified = verification?.code === "0" || verification?.success === true;
   if (!verified) {
-    return reply.status(400).send({ error: "Payment verification failed", details: verification });
+    return reply
+      .status(400)
+      .send({ error: "Payment verification failed", details: verification });
   }
 
-  const settlement = await onchainOsClient.settlePayment(String(config.XLAYER_TESTNET_CHAIN_ID), parsed.data.paymentPayload);
+  const settlement = await onchainOsClient.settlePayment(
+    String(config.XLAYER_TESTNET_CHAIN_ID),
+    parsed.data.paymentPayload,
+  );
   const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  await db.createAutonomyPass(agent.id, validUntil, settlement?.data?.[0]?.txHash ?? null);
+  await db.createAutonomyPass(
+    agent.id,
+    validUntil,
+    settlement?.data?.[0]?.txHash ?? null,
+  );
 
   return {
     status: "active",

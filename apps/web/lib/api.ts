@@ -1,4 +1,9 @@
-import type { AgentProfile, MatchSnapshot, OnchainReceipt, SkillKey } from "@rdr/shared";
+import type {
+  AgentProfile,
+  MatchSnapshot,
+  OnchainReceipt,
+  SkillKey,
+} from "@rdr/shared";
 
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
 
@@ -7,7 +12,16 @@ export type QueueUpdate = {
   matchId?: string;
 };
 
-export async function apiRequest<T>(path: string, options?: RequestInit & { token?: string }) {
+export type QueueForMatchResponse = {
+  status: "payment_required" | "queued";
+  matchId?: string;
+  entryReceipt?: OnchainReceipt | null;
+};
+
+export async function apiRequest<T>(
+  path: string,
+  options?: RequestInit & { token?: string },
+) {
   const response = await fetch(`${serverUrl}${path}`, {
     ...options,
     headers: {
@@ -32,7 +46,11 @@ export async function fetchNonce(address: string) {
   });
 }
 
-export async function verifySignature(address: string, nonce: string, signature: string) {
+export async function verifySignature(
+  address: string,
+  nonce: string,
+  signature: string,
+) {
   return apiRequest<{ token: string; address: string }>("/auth/verify", {
     method: "POST",
     body: JSON.stringify({ address, nonce, signature }),
@@ -40,28 +58,45 @@ export async function verifySignature(address: string, nonce: string, signature:
 }
 
 export async function fetchAgents(token: string) {
-  return apiRequest<{ agents: AgentProfile[]; contractAddress: string | null }>("/agents", {
-    token,
-  });
+  return apiRequest<{ agents: AgentProfile[]; contractAddress: string | null }>(
+    "/agents",
+    {
+      token,
+    },
+  );
 }
 
 export async function createAgent(token: string, baseName: string) {
-  return apiRequest<{ agent: AgentProfile; registrationRequired: boolean }>("/agents", {
-    method: "POST",
-    token,
-    body: JSON.stringify({ baseName }),
-  });
+  return apiRequest<{ agent: AgentProfile; registrationRequired: boolean }>(
+    "/agents",
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify({ baseName }),
+    },
+  );
 }
 
-export async function registerAgentOnServer(token: string, agentId: string, txHash: string) {
-  return apiRequest<{ receipt: OnchainReceipt }>(`/agents/${agentId}/register`, {
-    method: "POST",
-    token,
-    body: JSON.stringify({ txHash }),
-  });
+export async function registerAgentOnServer(
+  token: string,
+  agentId: string,
+  txHash: string,
+) {
+  return apiRequest<{ receipt: OnchainReceipt }>(
+    `/agents/${agentId}/register`,
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify({ txHash }),
+    },
+  );
 }
 
-export async function updateAgentMode(token: string, agentId: string, mode: "manual" | "autonomous") {
+export async function updateAgentMode(
+  token: string,
+  agentId: string,
+  mode: "manual" | "autonomous",
+) {
   return apiRequest<{ agent: AgentProfile }>(`/agents/${agentId}/mode`, {
     method: "POST",
     token,
@@ -70,24 +105,41 @@ export async function updateAgentMode(token: string, agentId: string, mode: "man
 }
 
 export async function fetchTransactions(token: string, agentId: string) {
-  return apiRequest<{ receipts: OnchainReceipt[] }>(`/agents/${agentId}/transactions`, {
-    token,
-  });
+  return apiRequest<{ receipts: OnchainReceipt[] }>(
+    `/agents/${agentId}/transactions`,
+    {
+      token,
+    },
+  );
 }
 
-export async function registerSkillPurchase(token: string, agentId: string, skill: SkillKey, txHash: string) {
-  return apiRequest<{ agent: AgentProfile; receipt: OnchainReceipt }>(`/agents/${agentId}/skills`, {
-    method: "POST",
-    token,
-    body: JSON.stringify({ skill, txHash }),
-  });
+export async function registerSkillPurchase(
+  token: string,
+  agentId: string,
+  skill: SkillKey,
+  txHash: string,
+) {
+  return apiRequest<{ agent: AgentProfile; receipt: OnchainReceipt }>(
+    `/agents/${agentId}/skills`,
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify({ skill, txHash }),
+    },
+  );
 }
 
-export async function queueForMatch(token: string, agentId: string, paid: boolean, txHash?: string) {
-  return apiRequest<{ status: string; entryReceipt?: OnchainReceipt }>(`/matches/queue`, {
+export async function queueForMatch(
+  token: string,
+  agentId: string,
+  paid: boolean,
+  matchId?: string,
+  txHash?: string,
+) {
+  return apiRequest<QueueForMatchResponse>(`/matches/queue`, {
     method: "POST",
     token,
-    body: JSON.stringify({ agentId, paid, txHash }),
+    body: JSON.stringify({ agentId, paid, matchId, txHash }),
   });
 }
 

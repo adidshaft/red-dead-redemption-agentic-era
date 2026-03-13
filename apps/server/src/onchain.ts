@@ -15,6 +15,7 @@ import {
 
 import {
   arenaEconomyAbi,
+  matchEntryFeeWei,
   mapSkillToId,
   toExplorerTxUrl,
   xLayerTestnet,
@@ -35,7 +36,12 @@ export function matchIdToBytes32(matchId: string) {
 
 export class OnchainOsClient {
   async createTrackedWalletAccount(address: Address) {
-    if (!config.ONCHAIN_OS_API_KEY || !config.ONCHAIN_OS_API_SECRET || !config.ONCHAIN_OS_API_PASSPHRASE || !config.ONCHAIN_OS_PROJECT_ID) {
+    if (
+      !config.ONCHAIN_OS_API_KEY ||
+      !config.ONCHAIN_OS_API_SECRET ||
+      !config.ONCHAIN_OS_API_PASSPHRASE ||
+      !config.ONCHAIN_OS_PROJECT_ID
+    ) {
       return null;
     }
 
@@ -58,18 +64,21 @@ export class OnchainOsClient {
       body,
     });
 
-    const response = await fetch(`${config.ONCHAIN_OS_WALLET_BASE_URL}${requestPath}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "OK-ACCESS-KEY": config.ONCHAIN_OS_API_KEY,
-        "OK-ACCESS-PASSPHRASE": config.ONCHAIN_OS_API_PASSPHRASE,
-        "OK-ACCESS-PROJECT": config.ONCHAIN_OS_PROJECT_ID,
-        "OK-ACCESS-SIGN": signature,
-        "OK-ACCESS-TIMESTAMP": timestamp,
+    const response = await fetch(
+      `${config.ONCHAIN_OS_WALLET_BASE_URL}${requestPath}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "OK-ACCESS-KEY": config.ONCHAIN_OS_API_KEY,
+          "OK-ACCESS-PASSPHRASE": config.ONCHAIN_OS_API_PASSPHRASE,
+          "OK-ACCESS-PROJECT": config.ONCHAIN_OS_PROJECT_ID,
+          "OK-ACCESS-SIGN": signature,
+          "OK-ACCESS-TIMESTAMP": timestamp,
+        },
+        body,
       },
-      body,
-    });
+    );
 
     if (!response.ok) {
       return null;
@@ -82,41 +91,55 @@ export class OnchainOsClient {
   }
 
   async getSupportedPayments() {
-    const response = await fetch(`${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/supported`);
+    const response = await fetch(
+      `${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/supported`,
+    );
     if (!response.ok) {
       return null;
     }
     return response.json();
   }
 
-  async verifyPayment(chainIndex: string, paymentPayload: Record<string, unknown>) {
-    const response = await fetch(`${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/verify`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+  async verifyPayment(
+    chainIndex: string,
+    paymentPayload: Record<string, unknown>,
+  ) {
+    const response = await fetch(
+      `${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/verify`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          x402Version: "1",
+          chainIndex,
+          paymentPayload,
+        }),
       },
-      body: JSON.stringify({
-        x402Version: "1",
-        chainIndex,
-        paymentPayload,
-      }),
-    });
+    );
 
     return response.json();
   }
 
-  async settlePayment(chainIndex: string, paymentPayload: Record<string, unknown>) {
-    const response = await fetch(`${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/settle`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+  async settlePayment(
+    chainIndex: string,
+    paymentPayload: Record<string, unknown>,
+  ) {
+    const response = await fetch(
+      `${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/settle`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          x402Version: "1",
+          chainIndex,
+          paymentPayload,
+        }),
       },
-      body: JSON.stringify({
-        x402Version: "1",
-        chainIndex,
-        paymentPayload,
-      }),
-    });
+    );
 
     return response.json();
   }
@@ -128,12 +151,16 @@ export class AgentWalletFactory {
   async create() {
     const privateKey = generatePrivateKey();
     const account = privateKeyToAccount(privateKey);
-    const walletAccountId = await this.onchainOsClient.createTrackedWalletAccount(account.address);
+    const walletAccountId =
+      await this.onchainOsClient.createTrackedWalletAccount(account.address);
 
     return {
       address: account.address,
       walletAccountId,
-      encryptedPrivateKey: encryptSecret(privateKey, config.WALLET_ENCRYPTION_SECRET),
+      encryptedPrivateKey: encryptSecret(
+        privateKey,
+        config.WALLET_ENCRYPTION_SECRET,
+      ),
     };
   }
 }
@@ -170,16 +197,39 @@ export class XLayerChainService {
       })
     : null;
 
-  async settleMatch(matchId: string, winnerAgentId: string, combatDigest: Hex): Promise<OnchainReceipt | null> {
-    if (!this.walletClient || !config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS) {
+  isOperatorReady() {
+    return Boolean(
+      this.walletClient && config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS,
+    );
+  }
+
+  private getContractAddress() {
+    if (!config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS) {
+      return null;
+    }
+
+    return getAddress(config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS);
+  }
+
+  async settleMatch(
+    matchId: string,
+    winnerAgentId: string,
+    combatDigest: Hex,
+  ): Promise<OnchainReceipt | null> {
+    const contractAddress = this.getContractAddress();
+    if (!this.walletClient || !contractAddress) {
       return null;
     }
 
     const hash = await this.walletClient.writeContract({
-      address: getAddress(config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS),
+      address: contractAddress,
       abi: arenaEconomyAbi,
       functionName: "settleMatch",
-      args: [matchIdToBytes32(matchId), agentIdToBytes32(winnerAgentId), combatDigest],
+      args: [
+        matchIdToBytes32(matchId),
+        agentIdToBytes32(winnerAgentId),
+        combatDigest,
+      ],
     });
 
     await this.publicClient.waitForTransactionReceipt({ hash });
@@ -191,18 +241,116 @@ export class XLayerChainService {
       purpose: "match_settlement",
       matchId,
       agentId: winnerAgentId,
-      explorerUrl: toExplorerTxUrl(hash, config.NEXT_PUBLIC_XLAYER_EXPLORER_URL),
+      explorerUrl: toExplorerTxUrl(
+        hash,
+        config.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+      ),
       createdAt: new Date().toISOString(),
     };
   }
 
-  async verifySkillPurchaseTx(txHash: string, agentId: string, skill: SkillKey) {
-    if (!config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS) {
+  async lockMatch(matchId: string) {
+    const contractAddress = this.getContractAddress();
+    if (!this.walletClient || !contractAddress) {
       return null;
     }
 
-    const receipt = await this.publicClient.getTransactionReceipt({ hash: txHash as Hex });
-    const contractAddress = getAddress(config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS);
+    const hash = await this.walletClient.writeContract({
+      address: contractAddress,
+      abi: arenaEconomyAbi,
+      functionName: "lockMatch",
+      args: [matchIdToBytes32(matchId)],
+    });
+
+    await this.publicClient.waitForTransactionReceipt({ hash });
+    return hash;
+  }
+
+  async ensureManagedAgentInMatch(
+    matchId: string,
+    agentId: string,
+    treasuryAddress?: Address,
+  ) {
+    const contractAddress = this.getContractAddress();
+    if (!this.walletClient || !contractAddress) {
+      return null;
+    }
+
+    const agentKey = agentIdToBytes32(agentId);
+    const matchKey = matchIdToBytes32(matchId);
+    const treasury = getAddress(
+      treasuryAddress ??
+        config.APP_TREASURY_ADDRESS ??
+        this.walletClient.account.address,
+    );
+    const existingAgent = await this.publicClient.readContract({
+      address: contractAddress,
+      abi: arenaEconomyAbi,
+      functionName: "agents",
+      args: [agentKey],
+    });
+
+    if (!existingAgent[2]) {
+      const registrationHash = await this.walletClient.writeContract({
+        address: contractAddress,
+        abi: arenaEconomyAbi,
+        functionName: "registerAgent",
+        args: [agentKey, treasury],
+      });
+      await this.publicClient.waitForTransactionReceipt({
+        hash: registrationHash,
+      });
+    }
+
+    const alreadyEntered = await this.publicClient.readContract({
+      address: contractAddress,
+      abi: arenaEconomyAbi,
+      functionName: "hasEnteredMatch",
+      args: [matchKey, agentKey],
+    });
+
+    if (alreadyEntered) {
+      return null;
+    }
+
+    const hash = await this.walletClient.writeContract({
+      address: contractAddress,
+      abi: arenaEconomyAbi,
+      functionName: "enterMatch",
+      args: [matchKey, agentKey],
+      value: matchEntryFeeWei,
+    });
+
+    await this.publicClient.waitForTransactionReceipt({ hash });
+
+    return {
+      txHash: hash,
+      chainId: config.XLAYER_TESTNET_CHAIN_ID,
+      status: "confirmed",
+      purpose: "match_entry",
+      agentId,
+      matchId,
+      explorerUrl: toExplorerTxUrl(
+        hash,
+        config.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+      ),
+      createdAt: new Date().toISOString(),
+    } satisfies OnchainReceipt;
+  }
+
+  async verifySkillPurchaseTx(
+    txHash: string,
+    agentId: string,
+    skill: SkillKey,
+  ) {
+    const contractAddress = this.getContractAddress();
+    if (!contractAddress) {
+      return null;
+    }
+
+    const receipt = await this.publicClient.getTransactionReceipt({
+      hash: txHash as Hex,
+    });
 
     const matchesEvent = receipt.logs.some((log) => {
       if (!log.address || !isAddressEqual(log.address, contractAddress)) {
@@ -236,18 +384,27 @@ export class XLayerChainService {
       status: receipt.status === "success" ? "confirmed" : "failed",
       purpose: "skill_purchase",
       agentId,
-      explorerUrl: toExplorerTxUrl(txHash, config.NEXT_PUBLIC_XLAYER_EXPLORER_URL),
+      explorerUrl: toExplorerTxUrl(
+        txHash,
+        config.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+      ),
       createdAt: new Date().toISOString(),
     } satisfies OnchainReceipt;
   }
 
-  async verifyRegistrationTx(txHash: string, agentId: string, treasury: string) {
-    if (!config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS) {
+  async verifyRegistrationTx(
+    txHash: string,
+    agentId: string,
+    treasury: string,
+  ) {
+    const contractAddress = this.getContractAddress();
+    if (!contractAddress) {
       return null;
     }
 
-    const receipt = await this.publicClient.getTransactionReceipt({ hash: txHash as Hex });
-    const contractAddress = getAddress(config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS);
+    const receipt = await this.publicClient.getTransactionReceipt({
+      hash: txHash as Hex,
+    });
 
     const matchesEvent = receipt.logs.some((log) => {
       if (!log.address || !isAddressEqual(log.address, contractAddress)) {
@@ -281,18 +438,23 @@ export class XLayerChainService {
       status: receipt.status === "success" ? "confirmed" : "failed",
       purpose: "agent_registration",
       agentId,
-      explorerUrl: toExplorerTxUrl(txHash, config.NEXT_PUBLIC_XLAYER_EXPLORER_URL),
+      explorerUrl: toExplorerTxUrl(
+        txHash,
+        config.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+      ),
       createdAt: new Date().toISOString(),
     } satisfies OnchainReceipt;
   }
 
-  async verifyMatchEntryTx(txHash: string, agentId: string) {
-    if (!config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS) {
+  async verifyMatchEntryTx(txHash: string, matchId: string, agentId: string) {
+    const contractAddress = this.getContractAddress();
+    if (!contractAddress) {
       return null;
     }
 
-    const receipt = await this.publicClient.getTransactionReceipt({ hash: txHash as Hex });
-    const contractAddress = getAddress(config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS);
+    const receipt = await this.publicClient.getTransactionReceipt({
+      hash: txHash as Hex,
+    });
 
     const matchesEvent = receipt.logs.some((log) => {
       if (!log.address || !isAddressEqual(log.address, contractAddress)) {
@@ -306,7 +468,11 @@ export class XLayerChainService {
           topics: log.topics,
         });
 
-        return decoded.eventName === "MatchEntered" && decoded.args.agentId === agentIdToBytes32(agentId);
+        return (
+          decoded.eventName === "MatchEntered" &&
+          decoded.args.matchId === matchIdToBytes32(matchId) &&
+          decoded.args.agentId === agentIdToBytes32(agentId)
+        );
       } catch {
         return false;
       }
@@ -322,18 +488,23 @@ export class XLayerChainService {
       status: receipt.status === "success" ? "confirmed" : "failed",
       purpose: "match_entry",
       agentId,
-      explorerUrl: toExplorerTxUrl(txHash, config.NEXT_PUBLIC_XLAYER_EXPLORER_URL),
+      matchId,
+      explorerUrl: toExplorerTxUrl(
+        txHash,
+        config.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+      ),
       createdAt: new Date().toISOString(),
     } satisfies OnchainReceipt;
   }
 
   encodePurchaseSkill(agentId: string, skill: SkillKey) {
-    if (!config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS) {
+    const contractAddress = this.getContractAddress();
+    if (!contractAddress) {
       return null;
     }
 
     return {
-      to: getAddress(config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS),
+      to: contractAddress,
       data: encodeFunctionData({
         abi: arenaEconomyAbi,
         functionName: "purchaseSkill",
@@ -342,17 +513,18 @@ export class XLayerChainService {
     };
   }
 
-  encodeMatchEntry(agentId: string) {
-    if (!config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS) {
+  encodeMatchEntry(matchId: string, agentId: string) {
+    const contractAddress = this.getContractAddress();
+    if (!contractAddress) {
       return null;
     }
 
     return {
-      to: getAddress(config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS),
+      to: contractAddress,
       data: encodeFunctionData({
         abi: arenaEconomyAbi,
         functionName: "enterMatch",
-        args: [agentIdToBytes32(agentId)],
+        args: [matchIdToBytes32(matchId), agentIdToBytes32(agentId)],
       }),
     };
   }

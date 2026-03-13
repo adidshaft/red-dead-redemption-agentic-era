@@ -9,6 +9,7 @@ export const gameConfig = {
   },
   matchDurationMs: 3 * 60 * 1000,
   humanQueueFillMs: 30 * 1000,
+  paidQueueReservationMs: 90 * 1000,
   ticksPerSecond: 10,
   autonomyDecisionMs: 2 * 1000,
   spawnHealth: 100,
@@ -187,6 +188,7 @@ export const setAgentModeInputSchema = z.object({
 export const queueForMatchInputSchema = z.object({
   agentId: z.string().min(1),
   paid: z.boolean().default(true),
+  matchId: z.string().min(1).optional(),
   txHash: z.string().min(1).optional(),
 });
 
@@ -379,6 +381,25 @@ export const arenaEconomyAbi = [
         type: "bytes32",
       },
       {
+        indexed: false,
+        internalType: "uint256",
+        name: "pot",
+        type: "uint256",
+      },
+    ],
+    name: "MatchSealed",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "bytes32",
+        name: "matchId",
+        type: "bytes32",
+      },
+      {
         indexed: true,
         internalType: "bytes32",
         name: "winnerAgentId",
@@ -446,6 +467,40 @@ export const arenaEconomyAbi = [
     inputs: [
       {
         internalType: "bytes32",
+        name: "",
+        type: "bytes32",
+      },
+    ],
+    name: "agents",
+    outputs: [
+      {
+        internalType: "address",
+        name: "owner",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "treasury",
+        type: "address",
+      },
+      {
+        internalType: "bool",
+        name: "exists",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "matchId",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes32",
         name: "agentId",
         type: "bytes32",
       },
@@ -453,6 +508,81 @@ export const arenaEconomyAbi = [
     name: "enterMatch",
     outputs: [],
     stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "matchId",
+        type: "bytes32",
+      },
+    ],
+    name: "lockMatch",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "matchId",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes32",
+        name: "agentId",
+        type: "bytes32",
+      },
+    ],
+    name: "hasEnteredMatch",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "",
+        type: "bytes32",
+      },
+    ],
+    name: "matchPots",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "",
+        type: "bytes32",
+      },
+    ],
+    name: "lockedMatches",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
     type: "function",
   },
   {
@@ -508,7 +638,10 @@ export function sanitizeBaseName(baseName: string) {
 }
 
 export function calculateSkillPurchasePrice(currentValue: number) {
-  const nextValue = Math.min(maxSkillValue, currentValue + skillPurchaseIncrement);
+  const nextValue = Math.min(
+    maxSkillValue,
+    currentValue + skillPurchaseIncrement,
+  );
 
   if (nextValue <= 40) {
     return skillPriceBands[0].priceInWei;
@@ -528,7 +661,10 @@ export function applySkillUpgrade(skills: SkillSet, skill: SkillKey): SkillSet {
   };
 }
 
-export function toExplorerTxUrl(txHash: string, explorerBaseUrl: string = xLayerTestnet.explorerUrl) {
+export function toExplorerTxUrl(
+  txHash: string,
+  explorerBaseUrl: string = xLayerTestnet.explorerUrl,
+) {
   return `${explorerBaseUrl}/tx/${txHash}`;
 }
 
