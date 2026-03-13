@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  --background: #120d0a;
+  --foreground: #f6ead7;
+  --panel: rgba(28, 18, 13, 0.84);
+  --panel-border: rgba(228, 189, 126, 0.24);
+  --accent: #d5752d;
+  --accent-soft: #f0bf76;
+  --field: rgba(255, 244, 227, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(214, 125, 45, 0.22), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(102, 56, 29, 0.55), transparent 32%),
+    linear-gradient(160deg, #1f130d 0%, #120d0a 35%, #090605 100%);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-body), sans-serif;
+}
+
+.western-card {
+  background: linear-gradient(180deg, rgba(32, 20, 14, 0.92), rgba(18, 12, 9, 0.9));
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+.dust-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(240, 191, 118, 0.35);
+  border-radius: 999px;
+}
