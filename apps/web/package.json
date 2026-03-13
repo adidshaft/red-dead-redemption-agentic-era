@@ -1,0 +1,33 @@
+{
+  "name": "@rdr/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "echo \"No web tests yet\""
+  },
+  "dependencies": {
+    "@rdr/shared": "workspace:*",
+    "@tanstack/react-query": "^5.89.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.544.0",
+    "next": "^15.5.3",
+    "phaser": "^3.90.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "socket.io-client": "^4.8.1",
+    "viem": "^2.37.4",
+    "wagmi": "^2.17.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/node": "^24.3.1",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2"
+  }
+}

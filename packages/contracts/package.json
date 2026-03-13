@@ -1,0 +1,23 @@
+{
+  "name": "@rdr/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "hardhat compile",
+    "lint": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run scripts/deploy.ts --network xlayerTestnet"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.20",
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@types/node": "^24.3.1",
+    "chai": "^4.5.0",
+    "dotenv": "^17.2.2",
+    "ethers": "^6.15.0",
+    "hardhat": "^2.26.3",
+    "typescript": "^5.9.2"
+  }
+}

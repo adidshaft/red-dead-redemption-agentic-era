@@ -1,0 +1,15 @@
+node_modules
+.next
+dist
+coverage
+.turbo
+.DS_Store
+.env
+.env.local
+.pnpm-store
+apps/server/.data
+apps/server/tmp
+packages/contracts/cache
+packages/contracts/artifacts
+packages/contracts/typechain-types
+packages/contracts/coverage
