@@ -1,0 +1,100 @@
+import { describe, expect, it } from "vitest";
+
+import type { AgentProfile, MatchSnapshot } from "@rdr/shared";
+
+import { chooseFallbackCommand } from "./autonomy.js";
+
+function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Partial<MatchSnapshot>) {
+  const agent: AgentProfile = {
+    id: "agent-1",
+    ownerAddress: "0x1",
+    baseName: "Marshal",
+    displayName: "Marshal-ABC123",
+    uniqueSuffix: "ABC123",
+    mode: "autonomous",
+    isStarter: true,
+    walletAddress: "0x0000000000000000000000000000000000000001",
+    skills: {
+      quickdraw: 30,
+      grit: 25,
+      trailcraft: 25,
+      tactics: 30,
+      fortune: 20,
+    },
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  };
+
+  const snapshot: MatchSnapshot = {
+    matchId: "m1",
+    status: "in_progress",
+    startedAt: new Date().toISOString(),
+    endsAt: new Date(Date.now() + 60_000).toISOString(),
+    seed: 42,
+    winnerAgentId: null,
+    players: [
+      {
+        agentId: agent.id,
+        displayName: agent.displayName,
+        health: 100,
+        ammo: 6,
+        mode: agent.mode,
+        x: 200,
+        y: 200,
+        alive: true,
+      },
+      {
+        agentId: "enemy-1",
+        displayName: "Enemy-1",
+        health: 80,
+        ammo: 6,
+        mode: "manual",
+        x: 320,
+        y: 200,
+        alive: true,
+      },
+    ],
+    events: [],
+    ...snapshotOverrides,
+  };
+
+  return { agent, snapshot };
+}
+
+describe("chooseFallbackCommand", () => {
+  it("fires when an enemy is in range and ammo is available", () => {
+    const command = chooseFallbackCommand(createContext());
+    expect(command.type).toBe("fire");
+  });
+
+  it("dodges when health is low and the enemy is close", () => {
+    const command = chooseFallbackCommand(
+      createContext(undefined, {
+        players: [
+          {
+            agentId: "agent-1",
+            displayName: "Marshal-ABC123",
+            health: 20,
+            ammo: 6,
+            mode: "autonomous",
+            x: 200,
+            y: 200,
+            alive: true,
+          },
+          {
+            agentId: "enemy-1",
+            displayName: "Enemy-1",
+            health: 80,
+            ammo: 6,
+            mode: "manual",
+            x: 260,
+            y: 220,
+            alive: true,
+          },
+        ],
+      }),
+    );
+
+    expect(command.type).toBe("dodge");
+  });
+});
