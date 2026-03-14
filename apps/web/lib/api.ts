@@ -35,6 +35,9 @@ export async function apiRequest<T>(
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Session expired. Sign in again.");
+    }
     throw new Error(payload.error ?? "Request failed");
   }
   return payload as T;

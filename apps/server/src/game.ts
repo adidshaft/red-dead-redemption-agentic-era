@@ -270,7 +270,7 @@ export class ArenaCoordinator {
 
   applyCommand(matchId: string, agentId: string, command: ArenaCommand) {
     const runtime = this.matches.get(matchId);
-    if (!runtime) {
+    if (!runtime || runtime.snapshot.status !== "in_progress") {
       return;
     }
 
@@ -518,9 +518,11 @@ export class ArenaCoordinator {
     entries: QueueEntry[],
     paid: boolean,
   ): MatchRuntime {
-    const startedAt = new Date().toISOString();
+    const startedAt = new Date(
+      Date.now() + gameConfig.matchCountdownMs,
+    ).toISOString();
     const endsAt = new Date(
-      Date.now() + gameConfig.matchDurationMs,
+      Date.now() + gameConfig.matchCountdownMs + gameConfig.matchDurationMs,
     ).toISOString();
     const seed = Math.floor(Math.random() * 1_000_000);
     const players = new Map<string, RuntimePlayer>();
@@ -567,7 +569,7 @@ export class ArenaCoordinator {
 
     const snapshot: MatchSnapshot = {
       matchId,
-      status: "in_progress",
+      status: "queued",
       startedAt,
       endsAt,
       seed,
@@ -590,12 +592,35 @@ export class ArenaCoordinator {
 
   private async tickMatch(matchId: string) {
     const runtime = this.matches.get(matchId);
-    if (!runtime || runtime.snapshot.status !== "in_progress") {
+    if (
+      !runtime ||
+      (runtime.snapshot.status !== "in_progress" &&
+        runtime.snapshot.status !== "queued")
+    ) {
       return;
     }
 
     const now = Date.now();
     const events: MatchEvent[] = [];
+
+    if (
+      runtime.snapshot.status === "queued" &&
+      runtime.snapshot.startedAt &&
+      new Date(runtime.snapshot.startedAt).getTime() > now
+    ) {
+      this.broadcasts.emitSnapshot(runtime.snapshot.matchId, runtime.snapshot);
+      return;
+    }
+
+    if (runtime.snapshot.status === "queued") {
+      runtime.snapshot.status = "in_progress";
+      events.push(
+        createEvent({
+          type: "announcement",
+          message: "Showdown starts now.",
+        }),
+      );
+    }
 
     for (const player of runtime.players.values()) {
       if (!player.alive) {

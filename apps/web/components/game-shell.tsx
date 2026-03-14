@@ -91,8 +91,8 @@ export function GameShell() {
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
   const arenaFrameRef = useRef<HTMLDivElement | null>(null);
-  const countdownTimeoutsRef = useRef<number[]>([]);
   const startedMatchIdRef = useRef<string | null>(null);
+  const lastCountdownValueRef = useRef<number | null>(null);
 
   const selectedAgent = useMemo(
     () =>
@@ -185,9 +185,11 @@ export function GameShell() {
         socket.emit("match:join", { matchId: payload.matchId });
         setStatus(
           payload.status === "ready"
-            ? "Match found. Ride in."
-            : "Searching for rivals.",
+            ? "Match found. Showdown is about to begin."
+            : "Waiting for other agents...",
         );
+      } else if (payload.status === "queued") {
+        setStatus("Waiting for other agents...");
       }
     });
     socket.on("match:snapshot", (nextSnapshot: MatchSnapshot) => {
@@ -237,46 +239,68 @@ export function GameShell() {
   }, []);
 
   useEffect(() => {
+    if (!snapshot) {
+      setMatchCountdown(null);
+      return;
+    }
+
+    if (snapshot.status === "queued" && snapshot.startedAt) {
+      const updateCountdown = () => {
+        const remainingMs = new Date(snapshot.startedAt!).getTime() - Date.now();
+        if (remainingMs <= 0) {
+          setMatchCountdown(0);
+          return;
+        }
+
+        setMatchCountdown(Math.ceil(remainingMs / 1000));
+      };
+
+      updateCountdown();
+      const intervalId = window.setInterval(updateCountdown, 100);
+      return () => {
+        window.clearInterval(intervalId);
+      };
+    }
+
     if (
-      !snapshot ||
-      snapshot.status !== "in_progress" ||
-      startedMatchIdRef.current === snapshot.matchId
+      snapshot.status === "in_progress" &&
+      startedMatchIdRef.current !== snapshot.matchId
+    ) {
+      startedMatchIdRef.current = snapshot.matchId;
+      setMatchCountdown(0);
+      const timeoutId = window.setTimeout(() => {
+        setMatchCountdown(null);
+      }, 800);
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
+    }
+
+    if (snapshot.status === "finished") {
+      setMatchCountdown(null);
+    }
+  }, [snapshot?.matchId, snapshot?.startedAt, snapshot?.status]);
+
+  useEffect(() => {
+    if (
+      matchCountdown === null ||
+      matchCountdown === lastCountdownValueRef.current
     ) {
       return;
     }
 
-    startedMatchIdRef.current = snapshot.matchId;
-    setMatchCountdown(3);
-    playStartTone(440, 0.12);
-
-    countdownTimeoutsRef.current.forEach((timeoutId) =>
-      window.clearTimeout(timeoutId),
-    );
-    countdownTimeoutsRef.current = [
-      window.setTimeout(() => {
-        setMatchCountdown(2);
-        playStartTone(520, 0.12);
-      }, 700),
-      window.setTimeout(() => {
-        setMatchCountdown(1);
-        playStartTone(620, 0.14);
-      }, 1400),
-      window.setTimeout(() => {
-        setMatchCountdown(0);
-        playStartTone(760, 0.18);
-      }, 2100),
-      window.setTimeout(() => {
-        setMatchCountdown(null);
-      }, 3000),
-    ];
-
-    return () => {
-      countdownTimeoutsRef.current.forEach((timeoutId) =>
-        window.clearTimeout(timeoutId),
-      );
-      countdownTimeoutsRef.current = [];
+    const frequencyMap: Record<number, number> = {
+      3: 440,
+      2: 520,
+      1: 620,
+      0: 760,
     };
-  }, [snapshot]);
+    const frequency = frequencyMap[matchCountdown];
+    if (frequency) {
+      playStartTone(frequency, matchCountdown === 0 ? 0.18 : 0.12);
+    }
+    lastCountdownValueRef.current = matchCountdown;
+  }, [matchCountdown]);
 
   async function ensureXLayer() {
     if (chainId === xLayerTestnetChain.id) {
@@ -377,15 +401,16 @@ export function GameShell() {
       return;
     }
 
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     if (document.fullscreenElement === arenaFrameRef.current) {
       await document.exitFullscreen();
       return;
     }
 
     await arenaFrameRef.current.requestFullscreen();
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
   }
 
   async function loadAgents() {
@@ -585,11 +610,11 @@ export function GameShell() {
           status: "queued",
           matchId: queued.matchId ?? preparation.matchId,
         });
-        setStatus("Paid queue confirmed onchain.");
+        setStatus("Paid queue confirmed onchain. Waiting for other agents...");
       } else {
         await queueForMatch(authToken, selectedAgent.id, false);
         setQueueState({ status: "queued" });
-        setStatus("Practice queue started.");
+        setStatus("Practice queue started. Waiting for other agents...");
       }
     } catch (error) {
       setStatus(normalizeUiError(error, "Queueing failed."));

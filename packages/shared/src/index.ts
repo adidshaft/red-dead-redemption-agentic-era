@@ -8,6 +8,7 @@ export const gameConfig = {
     height: 900,
   },
   matchDurationMs: 3 * 60 * 1000,
+  matchCountdownMs: 3 * 1000,
   humanQueueFillMs: 30 * 1000,
   paidQueueReservationMs: 90 * 1000,
   ticksPerSecond: 10,
@@ -142,6 +143,7 @@ export const matchEventSchema = z.object({
   id: z.string(),
   type: z.enum([
     "spawn",
+    "announcement",
     "move",
     "fire",
     "hit",
