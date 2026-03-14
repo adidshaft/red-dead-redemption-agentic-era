@@ -206,6 +206,7 @@ export function ArenaCanvas({
         private pickupSprites = new Map<string, any>();
         private objectiveSprite?: any;
         private safeZoneGraphics?: any;
+        private guidanceGraphics?: any;
         private processedEventIds = new Set<string>();
         private activeMatchId: string | null = null;
 
@@ -244,6 +245,7 @@ export function ArenaCanvas({
           cg.lineStyle(1, 0xe58d3c, 0.25);
           cg.strokeCircle(800, 450, 10);
           this.safeZoneGraphics = this.add.graphics();
+          this.guidanceGraphics = this.add.graphics();
 
           this.input.on("pointermove", (pointer: any) => {
             pointerPositionRef.current = { x: pointer.worldX, y: pointer.worldY };
@@ -289,6 +291,70 @@ export function ArenaCanvas({
                   nextSnapshot.safeZone.centerY,
                   nextSnapshot.safeZone.radius + 16,
                 );
+              }
+            }
+
+            if (this.guidanceGraphics) {
+              this.guidanceGraphics.clear();
+              const selectedPlayer = nextSnapshot.players.find(
+                (player) =>
+                  player.agentId === selectedAgentIdRef.current && player.alive,
+              );
+
+              if (
+                selectedPlayer &&
+                nextSnapshot.status === "in_progress"
+              ) {
+                const nearestThreat = nextSnapshot.players
+                  .filter(
+                    (player) =>
+                      player.agentId !== selectedPlayer.agentId && player.alive,
+                  )
+                  .map((player) => ({
+                    player,
+                    distance: Math.hypot(
+                      player.x - selectedPlayer.x,
+                      player.y - selectedPlayer.y,
+                    ),
+                  }))
+                  .sort((left, right) => left.distance - right.distance)[0];
+
+                if (nearestThreat) {
+                  this.guidanceGraphics.lineStyle(
+                    2,
+                    nearestThreat.distance <= 220 ? 0xe84a4a : 0xf4c885,
+                    nearestThreat.distance <= 220 ? 0.32 : 0.18,
+                  );
+                  this.guidanceGraphics.beginPath();
+                  this.guidanceGraphics.moveTo(
+                    selectedPlayer.x,
+                    selectedPlayer.y,
+                  );
+                  this.guidanceGraphics.lineTo(
+                    nearestThreat.player.x,
+                    nearestThreat.player.y,
+                  );
+                  this.guidanceGraphics.strokePath();
+                  this.guidanceGraphics.lineStyle(
+                    3,
+                    nearestThreat.distance <= 220 ? 0xe84a4a : 0xf4c885,
+                    0.45,
+                  );
+                  this.guidanceGraphics.strokeCircle(
+                    nearestThreat.player.x,
+                    nearestThreat.player.y,
+                    30,
+                  );
+                }
+
+                const distanceToRing = Math.hypot(
+                  selectedPlayer.x - nextSnapshot.safeZone.centerX,
+                  selectedPlayer.y - nextSnapshot.safeZone.centerY,
+                );
+                if (distanceToRing > nextSnapshot.safeZone.radius) {
+                  this.guidanceGraphics.lineStyle(8, 0xe84a4a, 0.18);
+                  this.guidanceGraphics.strokeRect(10, 10, 1580, 880);
+                }
               }
             }
 

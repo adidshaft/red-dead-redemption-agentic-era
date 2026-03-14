@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   Bot,
   Crosshair,
   Expand,
@@ -95,6 +96,13 @@ type AgentOperation = {
 };
 
 type ConsoleTab = "overview" | "autonomy" | "onchain";
+type BattleTone = "neutral" | "accent" | "warning" | "danger" | "success";
+type BattleDirective = {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  tone: BattleTone;
+};
 
 export function GameShell() {
   const { address, isConnected, chainId } = useAccount();
@@ -343,6 +351,326 @@ export function GameShell() {
       treasuryCut,
     };
   }, [snapshot]);
+  const selectedRingState = useMemo(() => {
+    if (!snapshot || !selectedSnapshotPlayer) {
+      return null;
+    }
+
+    const distance = Math.hypot(
+      selectedSnapshotPlayer.x - snapshot.safeZone.centerX,
+      selectedSnapshotPlayer.y - snapshot.safeZone.centerY,
+    );
+    const delta = distance - snapshot.safeZone.radius;
+
+    return {
+      outside: delta > 0,
+      distanceFromEdge: Math.round(Math.abs(delta)),
+      distanceToCenter: Math.round(distance),
+    };
+  }, [selectedSnapshotPlayer, snapshot]);
+  const selectedThreat = useMemo(() => {
+    if (!snapshot || !selectedSnapshotPlayer?.alive) {
+      return null;
+    }
+
+    const nearest = snapshot.players
+      .filter(
+        (player) =>
+          player.agentId !== selectedSnapshotPlayer.agentId && player.alive,
+      )
+      .map((player) => ({
+        player,
+        distance: Math.hypot(
+          player.x - selectedSnapshotPlayer.x,
+          player.y - selectedSnapshotPlayer.y,
+        ),
+      }))
+      .sort((left, right) => left.distance - right.distance)[0];
+
+    return nearest ?? null;
+  }, [selectedSnapshotPlayer, snapshot]);
+  const selectedPlayerEvent = useMemo(() => {
+    if (!selectedAgent?.id) {
+      return null;
+    }
+
+    return (
+      [...recentEvents]
+        .reverse()
+        .find(
+          (event) =>
+            event.actorAgentId === selectedAgent.id ||
+            event.targetAgentId === selectedAgent.id,
+        ) ?? null
+    );
+  }, [recentEvents, selectedAgent?.id]);
+  const battleDirective = useMemo<BattleDirective>(() => {
+    if (!authToken) {
+      return {
+        eyebrow: "Entry",
+        title: "Sign in to unlock the frontier",
+        detail: "Connect and sign once so the arena can load your riders, wallet-linked history, and live frontier actions.",
+        tone: "neutral",
+      };
+    }
+
+    if (!selectedAgent) {
+      return {
+        eyebrow: "Crew",
+        title: "Mint a rider to start your first run",
+        detail: "Each rider enters with five starter skills and can level on X Layer after every good round.",
+        tone: "neutral",
+      };
+    }
+
+    if (queueState?.status === "queued" && !snapshot) {
+      return {
+        eyebrow: "Queue",
+        title: "Waiting for other agents...",
+        detail: "Your paid seat is locked. Stay on this screen while the field fills and the showdown clock arms.",
+        tone: "accent",
+      };
+    }
+
+    if (snapshot?.status === "queued") {
+      return {
+        eyebrow: "Showdown",
+        title:
+          matchCountdown !== null && matchCountdown > 0
+            ? `Showdown in ${matchCountdown}`
+            : "Hold for the opening bell",
+        detail: "Riders are frozen until the draw. Use the countdown to orient yourself before the dust ring activates.",
+        tone: "accent",
+      };
+    }
+
+    if (snapshot?.status === "settling") {
+      return {
+        eyebrow: "Settlement",
+        title: "Closing the ledger on X Layer",
+        detail: "The match result is being written onchain. Hold here for the payout summary and explorer receipt.",
+        tone: "success" as const,
+      };
+    }
+
+    if (snapshot?.status === "finished") {
+      return {
+        eyebrow: "Result",
+        title: winnerDisplayName
+          ? `${winnerDisplayName} took the showdown`
+          : "The dust settled without a winner",
+        detail: selectedPlacement
+          ? `You finished ${ordinal(selectedPlacement)}. Review the dossier, treasury outcome, and next campaign action below.`
+          : "Review the final standings and use the rider deck to send another agent into the frontier.",
+        tone: winnerDisplayName === selectedAgent.displayName ? "success" : "neutral",
+      };
+    }
+
+    if (snapshot?.status === "in_progress") {
+      if (!selectedSnapshotPlayer) {
+        return {
+          eyebrow: "Spectate",
+          title: "You’re watching this fight",
+          detail: arenaFocusPlayer
+            ? `Follow ${arenaFocusPlayer.displayName} or switch to a rider who is in the current showdown.`
+            : "Follow the leader cam or queue your active rider into the next round.",
+          tone: "neutral",
+        };
+      }
+
+      if (!selectedSnapshotPlayer.alive) {
+        return {
+          eyebrow: "Down",
+          title: `${selectedSnapshotPlayer.displayName} is out of this round`,
+          detail: "Stay on the result feed to see who survives the ring and how the settlement lands.",
+          tone: "danger",
+        };
+      }
+
+      if (selectedRingState?.outside) {
+        return {
+          eyebrow: "Danger",
+          title: "Ride back into the dust ring",
+          detail: `You’re ${selectedRingState.distanceFromEdge}px outside the safe zone and taking burn damage every tick.`,
+          tone: "danger",
+        };
+      }
+
+      if (selectedSnapshotPlayer.isReloading) {
+        return {
+          eyebrow: "Reloading",
+          title: "Create space while the chamber resets",
+          detail: selectedThreat
+            ? `${selectedThreat.player.displayName} is ${Math.round(selectedThreat.distance)}px away. Dodge or kite until the reload completes.`
+            : "Keep moving until the chamber is full again.",
+          tone: "warning",
+        };
+      }
+
+      if (selectedSnapshotPlayer.health <= 30) {
+        return {
+          eyebrow: "Critical",
+          title: "Low health. Break line and take a tonic",
+          detail: "Cut across the ring edge, dodge incoming fire, and grab the nearest health cache before re-engaging.",
+          tone: "danger",
+        };
+      }
+
+      if (selectedSnapshotPlayer.ammo <= 1) {
+        return {
+          eyebrow: "Pressure",
+          title: "Ammo is nearly dry",
+          detail: snapshot.objective
+            ? "Contest the supply drop or reload now. Don’t get caught empty when the next duel opens."
+            : "Reload or rotate onto a cartridge pickup before you take the next shot.",
+          tone: "warning",
+        };
+      }
+
+      if (snapshot.objective) {
+        const objectiveDistance = Math.round(
+          Math.hypot(
+            selectedSnapshotPlayer.x - snapshot.objective.x,
+            selectedSnapshotPlayer.y - snapshot.objective.y,
+          ),
+        );
+        return {
+          eyebrow: "Objective",
+          title: `Contest ${snapshot.objective.label}`,
+          detail: `${snapshot.objective.rewardLabel}. It’s ${objectiveDistance}px away${objectiveTimerLabel ? ` and expires in ${objectiveTimerLabel}` : ""}.`,
+          tone: "accent",
+        };
+      }
+
+      if (selectedThreat) {
+        return {
+          eyebrow: "Pressure",
+          title: `Track ${selectedThreat.player.displayName}`,
+          detail:
+            selectedThreat.distance <= 220
+              ? "They’re inside close-duel range. Strafe, pressure with quick shots, and be ready to dodge."
+              : `Nearest threat is ${Math.round(selectedThreat.distance)}px away. Hold center and close the angle on your terms.`,
+          tone: "neutral",
+        };
+      }
+    }
+
+    return {
+      eyebrow: "Frontier",
+      title: "Choose a rider and enter the dust",
+      detail: "The cleanest next move is to select your rider, check the mode, and queue into a practice or paid round.",
+      tone: "neutral",
+    };
+  }, [
+    arenaFocusPlayer,
+    authToken,
+    matchCountdown,
+    objectiveTimerLabel,
+    queueState?.status,
+    selectedAgent,
+    selectedPlacement,
+    selectedRingState,
+    selectedSnapshotPlayer,
+    selectedThreat,
+    snapshot,
+    winnerDisplayName,
+  ]);
+  const battleSignals = useMemo(() => {
+    if (!snapshot) {
+      return [];
+    }
+
+    const signals: Array<{
+      label: string;
+      tone: "neutral" | "accent" | "warning" | "danger" | "success";
+      icon: React.ReactNode;
+    }> = [];
+
+    if (selectedSnapshotPlayer?.alive) {
+      if (selectedRingState?.outside) {
+        signals.push({
+          label: `Outside ring • ${selectedRingState.distanceFromEdge}px`,
+          tone: "danger",
+          icon: <AlertTriangle className="h-3.5 w-3.5" />,
+        });
+      }
+
+      if (selectedSnapshotPlayer.isReloading) {
+        signals.push({
+          label: "Reloading",
+          tone: "warning",
+          icon: <RotateCcw className="h-3.5 w-3.5" />,
+        });
+      }
+
+      if (selectedSnapshotPlayer.health <= 35) {
+        signals.push({
+          label: `Low health • ${selectedSnapshotPlayer.health} HP`,
+          tone: "danger",
+          icon: <ShieldPlus className="h-3.5 w-3.5" />,
+        });
+      }
+
+      if (selectedSnapshotPlayer.ammo <= 1) {
+        signals.push({
+          label:
+            selectedSnapshotPlayer.ammo === 0
+              ? "Empty chamber"
+              : "Last round loaded",
+          tone: "warning",
+          icon: <Crosshair className="h-3.5 w-3.5" />,
+        });
+      }
+
+      if (selectedThreat) {
+        signals.push({
+          label: `${selectedThreat.player.displayName} • ${Math.round(selectedThreat.distance)}px`,
+          tone: selectedThreat.distance <= 220 ? "danger" : "neutral",
+          icon: <RadioTower className="h-3.5 w-3.5" />,
+        });
+      }
+    }
+
+    if (snapshot.objective) {
+      signals.push({
+        label: `${snapshot.objective.label}${objectiveTimerLabel ? ` • ${objectiveTimerLabel}` : ""}`,
+        tone: "accent",
+        icon: <Gem className="h-3.5 w-3.5" />,
+      });
+    }
+
+    if (matchEconomy) {
+      signals.push({
+        label: `Pot ${formatWeiToOkb(matchEconomy.totalPot)}`,
+        tone: "success",
+        icon: <Wallet className="h-3.5 w-3.5" />,
+      });
+    }
+
+    return signals.slice(0, 4);
+  }, [
+    matchEconomy,
+    objectiveTimerLabel,
+    selectedRingState,
+    selectedSnapshotPlayer,
+    selectedThreat,
+    snapshot,
+  ]);
+  const selectedHealthBarTone = useMemo(() => {
+    if (!selectedSnapshotPlayer) {
+      return "#7ed2b4";
+    }
+
+    if (selectedSnapshotPlayer.health <= 30) {
+      return "#df6c39";
+    }
+
+    if (selectedSnapshotPlayer.health <= 55) {
+      return "#f0bf76";
+    }
+
+    return "#7ed2b4";
+  }, [selectedSnapshotPlayer]);
   const autonomyPassRemainingLabel = useMemo(() => {
     if (!autonomyPlan?.autonomyPassValidUntil) {
       return null;
@@ -1961,6 +2289,54 @@ export function GameShell() {
                   </div>
                 </div>
               )}
+              {(snapshot || queueState?.status === "queued" || selectedAgent || authToken) && (
+                <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-[min(460px,calc(100%-2rem))]">
+                  <div
+                    className={`rounded-[24px] border px-4 py-4 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-md ${getDirectiveToneClasses(
+                      battleDirective.tone,
+                    )}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.24em] opacity-70">
+                          {battleDirective.eyebrow}
+                        </div>
+                        <div className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                          {battleDirective.title}
+                        </div>
+                        <div className="mt-2 text-sm text-stone-100/78">
+                          {battleDirective.detail}
+                        </div>
+                      </div>
+                      {snapshot?.status === "in_progress" && selectedPlacement && (
+                        <div className="shrink-0 rounded-full border border-white/12 px-3 py-2 text-center">
+                          <div className="text-[9px] uppercase tracking-[0.18em] text-stone-300/60">
+                            Standing
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+                            {ordinal(selectedPlacement)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {battleSignals.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {battleSignals.map((signal) => (
+                          <div
+                            key={signal.label}
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${getSignalToneClasses(
+                              signal.tone,
+                            )}`}
+                          >
+                            {signal.icon}
+                            <span>{signal.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               {snapshot?.status === "finished" && (
                 <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[#0d0a08]/85 backdrop-blur-md">
                   <div className="relative w-[760px] max-w-[94%] overflow-hidden rounded-[32px] border border-[var(--panel-border)] bg-[var(--panel)] px-8 py-10 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)]">
@@ -2157,11 +2533,20 @@ export function GameShell() {
                         <div className="relative h-3 w-48 overflow-hidden rounded bg-black/60 shadow-inner">
                           <div className="absolute inset-0 bg-[var(--circuit-line)] opacity-20" />
                           <div
-                            className="h-full bg-[#7ed2b4] shadow-[0_0_8px_rgba(126,210,180,0.5)] transition-all ease-out"
-                            style={{ width: `${Math.max(0, selectedSnapshotPlayer.health)}%` }}
+                            className="h-full transition-all ease-out"
+                            style={{
+                              width: `${Math.max(0, selectedSnapshotPlayer.health)}%`,
+                              backgroundColor: selectedHealthBarTone,
+                              boxShadow: `0 0 8px ${selectedHealthBarTone}`,
+                            }}
                           />
                         </div>
-                        <span className="w-8 text-sm font-black text-[#7ed2b4] drop-shadow-[0_0_4px_rgba(126,210,180,0.5)]">{selectedSnapshotPlayer.health}</span>
+                        <span
+                          className="w-8 text-sm font-black drop-shadow-[0_0_4px_rgba(126,210,180,0.5)]"
+                          style={{ color: selectedHealthBarTone }}
+                        >
+                          {selectedSnapshotPlayer.health}
+                        </span>
                       </div>
                       
                       <div className="flex items-center gap-3">
@@ -2174,8 +2559,19 @@ export function GameShell() {
                              />
                            ))}
                         </div>
-                        <span className="w-8 text-sm font-black text-[var(--accent-soft)] drop-shadow-[0_0_4px_rgba(244,200,133,0.5)]">{selectedSnapshotPlayer.ammo}</span>
+                        <span className="w-20 text-right text-sm font-black text-[var(--accent-soft)] drop-shadow-[0_0_4px_rgba(244,200,133,0.5)]">
+                          {selectedSnapshotPlayer.isReloading ? "Reload" : selectedSnapshotPlayer.ammo}
+                        </span>
                       </div>
+                      {selectedThreat && (
+                        <div className="text-xs text-stone-200/76">
+                          Nearest threat:{" "}
+                          <span className="font-semibold text-[#f6ead7]">
+                            {selectedThreat.player.displayName}
+                          </span>{" "}
+                          • {Math.round(selectedThreat.distance)}px
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -2254,27 +2650,25 @@ export function GameShell() {
                     </div>
                     <div className="grid gap-2 text-xs text-stone-200/72 sm:grid-cols-2 xl:grid-cols-3">
                       <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
-                        Objective:{" "}
+                        Next call:{" "}
+                        <span className="text-[#f6ead7]">{battleDirective.title}</span>
+                      </div>
+                      <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
+                        Threat:{" "}
                         <span className="text-[#f6ead7]">
-                          {snapshot?.objective ? `${snapshot.objective.label}${objectiveTimerLabel ? ` • ${objectiveTimerLabel}` : ""}` : "Hold the ring"}
+                          {selectedRingState?.outside
+                            ? `Outside ring • ${selectedRingState.distanceFromEdge}px`
+                            : selectedThreat
+                              ? `${selectedThreat.player.displayName} • ${Math.round(selectedThreat.distance)}px`
+                              : snapshot?.objective
+                                ? `${snapshot.objective.label}${objectiveTimerLabel ? ` • ${objectiveTimerLabel}` : ""}`
+                                : "No live threat tagged"}
                         </span>
                       </div>
                       <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
-                        Rider:{" "}
+                        Last impact:{" "}
                         <span className="text-[#f6ead7]">
-                          {selectedSnapshotPlayer
-                            ? selectedSnapshotPlayer.alive
-                              ? `${selectedSnapshotPlayer.displayName} alive`
-                              : `${selectedSnapshotPlayer.displayName} out`
-                            : "Not in showdown"}
-                        </span>
-                      </div>
-                      <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
-                        Combat:{" "}
-                        <span className="text-[#f6ead7]">
-                          {selectedSnapshotPlayer
-                            ? `${selectedSnapshotPlayer.health} HP • ${selectedSnapshotPlayer.ammo} ammo`
-                            : "—"}
+                          {selectedPlayerEvent?.message ?? "No direct contact yet."}
                         </span>
                       </div>
                     </div>
@@ -2844,6 +3238,24 @@ function formatReceiptRevealDetail(receipt: OnchainReceipt) {
   }
 }
 
+function ordinal(value: number) {
+  const remainder = value % 100;
+  if (remainder >= 11 && remainder <= 13) {
+    return `${value}th`;
+  }
+
+  switch (value % 10) {
+    case 1:
+      return `${value}st`;
+    case 2:
+      return `${value}nd`;
+    case 3:
+      return `${value}rd`;
+    default:
+      return `${value}th`;
+  }
+}
+
 function formatEventTypeLabel(value: MatchEvent["type"]) {
   switch (value) {
     case "announcement":
@@ -2889,6 +3301,36 @@ function getEventToneClasses(value: MatchEvent["type"]) {
       return "border-sky-300/18 bg-sky-100/8 text-sky-50";
     default:
       return "border-white/7 bg-white/4 text-stone-200/72";
+  }
+}
+
+function getDirectiveToneClasses(tone: BattleTone) {
+  switch (tone) {
+    case "accent":
+      return "border-[#f0bf76]/24 bg-[linear-gradient(180deg,rgba(61,38,23,0.88),rgba(20,13,9,0.92))]";
+    case "warning":
+      return "border-[#df6c39]/24 bg-[linear-gradient(180deg,rgba(68,31,17,0.88),rgba(21,10,8,0.92))]";
+    case "danger":
+      return "border-[#e06a4c]/28 bg-[linear-gradient(180deg,rgba(72,21,17,0.9),rgba(24,8,8,0.94))]";
+    case "success":
+      return "border-[#7ed2b4]/22 bg-[linear-gradient(180deg,rgba(16,39,33,0.9),rgba(8,16,14,0.94))]";
+    default:
+      return "border-white/10 bg-[linear-gradient(180deg,rgba(14,10,8,0.84),rgba(10,8,7,0.9))]";
+  }
+}
+
+function getSignalToneClasses(tone: BattleTone) {
+  switch (tone) {
+    case "accent":
+      return "border-[#f0bf76]/24 bg-[#f0bf76]/10 text-[#f7e4bf]";
+    case "warning":
+      return "border-[#df6c39]/24 bg-[#df6c39]/10 text-[#ffd5bf]";
+    case "danger":
+      return "border-[#e06a4c]/28 bg-[#e06a4c]/12 text-[#ffe0d8]";
+    case "success":
+      return "border-[#7ed2b4]/24 bg-[#7ed2b4]/10 text-[#daf8ef]";
+    default:
+      return "border-white/10 bg-white/6 text-stone-100/84";
   }
 }
 
