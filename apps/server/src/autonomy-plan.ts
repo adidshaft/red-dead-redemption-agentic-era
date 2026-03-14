@@ -7,11 +7,24 @@ import {
   type SkillKey,
 } from "@rdr/shared";
 
+export type DoctrineProfile = {
+  doctrine: string;
+  summary: string;
+  upgradeQueue: SkillKey[];
+  combatDirective: string;
+  preferredFireRange: number;
+  healthPickupThreshold: number;
+  ammoPickupThreshold: number;
+  dodgeDistance: number;
+  flankWeight: number;
+  centerBias: number;
+};
+
 function sumSkills(agent: AgentProfile, keys: SkillKey[]) {
   return keys.reduce((total, key) => total + agent.skills[key], 0);
 }
 
-function getDoctrine(agent: AgentProfile) {
+export function deriveDoctrineProfile(agent: AgentProfile): DoctrineProfile {
   const quickTactics = sumSkills(agent, ["quickdraw", "tactics"]);
   const gritFortune = sumSkills(agent, ["grit", "fortune"]);
   const trailTactics = sumSkills(agent, ["trailcraft", "tactics"]);
@@ -24,6 +37,12 @@ function getDoctrine(agent: AgentProfile) {
       upgradeQueue: ["quickdraw", "tactics", "fortune"] as SkillKey[],
       combatDirective:
         "Open aggressively, punish exposed targets, then rotate inward before the dust ring forces bad fights.",
+      preferredFireRange: 760,
+      healthPickupThreshold: 42,
+      ammoPickupThreshold: 2,
+      dodgeDistance: 180,
+      flankWeight: 0.25,
+      centerBias: 0.3,
     };
   }
 
@@ -35,6 +54,12 @@ function getDoctrine(agent: AgentProfile) {
       upgradeQueue: ["trailcraft", "tactics", "quickdraw"] as SkillKey[],
       combatDirective:
         "Sweep the circle edge for pickups, dodge into cleaner angles, and collapse on distracted rivals.",
+      preferredFireRange: 600,
+      healthPickupThreshold: 62,
+      ammoPickupThreshold: 3,
+      dodgeDistance: 260,
+      flankWeight: 0.65,
+      centerBias: 0.15,
     };
   }
 
@@ -45,6 +70,12 @@ function getDoctrine(agent: AgentProfile) {
     upgradeQueue: ["grit", "fortune", "quickdraw"] as SkillKey[],
     combatDirective:
       "Tank the early chaos, keep the chamber topped off, and outlast weaker riders when the arena shrinks.",
+    preferredFireRange: 540,
+    healthPickupThreshold: 70,
+    ammoPickupThreshold: 2,
+    dodgeDistance: 220,
+    flankWeight: 0.1,
+    centerBias: 0.7,
   };
 }
 
@@ -63,7 +94,7 @@ export function buildAutonomyPlan(
   autonomyPassActive: boolean,
   autonomyPassValidUntil: string | null,
 ): AutonomyPlan {
-  const doctrine = getDoctrine(agent);
+  const doctrine = deriveDoctrineProfile(agent);
   const nextSkill = pickNextSkill(agent, doctrine.upgradeQueue);
   const skillPurchases = receipts.filter(
     (receipt) => receipt.purpose === "skill_purchase",

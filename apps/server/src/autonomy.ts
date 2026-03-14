@@ -1,5 +1,6 @@
 import { autonomyActionSchema, type AgentProfile, type ArenaCommand, type AutonomyAction, type MatchSnapshot } from "@rdr/shared";
 
+import { deriveDoctrineProfile } from "./autonomy-plan.js";
 import { config } from "./config.js";
 
 export type AutonomyContext = {
@@ -7,9 +8,24 @@ export type AutonomyContext = {
   snapshot: MatchSnapshot;
 };
 
+function clampUnit(value: number) {
+  return Math.max(-1, Math.min(1, value));
+}
+
+function moveToward(fromX: number, fromY: number, toX: number, toY: number): ArenaCommand {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  return {
+    type: "move",
+    dx: clampUnit(dx / Math.max(Math.abs(dx), 1)),
+    dy: clampUnit(dy / Math.max(Math.abs(dy), 1)),
+  };
+}
+
 export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
   const self = context.snapshot.players.find((player) => player.agentId === context.agent.id);
   const enemies = context.snapshot.players.filter((player) => player.agentId !== context.agent.id && player.alive);
+  const doctrine = deriveDoctrineProfile(context.agent);
 
   if (!self || enemies.length === 0) {
     return { type: "idle" };
@@ -50,11 +66,7 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     zoneDistance > Math.max(0, context.snapshot.safeZone.radius - 36);
 
   if (outsideSafeZone) {
-    return {
-      type: "move",
-      dx: Math.max(-1, Math.min(1, zoneDx / Math.max(Math.abs(zoneDx), 1))),
-      dy: Math.max(-1, Math.min(1, zoneDy / Math.max(Math.abs(zoneDy), 1))),
-    };
+    return moveToward(self.x, self.y, context.snapshot.safeZone.centerX, context.snapshot.safeZone.centerY);
   }
 
   if (self.health < 30 && distance < 240) {
@@ -65,24 +77,12 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     };
   }
 
-  if (self.health < 55 && nearestHealthPickup) {
-    const pickupDx = nearestHealthPickup.x - self.x;
-    const pickupDy = nearestHealthPickup.y - self.y;
-    return {
-      type: "move",
-      dx: Math.max(-1, Math.min(1, pickupDx / Math.max(Math.abs(pickupDx), 1))),
-      dy: Math.max(-1, Math.min(1, pickupDy / Math.max(Math.abs(pickupDy), 1))),
-    };
+  if (self.health < doctrine.healthPickupThreshold && nearestHealthPickup) {
+    return moveToward(self.x, self.y, nearestHealthPickup.x, nearestHealthPickup.y);
   }
 
-  if ((self.ammo <= 1 || self.isReloading) && nearestAmmoPickup) {
-    const pickupDx = nearestAmmoPickup.x - self.x;
-    const pickupDy = nearestAmmoPickup.y - self.y;
-    return {
-      type: "move",
-      dx: Math.max(-1, Math.min(1, pickupDx / Math.max(Math.abs(pickupDx), 1))),
-      dy: Math.max(-1, Math.min(1, pickupDy / Math.max(Math.abs(pickupDy), 1))),
-    };
+  if ((self.ammo <= doctrine.ammoPickupThreshold || self.isReloading) && nearestAmmoPickup) {
+    return moveToward(self.x, self.y, nearestAmmoPickup.x, nearestAmmoPickup.y);
   }
 
   if (self.ammo === 0 && !self.isReloading) {
@@ -91,7 +91,25 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     };
   }
 
-  if (distance < 620 && self.ammo > 0) {
+  if (
+    doctrine.doctrine === "Ghost Circuit Scout" &&
+    nearestAmmoPickup &&
+    self.ammo <= 3 &&
+    distance > 180
+  ) {
+    return moveToward(self.x, self.y, nearestAmmoPickup.x, nearestAmmoPickup.y);
+  }
+
+  if (
+    doctrine.doctrine === "Ghost Circuit Scout" &&
+    nearestHealthPickup &&
+    self.health < 78 &&
+    distance > 220
+  ) {
+    return moveToward(self.x, self.y, nearestHealthPickup.x, nearestHealthPickup.y);
+  }
+
+  if (distance < doctrine.preferredFireRange && self.ammo > 0) {
     return {
       type: "fire",
       targetX: nearestEnemy.x,
@@ -99,15 +117,30 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     };
   }
 
-  if (atEdge && distance > 220) {
+  if (
+    doctrine.doctrine === "Ghost Circuit Scout" &&
+    distance < doctrine.dodgeDistance &&
+    self.health > 55
+  ) {
+    const flankX = nearestEnemy.x + dy * doctrine.flankWeight;
+    const flankY = nearestEnemy.y - dx * doctrine.flankWeight;
     return {
-      type: "move",
-      dx: Math.max(-1, Math.min(1, centerDx / Math.max(Math.abs(centerDx), 1))),
-      dy: Math.max(-1, Math.min(1, centerDy / Math.max(Math.abs(centerDy), 1))),
+      type: "dodge",
+      targetX: flankX,
+      targetY: flankY,
     };
   }
 
-  if (distance < 220 && self.health > 45) {
+  if (atEdge && distance > 220) {
+    return moveToward(
+      self.x,
+      self.y,
+      centerX + centerDx * doctrine.centerBias * 0.15,
+      centerY + centerDy * doctrine.centerBias * 0.15,
+    );
+  }
+
+  if (distance < doctrine.dodgeDistance && self.health > 45) {
     return {
       type: "dodge",
       targetX: self.x - dy,
@@ -115,11 +148,22 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     };
   }
 
-  return {
-    type: "move",
-    dx: Math.max(-1, Math.min(1, dx / Math.max(distance, 1))),
-    dy: Math.max(-1, Math.min(1, dy / Math.max(distance, 1))),
-  };
+  if (doctrine.doctrine === "Iron Ledger Survivor" && distance > 260) {
+    return moveToward(
+      self.x,
+      self.y,
+      centerX + dx * 0.4,
+      centerY + dy * 0.4,
+    );
+  }
+
+  if (doctrine.doctrine === "Ghost Circuit Scout" && distance > doctrine.preferredFireRange) {
+    const orbitX = nearestEnemy.x - dy * doctrine.flankWeight;
+    const orbitY = nearestEnemy.y + dx * doctrine.flankWeight;
+    return moveToward(self.x, self.y, orbitX, orbitY);
+  }
+
+  return moveToward(self.x, self.y, nearestEnemy.x, nearestEnemy.y);
 }
 
 export async function decideAutonomousAction(context: AutonomyContext): Promise<AutonomyAction> {

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import { Pool } from "pg";
 
+import { matchSnapshotSchema } from "@rdr/shared";
 import type { AgentMode, AgentProfile, MatchEvent, MatchSnapshot, OnchainReceipt, SkillSet } from "@rdr/shared";
 
 type DbAgentRow = {
@@ -305,6 +306,25 @@ export class Database {
       [agentId],
     );
     return result.rows.map((row) => row.payload);
+  }
+
+  async listMatchesForAgent(agentId: string) {
+    const result = await this.pool.query<{ payload: unknown }>(
+      `
+        SELECT payload
+        FROM matches
+        WHERE status = 'finished'
+          AND EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements(payload->'players') AS player
+            WHERE player->>'agentId' = $1
+          )
+        ORDER BY COALESCE(ended_at, created_at) DESC
+      `,
+      [agentId],
+    );
+
+    return result.rows.map((row) => matchSnapshotSchema.parse(row.payload));
   }
 
   async createAutonomyPass(agentId: string, validUntil: Date, paymentTxHash?: string | null) {

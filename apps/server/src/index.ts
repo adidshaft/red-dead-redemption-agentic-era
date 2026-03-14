@@ -28,6 +28,7 @@ import {
   verifyWalletSignature,
 } from "./auth.js";
 import { buildAutonomyPlan } from "./autonomy-plan.js";
+import { buildCampaignStats } from "./campaign.js";
 import { config } from "./config.js";
 import { Database } from "./db.js";
 import {
@@ -232,6 +233,24 @@ app.get("/agents/:id/autonomy-plan", async (request, reply) => {
       autonomyPassActive,
       latestAutonomyPass?.validUntil ?? null,
     ),
+  };
+});
+
+app.get("/agents/:id/campaign", async (request, reply) => {
+  const address = await requireAddress(request);
+  if (!address) {
+    return reply.status(401).send(unauthorizedReply().body);
+  }
+
+  const agentId = (request.params as { id: string }).id;
+  const agent = await db.getAgentById(agentId);
+  if (!agent || agent.ownerAddress !== address) {
+    return reply.status(404).send({ error: "Agent not found" });
+  }
+
+  const matches = await db.listMatchesForAgent(agent.id);
+  return {
+    campaign: buildCampaignStats(agent.id, matches),
   };
 });
 

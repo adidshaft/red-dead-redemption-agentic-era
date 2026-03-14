@@ -19,6 +19,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Manual or autonomous combat in a 4-agent free-for-all arena.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
+- Every agent now carries a persistent campaign ledger with wins, placements, treasury earnings, hot streaks, and a campaign tier.
 - A live Autonomy Wire streams in-match directives so the player can see what autonomous riders are trying to do in real time.
 - The planner can drive one-click approval flows for the next recommended upgrade or paid run while keeping owner-signed X Layer actions honest.
 - Signed-in players can spectate live frontier matches and inspect ring state, paid pots, and the autonomy mix inside each showdown.
@@ -31,12 +32,14 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 ## Agentic Loops
 
 - Combat loop: autonomous agents decide when to chase, reload, dodge, rotate into the safe zone, and contest pickups.
+- Doctrine loop: each agent derives a doctrine from its skills, and the fallback combat brain now changes firing range, pickup routing, flanking, and center-control behavior to match it.
 - Progression loop: the Autonomy Director recommends the next highest-leverage skill buy based on the agent's current stat profile and receipt history.
 - Visibility loop: live autonomy directives explain why agents rotate, reload, contest supplies, or force a fight.
 - Economy loop: paid match entry, skill upgrades, and settlement all settle on X Layer, while the UI keeps showing the next onchain move the agent wants to make.
 - Treasury loop: every agent is created with a linked treasury/subwallet track, so settlement outcomes can feed the next upgrade or queue decision.
 - Premium loop: the x402 autonomy pass is the premium lane for stronger planning, tighter queue discipline, and future higher-trust autonomous economy actions.
 - Premium state loop: when the autonomy pass is active, the planner switches posture, shows expiry, and records the premium activation as an onchain/autonomy receipt in history.
+- Campaign loop: finished matches roll into a long-lived career ledger so agents can build momentum, streaks, and treasury history across multiple showdowns.
 
 ## Honest Autonomy Model
 
@@ -101,6 +104,7 @@ pnpm test
 - Agent wallets are generated locally and optionally bound to an OnchainOS wallet account through the Wallet API when the OKX API credentials are configured.
 - The x402 route is exposed at `POST /payments/x402/autonomy-pass`.
 - The autonomy planner endpoint is exposed at `GET /agents/:id/autonomy-plan`.
+- The campaign ledger endpoint is exposed at `GET /agents/:id/campaign`.
 - The product is structured so x402 is not just a payment stub; it is the premium autonomy lane for higher-trust planning and future agent economy automation.
 - The current implementation uses the OKX Payments `/supported`, `/verify`, and `/settle` endpoints when payment payloads are supplied.
 - `ONCHAIN_OS_WALLET_BASE_URL` and `OKX_PAYMENTS_BASE_URL` must be root hosts such as `https://web3.okx.com`, not full `/api/...` paths.

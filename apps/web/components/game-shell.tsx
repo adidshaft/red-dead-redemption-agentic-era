@@ -35,6 +35,7 @@ import {
   skillLabels,
   toExplorerTxUrl,
   winnerShareBasisPoints,
+  type AgentCampaignStats,
   type AgentProfile,
   type AutonomyPlan,
   type ArenaCommand,
@@ -48,6 +49,7 @@ import {
   createAgent,
   fetchAgents,
   fetchAutonomyPlan,
+  fetchCampaignStats,
   fetchTransactions,
   fetchLiveMatches,
   fetchNonce,
@@ -101,6 +103,7 @@ export function GameShell() {
   const [recentEvents, setRecentEvents] = useState<MatchEvent[]>([]);
   const [liveMatches, setLiveMatches] = useState<MatchSnapshot[]>([]);
   const [autonomyPlan, setAutonomyPlan] = useState<AutonomyPlan | null>(null);
+  const [campaignStats, setCampaignStats] = useState<AgentCampaignStats | null>(null);
   const [baseName, setBaseName] = useState("Marshal");
   const [status, setStatus] = useState<string>(
     "Connect a wallet on X Layer testnet to enter the frontier.",
@@ -359,6 +362,7 @@ export function GameShell() {
       if (selectedAgentRef.current) {
         void loadTransactions(selectedAgentRef.current.id, { revealNew: true });
         void loadAutonomyPlan(selectedAgentRef.current.id);
+        void loadCampaignStats(selectedAgentRef.current.id);
       }
     });
 
@@ -372,10 +376,12 @@ export function GameShell() {
   useEffect(() => {
     if (!authToken || !selectedAgent) {
       setAutonomyPlan(null);
+      setCampaignStats(null);
       return;
     }
     void loadTransactions(selectedAgent.id);
     void loadAutonomyPlan(selectedAgent.id);
+    void loadCampaignStats(selectedAgent.id);
   }, [authToken, selectedAgent?.id]);
 
   useEffect(() => {
@@ -485,6 +491,7 @@ export function GameShell() {
     setSnapshot(null);
     setRecentEvents([]);
     setAutonomyPlan(null);
+    setCampaignStats(null);
     setAutonomyQuote(null);
     setTxReveals([]);
     seenTxHashesRef.current = new Set();
@@ -705,6 +712,14 @@ export function GameShell() {
     setAutonomyPlan(response.plan);
   }
 
+  async function loadCampaignStats(agentId: string) {
+    if (!authToken) {
+      return;
+    }
+    const response = await fetchCampaignStats(authToken, agentId);
+    setCampaignStats(response.campaign);
+  }
+
   async function handleSignIn() {
     if (!address) {
       return;
@@ -762,6 +777,7 @@ export function GameShell() {
       setAgents((current) => [...current, response.agent]);
       setSelectedAgentId(response.agent.id);
       await loadTransactions(response.agent.id);
+      await loadCampaignStats(response.agent.id);
       setBaseName("Gunslinger");
       setStatus(`${response.agent.displayName} is ready for the frontier.`);
     } catch (error) {
@@ -1465,6 +1481,83 @@ export function GameShell() {
                         Unlock x402 Premium
                       </button>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {campaignStats && (
+                <div className="rounded-[24px] border border-amber-200/12 bg-[linear-gradient(180deg,rgba(26,18,12,0.92),rgba(14,10,8,0.96))] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200/58">
+                        Campaign Ledger
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                        {formatCampaignTier(campaignStats.campaignTier)}
+                      </h3>
+                      <p className="mt-2 text-sm text-stone-200/72">
+                        {campaignStats.matchesPlayed === 0
+                          ? "No finished frontier rounds yet. Run practice or paid matches to start the ledger."
+                          : `${selectedAgent.displayName} has logged ${campaignStats.matchesPlayed} frontier runs with ${campaignStats.wins} wins and ${campaignStats.podiums} podium finishes.`}
+                      </p>
+                    </div>
+                    <div className="rounded-full border border-amber-200/18 bg-amber-100/8 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100/82">
+                      Hot streak {campaignStats.currentStreak}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <StatCard
+                      icon={<Sword className="h-3.5 w-3.5" />}
+                      label="Career"
+                      value={`${campaignStats.wins}W / ${campaignStats.matchesPlayed}R • ${campaignStats.paidMatches} paid entries`}
+                    />
+                    <StatCard
+                      icon={<RadioTower className="h-3.5 w-3.5" />}
+                      label="Placement"
+                      value={
+                        campaignStats.matchesPlayed === 0
+                          ? "No finishes"
+                          : `Avg #${campaignStats.averagePlacement.toFixed(2)} • ${campaignStats.podiums} podiums`
+                      }
+                    />
+                    <StatCard
+                      icon={<Crosshair className="h-3.5 w-3.5" />}
+                      label="Combat"
+                      value={`${campaignStats.totalKills} eliminations • ${campaignStats.totalDamage} damage`}
+                    />
+                    <StatCard
+                      icon={<Wallet className="h-3.5 w-3.5" />}
+                      label="Treasury"
+                      value={`${formatWeiToOkb(BigInt(campaignStats.careerPayoutWei))} • best score ${campaignStats.bestScore}`}
+                    />
+                  </div>
+
+                  <div className="mt-4 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-amber-200/58">
+                        Recent Frontier Placements
+                      </div>
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+                        Total score {campaignStats.totalScore}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {campaignStats.recentPlacements.length === 0 ? (
+                        <span className="rounded-full border border-white/8 px-3 py-1 text-xs text-stone-300/60">
+                          No placements yet
+                        </span>
+                      ) : (
+                        campaignStats.recentPlacements.map((placement, index) => (
+                          <span
+                            key={`${placement}-${index}`}
+                            className={`rounded-full border px-3 py-1 text-xs ${placement === 1 ? "border-amber-300/30 bg-amber-100/10 text-[#f6ead7]" : placement === 2 ? "border-[#7ed2b4]/25 bg-[#7ed2b4]/10 text-[#c5f4e9]" : "border-white/10 bg-white/5 text-stone-200/72"}`}
+                          >
+                            Finish #{placement}
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -2438,6 +2531,19 @@ function formatCampaignPriorityDetail(plan: AutonomyPlan) {
       return "Premium autonomy is now the highest-leverage upgrade for this agent's planning and queue discipline.";
     case "run_practice":
       return "Stay in practice until the current doctrine is sharper, then move back into higher-risk economy actions.";
+  }
+}
+
+function formatCampaignTier(value: AgentCampaignStats["campaignTier"]) {
+  switch (value) {
+    case "rookie":
+      return "Rookie Trail Ledger";
+    case "contender":
+      return "Contender Circuit";
+    case "marshal":
+      return "Marshal of the Ring";
+    case "legend":
+      return "Legend of X Layer";
   }
 }
 

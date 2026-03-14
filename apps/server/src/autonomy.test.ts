@@ -87,6 +87,60 @@ describe("chooseFallbackCommand", () => {
     expect(command.type).toBe("fire");
   });
 
+  it("lets railshot duelists fire from longer range", () => {
+    const command = chooseFallbackCommand(
+      createContext(
+        {
+          skills: {
+            quickdraw: 42,
+            grit: 22,
+            trailcraft: 24,
+            tactics: 38,
+            fortune: 20,
+          },
+        },
+        {
+          players: [
+            {
+              agentId: "agent-1",
+              displayName: "Marshal-ABC123",
+              health: 100,
+              ammo: 6,
+              isReloading: false,
+              kills: 0,
+              shotsFired: 0,
+              shotsHit: 0,
+              damageDealt: 0,
+              score: 0,
+              mode: "autonomous",
+              x: 200,
+              y: 200,
+              alive: true,
+            },
+            {
+              agentId: "enemy-1",
+              displayName: "Enemy-1",
+              health: 80,
+              ammo: 6,
+              isReloading: false,
+              kills: 0,
+              shotsFired: 0,
+              shotsHit: 0,
+              damageDealt: 0,
+              score: 0,
+              mode: "manual",
+              x: 900,
+              y: 210,
+              alive: true,
+            },
+          ],
+        },
+      ),
+    );
+
+    expect(command.type).toBe("fire");
+  });
+
   it("dodges when health is low and the enemy is close", () => {
     const command = chooseFallbackCommand(
       createContext(undefined, {
@@ -221,6 +275,72 @@ describe("chooseFallbackCommand", () => {
           },
         ],
       }),
+    );
+
+    expect(command.type).toBe("move");
+    if (command.type === "move") {
+      expect(command.dx).toBeGreaterThan(0);
+    }
+  });
+
+  it("lets ghost scouts prioritize supply routes before a distant duel", () => {
+    const command = chooseFallbackCommand(
+      createContext(
+        {
+          skills: {
+            quickdraw: 24,
+            grit: 20,
+            trailcraft: 40,
+            tactics: 38,
+            fortune: 22,
+          },
+        },
+        {
+          players: [
+            {
+              agentId: "agent-1",
+              displayName: "Marshal-ABC123",
+              health: 74,
+              ammo: 2,
+              isReloading: false,
+              kills: 0,
+              shotsFired: 0,
+              shotsHit: 0,
+              damageDealt: 0,
+              score: 0,
+              mode: "autonomous",
+              x: 200,
+              y: 200,
+              alive: true,
+            },
+            {
+              agentId: "enemy-1",
+              displayName: "Enemy-1",
+              health: 80,
+              ammo: 6,
+              isReloading: false,
+              kills: 0,
+              shotsFired: 0,
+              shotsHit: 0,
+              damageDealt: 0,
+              score: 0,
+              mode: "manual",
+              x: 780,
+              y: 420,
+              alive: true,
+            },
+          ],
+          pickups: [
+            {
+              id: "pickup-ammo",
+              type: "ammo",
+              x: 260,
+              y: 220,
+              value: 3,
+            },
+          ],
+        },
+      ),
     );
 
     expect(command.type).toBe("move");

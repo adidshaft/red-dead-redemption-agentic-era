@@ -248,6 +248,25 @@ export const autonomyPlanSchema = z.object({
 
 export type AutonomyPlan = z.infer<typeof autonomyPlanSchema>;
 
+export const agentCampaignStatsSchema = z.object({
+  agentId: z.string(),
+  matchesPlayed: z.number().int().nonnegative(),
+  paidMatches: z.number().int().nonnegative(),
+  wins: z.number().int().nonnegative(),
+  podiums: z.number().int().nonnegative(),
+  totalKills: z.number().int().nonnegative(),
+  totalDamage: z.number().int().nonnegative(),
+  totalScore: z.number().int().nonnegative(),
+  bestScore: z.number().int().nonnegative(),
+  averagePlacement: z.number().nonnegative(),
+  recentPlacements: z.array(z.number().int().positive()).max(5),
+  careerPayoutWei: z.string(),
+  currentStreak: z.number().int().nonnegative(),
+  campaignTier: z.enum(["rookie", "contender", "marshal", "legend"]),
+});
+
+export type AgentCampaignStats = z.infer<typeof agentCampaignStatsSchema>;
+
 export const createAgentInputSchema = z.object({
   baseName: z
     .string()

@@ -1,4 +1,5 @@
 import type {
+  AgentCampaignStats,
   AgentProfile,
   AutonomyPlan,
   ArenaCommand,
@@ -122,6 +123,15 @@ export async function fetchAutonomyPlan(token: string, agentId: string) {
   return apiRequest<{ plan: AutonomyPlan }>(`/agents/${agentId}/autonomy-plan`, {
     token,
   });
+}
+
+export async function fetchCampaignStats(token: string, agentId: string) {
+  return apiRequest<{ campaign: AgentCampaignStats }>(
+    `/agents/${agentId}/campaign`,
+    {
+      token,
+    },
+  );
 }
 
 export async function registerSkillPurchase(
