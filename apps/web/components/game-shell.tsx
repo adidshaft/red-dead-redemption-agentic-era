@@ -1410,6 +1410,74 @@ export function GameShell() {
                 />
               </div>
             </div>
+          <div className="rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+                  Roster
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+                  Your Agents
+                </h2>
+              </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-stone-200/70">
+                {agents.length}/3
+              </span>
+            </div>
+            <div className="scrollbar-thin flex max-h-[320px] flex-col gap-3 overflow-auto pr-1">
+              {agents.map((agent) => {
+                const active = agent.id === selectedAgent?.id;
+                return (
+                  <button
+                    type="button"
+                    key={agent.id}
+                    onClick={() => setSelectedAgentId(agent.id)}
+                    className={`group relative overflow-hidden rounded-[24px] border p-1 text-left transition-all ${active ? "border-[var(--accent-soft)]/40 bg-[var(--accent)]/10 shadow-[0_0_32px_rgba(229,141,60,0.15)]" : "border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5"}`}
+                  >
+                    <div className="flex flex-col sm:flex-row gap-4 p-4">
+                      {/* Portrait Element */}
+                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[16px] border border-white/10 bg-black/40">
+                         {/* Fallback pattern while loading or if missing */}
+                         <div className="absolute inset-0 dust-grid opacity-30" />
+                         <img src="/agents/placeholder.png" alt={agent.displayName} className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105" />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                         <div className={`absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full px-2 py-0.5 max-w-[calc(100%-16px)] text-[9px] font-bold uppercase tracking-wider backdrop-blur-md ${agent.mode === "autonomous" ? "bg-[#b53c1e]/80 text-[#f2e3cd]" : "bg-[#7ed2b4]/80 text-[#0d0a08]"}`}>
+                             <span className="truncate">{agent.mode}</span>
+                         </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className={`truncate text-xl font-bold font-[var(--font-heading)] ${active ? "text-[var(--accent-soft)]" : "text-[var(--foreground)]"}`}>
+                              {agent.displayName}
+                            </h3>
+                            <p className="mt-1 truncate text-[10px] uppercase tracking-[0.22em] text-[var(--circuit-line)] opacity-80">
+                              {agent.isStarter ? "starter unit" : "secondary unit"} • {agent.walletAddress.slice(0,6)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                          {skillKeys.map((skill) => (
+                            <div
+                              key={skill}
+                              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${active ? "border-[var(--accent-soft)]/20 bg-black/40 text-[var(--accent-soft)]" : "border-white/5 bg-black/20 text-stone-400"}`}
+                            >
+                              <span className="opacity-60">{skillLabels[skill].slice(0,3).toUpperCase()}</span>
+                              <span className="font-semibold text-[var(--foreground)]">{agent.skills[skill]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {agents.length === 0 && (
+                <EmptyState label="No agents yet. Sign in and create your first outlaw." />
+              )}
+            </div>
+          </div>
               <div className="grid gap-4 rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -1508,76 +1576,6 @@ export function GameShell() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-          <div className="space-y-6">
-          <section className="western-card rounded-[30px] border p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
-                  Roster
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
-                  Your Agents
-                </h2>
-              </div>
-              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-stone-200/70">
-                {agents.length}/3
-              </span>
-            </div>
-            <div className="scrollbar-thin flex max-h-[740px] flex-col gap-3 overflow-auto pr-1">
-              {agents.map((agent) => {
-                const active = agent.id === selectedAgent?.id;
-                return (
-                  <button
-                    type="button"
-                    key={agent.id}
-                    onClick={() => setSelectedAgentId(agent.id)}
-                    className={`group relative overflow-hidden rounded-[24px] border p-1 text-left transition-all ${active ? "border-[var(--accent-soft)]/40 bg-[var(--accent)]/10 shadow-[0_0_32px_rgba(229,141,60,0.15)]" : "border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5"}`}
-                  >
-                    <div className="flex flex-col sm:flex-row gap-4 p-4">
-                      {/* Portrait Element */}
-                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[16px] border border-white/10 bg-black/40">
-                         {/* Fallback pattern while loading or if missing */}
-                         <div className="absolute inset-0 dust-grid opacity-30" />
-                         <img src="/agents/placeholder.png" alt={agent.displayName} className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105" />
-                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                         <div className={`absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full px-2 py-0.5 max-w-[calc(100%-16px)] text-[9px] font-bold uppercase tracking-wider backdrop-blur-md ${agent.mode === "autonomous" ? "bg-[#b53c1e]/80 text-[#f2e3cd]" : "bg-[#7ed2b4]/80 text-[#0d0a08]"}`}>
-                             <span className="truncate">{agent.mode}</span>
-                         </div>
-                      </div>
-
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className={`truncate text-xl font-bold font-[var(--font-heading)] ${active ? "text-[var(--accent-soft)]" : "text-[var(--foreground)]"}`}>
-                              {agent.displayName}
-                            </h3>
-                            <p className="mt-1 truncate text-[10px] uppercase tracking-[0.22em] text-[var(--circuit-line)] opacity-80">
-                              {agent.isStarter ? "starter unit" : "secondary unit"} • {agent.walletAddress.slice(0,6)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                          {skillKeys.map((skill) => (
-                            <div
-                              key={skill}
-                              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${active ? "border-[var(--accent-soft)]/20 bg-black/40 text-[var(--accent-soft)]" : "border-white/5 bg-black/20 text-stone-400"}`}
-                            >
-                              <span className="opacity-60">{skillLabels[skill].slice(0,3).toUpperCase()}</span>
-                              <span className="font-semibold text-[var(--foreground)]">{agent.skills[skill]}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-              {agents.length === 0 && (
-                <EmptyState label="No agents yet. Sign in and create your first outlaw." />
-              )}
-            </div>
-          </section>
 
           <section className="western-card rounded-[30px] border p-5">
             <div className="mb-4 flex items-center justify-between">
@@ -1600,7 +1598,8 @@ export function GameShell() {
             </div>
 
             {selectedAgent && liveAgentStats ? (
-            <div className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="space-y-4">
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1631,153 +1630,6 @@ export function GameShell() {
                   </div>
                 </div>
               </div>
-
-              {autonomyPlan && (
-                <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(13,18,16,0.92),rgba(8,10,9,0.96))] p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
-                        Autonomy Director
-                      </p>
-                      <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
-                        {autonomyPlan.doctrine}
-                      </h3>
-                      <p className="mt-2 text-sm text-stone-200/72">
-                        {autonomyPlan.summary}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan.mode === "autonomous" ? "border-[#df6c39]/35 bg-[#df6c39]/10 text-[#ffd0ae]" : "border-[#7ed2b4]/30 bg-[#7ed2b4]/10 text-[#c5f4e9]"}`}>
-                        {autonomyPlan.mode}
-                      </span>
-                      <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan.autonomyPassActive ? "border-emerald-200/30 bg-emerald-200/10 text-emerald-100" : "border-white/10 bg-white/5 text-stone-200/65"}`}>
-                        {autonomyPlan.autonomyPassActive ? "x402 Active" : "x402 Locked"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-3 text-sm text-stone-200/74 xl:grid-cols-2">
-                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
-                        Campaign Priority
-                      </div>
-                      <div className="mt-2 font-semibold text-[#f6ead7]">
-                        {formatCampaignPriority(autonomyPlan.campaignPriority)}
-                      </div>
-                      <div className="mt-1 text-sm text-stone-200/68">
-                        {formatCampaignPriorityDetail(autonomyPlan)}
-                      </div>
-                    </div>
-                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
-                        Combat Directive
-                      </div>
-                      <div className="mt-2 text-sm text-stone-200/72">
-                        {autonomyPlan.combatDirective}
-                      </div>
-                    </div>
-                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
-                        Economy Loop
-                      </div>
-                      <div className="mt-2 text-sm text-stone-200/72">
-                        {autonomyPlan.economyDirective}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
-                        <span className="rounded-full border border-white/8 px-2.5 py-1">
-                          Queue: {autonomyPlan.recommendedQueue}
-                        </span>
-                        <span className="rounded-full border border-white/8 px-2.5 py-1">
-                          Posture: {autonomyPlan.economyPosture}
-                        </span>
-                        <span className="rounded-full border border-white/8 px-2.5 py-1">
-                          Objective: {autonomyPlan.objectivePosture}
-                        </span>
-                        <span className="rounded-full border border-white/8 px-2.5 py-1">
-                          Confidence: {autonomyPlan.confidenceBand}
-                        </span>
-                      </div>
-                      <div className="mt-4">
-                        <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
-                          <span>Runway readiness</span>
-                          <span>{autonomyPlan.readinessScore}%</span>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-white/6">
-                          <div
-                            className={`h-full rounded-full transition-all ${autonomyPlan.readinessScore >= 72 ? "bg-[linear-gradient(90deg,#7ed2b4,#d7f3d6)]" : autonomyPlan.readinessScore >= 42 ? "bg-[linear-gradient(90deg,#d4934f,#f6ead7)]" : "bg-[linear-gradient(90deg,#9a4e32,#df6c39)]"}`}
-                            style={{ width: `${autonomyPlan.readinessScore}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
-                        Objective Doctrine
-                      </div>
-                      <div className="mt-2 text-sm text-stone-200/72">
-                        {autonomyPlan.objectiveDirective}
-                      </div>
-                    </div>
-                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
-                        x402 Lane
-                      </div>
-                      <div className="mt-2 text-sm text-stone-200/72">
-                        {autonomyPlan.x402Directive}
-                      </div>
-                      {autonomyPlan.autonomyPassValidUntil && (
-                        <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/58">
-                          Valid until{" "}
-                          <span className="text-[#f6ead7]">
-                            {formatShortDateTime(autonomyPlan.autonomyPassValidUntil)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Queue: {autonomyPlan.upgradeQueue.map((skill) => skillLabels[skill]).join(" -> ")}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Upgrades: {autonomyPlan.skillPurchases}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Paid entries: {autonomyPlan.paidEntries}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Settlements: {autonomyPlan.settlements}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleBuySkill(autonomyPlan.nextSkill)}
-                      disabled={buyDisabled}
-                      className="rounded-full border border-amber-300/22 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/16 disabled:opacity-50"
-                    >
-                      Approve {skillLabels[autonomyPlan.nextSkill]}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQueue(true)}
-                      disabled={!selectedAgent || queueLocked}
-                      className="rounded-full border border-[#7ed2b4]/25 bg-[#7ed2b4]/10 px-3 py-2 text-xs text-[#c5f4e9] transition hover:bg-[#7ed2b4]/16 disabled:opacity-50"
-                    >
-                      Deploy Paid Run
-                    </button>
-                    {!autonomyPlan.autonomyPassActive && (
-                      <button
-                        type="button"
-                        onClick={handleAutonomyPass}
-                        disabled={busyAction !== null}
-                        className="rounded-full border border-[#df6c39]/30 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/16 disabled:opacity-50"
-                      >
-                        Unlock x402 Premium
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {campaignStats && (
                 <div className="rounded-[24px] border border-amber-200/12 bg-[linear-gradient(180deg,rgba(26,18,12,0.92),rgba(14,10,8,0.96))] p-4">
@@ -1910,6 +1762,39 @@ export function GameShell() {
                 </div>
               )}
 
+              <div className="space-y-3">
+                {skillKeys.map((skill) => (
+                  <div
+                    key={skill}
+                    className="rounded-[24px] border border-white/8 bg-black/12 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-semibold text-[#f6ead7]">
+                          {skillLabels[skill]}
+                        </div>
+                        <div className="mt-1 text-xs text-stone-200/60">
+                          Current: {selectedAgent.skills[skill]} / 100
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleBuySkill(skill)}
+                        disabled={buyDisabled}
+                        className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
+                      >
+                        Buy +5 •{" "}
+                        {formatWeiToOkb(
+                          calculateSkillPurchasePrice(
+                            selectedAgent.skills[skill],
+                          ),
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
@@ -1982,67 +1867,122 @@ export function GameShell() {
                   )}
                 </div>
               </div>
-
-              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#f6ead7]">
-                    Autonomy Wire
-                  </p>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
-                    live directives
-                  </span>
-                </div>
-                <div className="space-y-2 text-sm text-stone-200/72">
-                  {autonomyEvents.length === 0 ? (
-                    <EmptyState
-                      label="Autonomous riders will post live directives here during matches."
-                      compact
-                    />
-                  ) : (
-                    autonomyEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className="rounded-2xl border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-3 py-2"
-                      >
-                        {event.message}
-                      </div>
-                    ))
-                  )}
-                </div>
               </div>
-
-              <div className="space-y-3">
-                {skillKeys.map((skill) => (
-                  <div
-                    key={skill}
-                    className="rounded-[24px] border border-white/8 bg-black/12 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-semibold text-[#f6ead7]">
-                          {skillLabels[skill]}
-                        </div>
-                        <div className="mt-1 text-xs text-stone-200/60">
-                          Current: {selectedAgent.skills[skill]} / 100
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleBuySkill(skill)}
-                        disabled={buyDisabled}
-                        className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
-                      >
-                        Buy +5 •{" "}
-                        {formatWeiToOkb(
-                          calculateSkillPurchasePrice(
-                            selectedAgent.skills[skill],
-                          ),
-                        )}
-                      </button>
+              <div className="space-y-4">
+              {autonomyPlan && (
+                <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(13,18,16,0.92),rgba(8,10,9,0.96))] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
+                        Autonomy Director
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                        {autonomyPlan.doctrine}
+                      </h3>
+                      <p className="mt-2 text-sm text-stone-200/72">
+                        {autonomyPlan.summary}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan.mode === "autonomous" ? "border-[#df6c39]/35 bg-[#df6c39]/10 text-[#ffd0ae]" : "border-[#7ed2b4]/30 bg-[#7ed2b4]/10 text-[#c5f4e9]"}`}>
+                        {autonomyPlan.mode}
+                      </span>
+                      <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan.autonomyPassActive ? "border-emerald-200/30 bg-emerald-200/10 text-emerald-100" : "border-white/10 bg-white/5 text-stone-200/65"}`}>
+                        {autonomyPlan.autonomyPassActive ? "x402 Active" : "x402 Locked"}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="mt-4 overflow-hidden rounded-[18px] border border-white/8 bg-black/16">
+                    <div className="grid gap-x-6 gap-y-4 p-4 sm:grid-cols-2">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">Campaign Priority</div>
+                        <div className="mt-1 font-semibold text-[#f6ead7]">{formatCampaignPriority(autonomyPlan.campaignPriority)}</div>
+                        <div className="mt-0.5 text-xs text-stone-200/68">{formatCampaignPriorityDetail(autonomyPlan)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">Combat Directive</div>
+                        <div className="mt-1 text-xs text-stone-200/72">{autonomyPlan.combatDirective}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">Objective Doctrine</div>
+                        <div className="mt-1 text-xs text-stone-200/72">{autonomyPlan.objectiveDirective}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">x402 Lane</div>
+                        <div className="mt-1 text-xs text-stone-200/72">{autonomyPlan.x402Directive}</div>
+                        {autonomyPlan.autonomyPassValidUntil && (
+                          <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                            Valid until <span className="text-[#f6ead7]">{formatShortDateTime(autonomyPlan.autonomyPassValidUntil)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="border-t border-white/8 bg-black/20 p-4">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">Economy Loop</div>
+                      <div className="mt-1 text-xs text-stone-200/72">{autonomyPlan.economyDirective}</div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                         <span className="rounded-full border border-white/8 px-2 py-0.5">Queue: {autonomyPlan.recommendedQueue}</span>
+                         <span className="rounded-full border border-white/8 px-2 py-0.5">Posture: {autonomyPlan.economyPosture}</span>
+                         <span className="rounded-full border border-white/8 px-2 py-0.5">Objective: {autonomyPlan.objectivePosture}</span>
+                         <span className="rounded-full border border-white/8 px-2 py-0.5">Confidence: {autonomyPlan.confidenceBand}</span>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-4">
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-stone-300/58 shrink-0">Runway readiness</span>
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/6">
+                          <div
+                            className={`h-full rounded-full transition-all ${autonomyPlan.readinessScore >= 72 ? "bg-[linear-gradient(90deg,#7ed2b4,#d7f3d6)]" : autonomyPlan.readinessScore >= 42 ? "bg-[linear-gradient(90deg,#d4934f,#f6ead7)]" : "bg-[linear-gradient(90deg,#9a4e32,#df6c39)]"}`}
+                            style={{ width: `${autonomyPlan.readinessScore}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-stone-300/58 shrink-0">{autonomyPlan.readinessScore}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Queue: {autonomyPlan.upgradeQueue.map((skill) => skillLabels[skill]).join(" -> ")}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Upgrades: {autonomyPlan.skillPurchases}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Paid entries: {autonomyPlan.paidEntries}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Settlements: {autonomyPlan.settlements}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleBuySkill(autonomyPlan.nextSkill)}
+                      disabled={buyDisabled}
+                      className="rounded-full border border-amber-300/22 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/16 disabled:opacity-50"
+                    >
+                      Approve {skillLabels[autonomyPlan.nextSkill]}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQueue(true)}
+                      disabled={!selectedAgent || queueLocked}
+                      className="rounded-full border border-[#7ed2b4]/25 bg-[#7ed2b4]/10 px-3 py-2 text-xs text-[#c5f4e9] transition hover:bg-[#7ed2b4]/16 disabled:opacity-50"
+                    >
+                      Deploy Paid Run
+                    </button>
+                    {!autonomyPlan.autonomyPassActive && (
+                      <button
+                        type="button"
+                        onClick={handleAutonomyPass}
+                        disabled={busyAction !== null}
+                        className="rounded-full border border-[#df6c39]/30 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/16 disabled:opacity-50"
+                      >
+                        Unlock x402 Premium
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                 <div className="mb-4 rounded-[18px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-3 py-3">
@@ -2130,6 +2070,34 @@ export function GameShell() {
                       </div>
                     </a>
                   ))}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[#f6ead7]">
+                    Autonomy Wire
+                  </p>
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
+                    live directives
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm text-stone-200/72">
+                  {autonomyEvents.length === 0 ? (
+                    <EmptyState
+                      label="Autonomous riders will post live directives here during matches."
+                      compact
+                    />
+                  ) : (
+                    autonomyEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="rounded-2xl border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-3 py-2"
+                      >
+                        {event.message}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -2239,12 +2207,12 @@ export function GameShell() {
                   </div>
                 )}
               </div>
+              </div>
             </div>
           ) : (
             <EmptyState label="Select or create an agent to inspect skills, queue matches, and review receipts." />
           )}
         </section>
-        </div>
 
           <section className="western-card rounded-[30px] border p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -2751,7 +2719,6 @@ export function GameShell() {
             </div>
           </section>
 
-      </div>
 
       <section className="western-card rounded-[30px] border p-5">
         <div className="mb-4 flex items-center justify-between">
