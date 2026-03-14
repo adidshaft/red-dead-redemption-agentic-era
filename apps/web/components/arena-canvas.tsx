@@ -9,14 +9,33 @@ type ArenaCanvasProps = {
   selectedAgentId?: string;
   canControl: boolean;
   onCommand: (command: ArenaCommand) => void;
+  onControlReadyChange?: (ready: boolean) => void;
 };
 
-export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }: ArenaCanvasProps) {
+export function ArenaCanvas({
+  snapshot,
+  selectedAgentId,
+  canControl,
+  onCommand,
+  onControlReadyChange,
+}: ArenaCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const snapshotRef = useRef<MatchSnapshot | null>(snapshot);
   const onCommandRef = useRef(onCommand);
   const selectedAgentIdRef = useRef(selectedAgentId);
   const canControlRef = useRef(canControl);
+  const onControlReadyChangeRef = useRef(onControlReadyChange);
+  const pointerPositionRef = useRef({ x: 800, y: 450 });
+  const pressedKeysRef = useRef({
+    w: false,
+    a: false,
+    s: false,
+    d: false,
+  });
+  const lastMovementRef = useRef({
+    signature: "idle",
+    emittedAt: 0,
+  });
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -35,6 +54,124 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
   }, [canControl]);
 
   useEffect(() => {
+    onControlReadyChangeRef.current = onControlReadyChange;
+  }, [onControlReadyChange]);
+
+  useEffect(() => {
+    function selectedPlayerIsControllable() {
+      const nextSnapshot = snapshotRef.current;
+      const nextSelectedAgentId = selectedAgentIdRef.current;
+      if (
+        !canControlRef.current ||
+        !nextSnapshot ||
+        nextSnapshot.status !== "in_progress" ||
+        !nextSelectedAgentId
+      ) {
+        return false;
+      }
+
+      return nextSnapshot.players.some(
+        (player) => player.agentId === nextSelectedAgentId && player.alive,
+      );
+    }
+
+    function emitMovement(force = false) {
+      if (!selectedPlayerIsControllable()) {
+        if (lastMovementRef.current.signature !== "idle") {
+          onCommandRef.current({ type: "idle" });
+          lastMovementRef.current = {
+            signature: "idle",
+            emittedAt: Date.now(),
+          };
+        }
+        return;
+      }
+
+      const dx =
+        (pressedKeysRef.current.d ? 1 : 0) - (pressedKeysRef.current.a ? 1 : 0);
+      const dy =
+        (pressedKeysRef.current.s ? 1 : 0) - (pressedKeysRef.current.w ? 1 : 0);
+      const signature = `${dx}:${dy}`;
+      const now = Date.now();
+      const shouldEmit =
+        force ||
+        signature !== lastMovementRef.current.signature ||
+        (signature !== "0:0" && now - lastMovementRef.current.emittedAt >= 180);
+
+      if (!shouldEmit) {
+        return;
+      }
+
+      if (dx === 0 && dy === 0) {
+        onCommandRef.current({ type: "idle" });
+        lastMovementRef.current = { signature: "idle", emittedAt: now };
+        return;
+      }
+
+      onCommandRef.current({
+        type: "move",
+        dx,
+        dy,
+      });
+      lastMovementRef.current = { signature, emittedAt: now };
+    }
+
+    function handleKeyChange(event: KeyboardEvent, isPressed: boolean) {
+      const key = event.key.toLowerCase();
+      if (key === "w" || key === "a" || key === "s" || key === "d") {
+        if (selectedPlayerIsControllable()) {
+          event.preventDefault();
+        }
+        pressedKeysRef.current[key] = isPressed;
+        emitMovement(true);
+        return;
+      }
+
+      if (
+        key === " " &&
+        isPressed &&
+        !event.repeat &&
+        selectedPlayerIsControllable()
+      ) {
+        event.preventDefault();
+        onCommandRef.current({
+          type: "dodge",
+          targetX: pointerPositionRef.current.x,
+          targetY: pointerPositionRef.current.y,
+        });
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      handleKeyChange(event, true);
+    }
+
+    function handleKeyUp(event: KeyboardEvent) {
+      handleKeyChange(event, false);
+    }
+
+    function handleBlur() {
+      pressedKeysRef.current = { w: false, a: false, s: false, d: false };
+      emitMovement(true);
+    }
+
+      const movementInterval = window.setInterval(() => {
+      emitMovement(false);
+    }, 90);
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener("keyup", handleKeyUp, { capture: true });
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.clearInterval(movementInterval);
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+      window.removeEventListener("keyup", handleKeyUp, { capture: true });
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
+  useEffect(() => {
     let destroyed = false;
     let game: any = null;
 
@@ -51,8 +188,6 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
       class ArenaScene extends Phaser.Scene {
         private sprites = new Map<string, any>();
         private labels = new Map<string, any>();
-        private lastMoveEmit = 0;
-        private pointerPosition = { x: 0, y: 0 };
 
         constructor() {
           super("ArenaScene");
@@ -61,6 +196,7 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
         create() {
           this.cameras.main.setBackgroundColor("#3b2418");
           this.add.rectangle(800, 450, 1600, 900, 0x5d3c20, 0.25).setStrokeStyle(4, 0xe9c58d, 0.22);
+          onControlReadyChangeRef.current?.(true);
 
           const graphics = this.add.graphics();
           graphics.lineStyle(1, 0xf3dbb0, 0.06);
@@ -74,9 +210,8 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
           }
           graphics.strokePath();
 
-          const keys = this.input.keyboard?.addKeys("W,A,S,D,SPACE") as Record<string, any> | undefined;
           this.input.on("pointermove", (pointer: any) => {
-            this.pointerPosition = { x: pointer.worldX, y: pointer.worldY };
+            pointerPositionRef.current = { x: pointer.worldX, y: pointer.worldY };
           });
           this.input.on("pointerdown", () => {
             if (!canControlRef.current || !selectedAgentIdRef.current) {
@@ -84,18 +219,8 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
             }
             onCommandRef.current({
               type: "fire",
-              targetX: this.pointerPosition.x,
-              targetY: this.pointerPosition.y,
-            });
-          });
-          this.input.keyboard?.on("keydown-SPACE", () => {
-            if (!canControlRef.current || !selectedAgentIdRef.current) {
-              return;
-            }
-            onCommandRef.current({
-              type: "dodge",
-              targetX: this.pointerPosition.x,
-              targetY: this.pointerPosition.y,
+              targetX: pointerPositionRef.current.x,
+              targetY: pointerPositionRef.current.y,
             });
           });
 
@@ -107,17 +232,19 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
 
             for (const player of nextSnapshot.players) {
               if (!this.sprites.has(player.agentId)) {
-                const color = player.agentId === selectedAgentIdRef.current ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4;
-                const body = this.add.circle(player.x, player.y, 18, color, player.alive ? 1 : 0.35);
-                const ring = this.add.circle(player.x, player.y, 26, 0x000000, 0).setStrokeStyle(2, 0xf4e3c7, 0.25);
-                const hp = this.add.rectangle(player.x, player.y - 28, Math.max(24, player.health * 0.8), 6, 0x0f1012, 0.9);
+                const isSelected = player.agentId === selectedAgentIdRef.current;
+                const color = isSelected ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4;
+                const glow = this.add.circle(player.x, player.y, isSelected ? 38 : 30, color, isSelected ? 0.18 : 0.08);
+                const body = this.add.circle(player.x, player.y, isSelected ? 22 : 18, color, player.alive ? 1 : 0.35);
+                const ring = this.add.circle(player.x, player.y, isSelected ? 30 : 26, 0x000000, 0).setStrokeStyle(isSelected ? 3 : 2, 0xf4e3c7, isSelected ? 0.55 : 0.25);
+                const hp = this.add.rectangle(player.x, player.y - 34, Math.max(isSelected ? 38 : 24, player.health * (isSelected ? 0.95 : 0.8)), 7, 0x0f1012, 0.9);
                 const label = this.add.text(player.x, player.y + 28, player.displayName, {
                   fontFamily: "var(--font-body)",
-                  fontSize: "12px",
+                  fontSize: isSelected ? "14px" : "12px",
                   color: "#f8f2e8",
                   align: "center",
                 }).setOrigin(0.5);
-                const container = this.add.container(player.x, player.y, [ring, body, hp]);
+                const container = this.add.container(player.x, player.y, [glow, ring, body, hp]);
                 this.sprites.set(player.agentId, container);
                 this.labels.set(player.agentId, label);
               }
@@ -126,14 +253,19 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
               const label = this.labels.get(player.agentId);
               if (sprite && label) {
                 sprite.setPosition(player.x, player.y);
-                const [_ring, body, hp] = sprite.list as any[];
+                const [glow, ring, body, hp] = sprite.list as any[];
+                const isSelected = player.agentId === selectedAgentIdRef.current;
                 body.setFillStyle(
-                  player.agentId === selectedAgentIdRef.current ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4,
+                  isSelected ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4,
                   player.alive ? 1 : 0.35,
                 );
-                hp.setSize(Math.max(24, player.health * 0.8), 6);
+                glow.setRadius(isSelected ? 38 : 30);
+                glow.setFillStyle(isSelected ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4, isSelected ? 0.18 : 0.08);
+                ring.setStrokeStyle(isSelected ? 3 : 2, 0xf4e3c7, isSelected ? 0.55 : 0.25);
+                hp.setSize(Math.max(isSelected ? 38 : 24, player.health * (isSelected ? 0.95 : 0.8)), 7);
                 label.setPosition(player.x, player.y + 28);
                 label.setAlpha(player.alive ? 1 : 0.45);
+                label.setFontSize(isSelected ? "14px" : "12px");
               }
             }
 
@@ -143,23 +275,6 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
                 this.sprites.delete(agentId);
                 this.labels.get(agentId)?.destroy();
                 this.labels.delete(agentId);
-              }
-            }
-
-            if (keys && canControlRef.current && selectedAgentIdRef.current) {
-              const dx = (keys.D?.isDown ? 1 : 0) - (keys.A?.isDown ? 1 : 0);
-              const dy = (keys.S?.isDown ? 1 : 0) - (keys.W?.isDown ? 1 : 0);
-              if (Date.now() - this.lastMoveEmit > 90) {
-                this.lastMoveEmit = Date.now();
-                if (dx !== 0 || dy !== 0) {
-                  onCommandRef.current({
-                    type: "move",
-                    dx,
-                    dy,
-                  });
-                } else {
-                  onCommandRef.current({ type: "idle" });
-                }
               }
             }
           });
@@ -184,9 +299,16 @@ export function ArenaCanvas({ snapshot, selectedAgentId, canControl, onCommand }
 
     return () => {
       destroyed = true;
+      onControlReadyChangeRef.current?.(false);
       game?.destroy(true);
     };
   }, []);
 
-  return <div ref={containerRef} className="h-full w-full overflow-hidden rounded-[28px] border border-white/10 bg-[#1b110c]" />;
+  return (
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      className="h-full w-full overflow-hidden rounded-[28px] border border-white/10 bg-[#1b110c] outline-none"
+    />
+  );
 }

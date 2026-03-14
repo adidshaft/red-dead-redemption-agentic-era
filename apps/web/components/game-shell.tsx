@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   Crosshair,
+  Expand,
   Gem,
   LoaderCircle,
+  Minimize,
   PlugZap,
   RadioTower,
   ShieldPlus,
@@ -81,14 +83,35 @@ export function GameShell() {
   );
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [autonomyHint, setAutonomyHint] = useState<string | null>(null);
+  const [arenaReadyForControls, setArenaReadyForControls] = useState(false);
+  const [arenaFullscreen, setArenaFullscreen] = useState(false);
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
+  const arenaFrameRef = useRef<HTMLDivElement | null>(null);
 
   const selectedAgent = useMemo(
     () =>
       agents.find((agent) => agent.id === selectedAgentId) ?? agents[0] ?? null,
     [agents, selectedAgentId],
   );
+  const selectedSnapshotPlayer = useMemo(
+    () =>
+      snapshot && selectedAgent
+        ? snapshot.players.find((player) => player.agentId === selectedAgent.id) ??
+          null
+        : null,
+    [snapshot, selectedAgent],
+  );
+  const winnerDisplayName = useMemo(() => {
+    if (!snapshot?.winnerAgentId) {
+      return null;
+    }
+
+    return (
+      snapshot.players.find((player) => player.agentId === snapshot.winnerAgentId)
+        ?.displayName ?? snapshot.winnerAgentId
+    );
+  }, [snapshot]);
   const deployedContractAddress =
     contractAddress ?? process.env.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS ?? null;
 
@@ -157,10 +180,15 @@ export function GameShell() {
     });
     socket.on("match:result", (result: MatchSnapshot) => {
       setSnapshot(result);
+      const winnerName =
+        result.players.find((player) => player.agentId === result.winnerAgentId)
+          ?.displayName ?? result.winnerAgentId;
       setStatus(
         result.winnerAgentId === selectedAgent?.id
           ? "You won the showdown."
-          : "The showdown is over.",
+          : winnerName
+            ? `${winnerName} won the showdown.`
+            : "The showdown is over.",
       );
     });
 
@@ -178,11 +206,35 @@ export function GameShell() {
     void loadTransactions(selectedAgent.id);
   }, [authToken, selectedAgent?.id]);
 
+  useEffect(() => {
+    function syncFullscreenState() {
+      setArenaFullscreen(document.fullscreenElement === arenaFrameRef.current);
+    }
+
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+    };
+  }, []);
+
   async function ensureXLayer() {
     if (chainId === xLayerTestnetChain.id) {
       return;
     }
     await switchChainAsync({ chainId: xLayerTestnetChain.id });
+  }
+
+  async function handleArenaFullscreenToggle() {
+    if (!arenaFrameRef.current) {
+      return;
+    }
+
+    if (document.fullscreenElement === arenaFrameRef.current) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await arenaFrameRef.current.requestFullscreen();
   }
 
   async function loadAgents() {
@@ -462,6 +514,14 @@ export function GameShell() {
     });
   }
 
+  function startDirectionalMove(dx: number, dy: number) {
+    handleArenaCommand({ type: "move", dx, dy });
+  }
+
+  function stopDirectionalMove() {
+    handleArenaCommand({ type: "idle" });
+  }
+
   const buyDisabled =
     !deployedContractAddress || !walletClient || busyAction !== null;
   const liveAgentStats = selectedAgent?.skills ?? null;
@@ -704,12 +764,53 @@ export function GameShell() {
                 </button>
               </div>
             </div>
-            <div className="relative aspect-[16/9] overflow-hidden rounded-[28px] border border-white/8 bg-[#120b08]">
+            <div
+              ref={arenaFrameRef}
+              className={`relative overflow-hidden rounded-[28px] border border-white/8 bg-[#120b08] ${
+                arenaFullscreen ? "h-screen w-screen rounded-none border-0" : "aspect-[16/9]"
+              }`}
+            >
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
+                <div className="rounded-2xl border border-white/10 bg-black/45 px-4 py-3 text-xs text-stone-100/88 shadow-[0_10px_40px_rgba(0,0,0,0.28)] backdrop-blur">
+                  <div className="font-semibold uppercase tracking-[0.18em] text-[#f0bf76]">
+                    Arena Controls
+                  </div>
+                  <div className="mt-1">
+                    {selectedAgent?.mode === "manual"
+                      ? "WASD move • Click fire • Space dodge"
+                      : "Switch the selected agent to manual mode to take control."}
+                  </div>
+                  <div className="mt-1 text-stone-300/75">
+                    {selectedSnapshotPlayer?.alive
+                      ? `${selectedSnapshotPlayer.displayName} is live in the arena.`
+                      : snapshot?.status === "in_progress"
+                        ? "Your selected rider is not active in this showdown."
+                        : "Queue a match to take control."}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleArenaFullscreenToggle()}
+                  className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/12 bg-black/45 px-4 py-2 text-sm text-stone-100/88 backdrop-blur transition hover:border-white/25 hover:bg-black/60"
+                >
+                  {arenaFullscreen ? (
+                    <Minimize className="h-4 w-4" />
+                  ) : (
+                    <Expand className="h-4 w-4" />
+                  )}
+                  {arenaFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                </button>
+              </div>
               <ArenaCanvas
                 snapshot={snapshot}
                 selectedAgentId={selectedAgent?.id}
-                canControl={selectedAgent?.mode === "manual"}
+                canControl={
+                  selectedAgent?.mode === "manual" &&
+                  snapshot?.status === "in_progress" &&
+                  Boolean(selectedSnapshotPlayer?.alive)
+                }
                 onCommand={handleArenaCommand}
+                onControlReadyChange={setArenaReadyForControls}
               />
             </div>
             <div className="mt-4 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
@@ -726,7 +827,74 @@ export function GameShell() {
                   <div>
                     Current match: {snapshot?.matchId ?? "No active showdown"}
                   </div>
-                  <div>Winner: {snapshot?.winnerAgentId ?? "TBD"}</div>
+                  <div>Winner: {winnerDisplayName ?? "TBD"}</div>
+                  <div>
+                    Arena input:{" "}
+                    {arenaReadyForControls
+                      ? "armed"
+                      : "loading renderer"}
+                  </div>
+                  <div>
+                    Selected rider:{" "}
+                    {selectedSnapshotPlayer
+                      ? selectedSnapshotPlayer.alive
+                        ? `${selectedSnapshotPlayer.displayName} in the fight`
+                        : `${selectedSnapshotPlayer.displayName} was eliminated`
+                      : "Not in the current showdown"}
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="mb-2 text-xs uppercase tracking-[0.18em] text-stone-300/55">
+                    Backup controls
+                  </div>
+                  <div className="grid w-[144px] grid-cols-3 gap-2">
+                    <span />
+                    <button
+                      type="button"
+                      onMouseDown={() => startDirectionalMove(0, -1)}
+                      onMouseUp={stopDirectionalMove}
+                      onMouseLeave={stopDirectionalMove}
+                      onTouchStart={() => startDirectionalMove(0, -1)}
+                      onTouchEnd={stopDirectionalMove}
+                      className="rounded-2xl border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/80 transition hover:border-white/25 hover:bg-white/10"
+                    >
+                      W
+                    </button>
+                    <span />
+                    <button
+                      type="button"
+                      onMouseDown={() => startDirectionalMove(-1, 0)}
+                      onMouseUp={stopDirectionalMove}
+                      onMouseLeave={stopDirectionalMove}
+                      onTouchStart={() => startDirectionalMove(-1, 0)}
+                      onTouchEnd={stopDirectionalMove}
+                      className="rounded-2xl border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/80 transition hover:border-white/25 hover:bg-white/10"
+                    >
+                      A
+                    </button>
+                    <button
+                      type="button"
+                      onMouseDown={() => startDirectionalMove(0, 1)}
+                      onMouseUp={stopDirectionalMove}
+                      onMouseLeave={stopDirectionalMove}
+                      onTouchStart={() => startDirectionalMove(0, 1)}
+                      onTouchEnd={stopDirectionalMove}
+                      className="rounded-2xl border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/80 transition hover:border-white/25 hover:bg-white/10"
+                    >
+                      S
+                    </button>
+                    <button
+                      type="button"
+                      onMouseDown={() => startDirectionalMove(1, 0)}
+                      onMouseUp={stopDirectionalMove}
+                      onMouseLeave={stopDirectionalMove}
+                      onTouchStart={() => startDirectionalMove(1, 0)}
+                      onTouchEnd={stopDirectionalMove}
+                      className="rounded-2xl border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/80 transition hover:border-white/25 hover:bg-white/10"
+                    >
+                      D
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">

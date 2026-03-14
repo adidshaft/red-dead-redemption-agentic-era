@@ -875,6 +875,9 @@ export class ArenaCoordinator {
     runtime.snapshot.status = "settling";
     const combatDigest = createCombatDigest(runtime.snapshot);
     const winnerAgentId = runtime.snapshot.winnerAgentId;
+    const winnerDisplayName = winnerAgentId
+      ? runtime.players.get(winnerAgentId)?.displayName ?? winnerAgentId
+      : null;
     let settlementTxHash: string | null = null;
 
     if (runtime.paid && winnerAgentId) {
@@ -893,8 +896,8 @@ export class ArenaCoordinator {
     const settlementEvent = createEvent({
       type: "settled",
       actorAgentId: runtime.snapshot.winnerAgentId ?? undefined,
-      message: runtime.snapshot.winnerAgentId
-        ? `Match settled for ${runtime.snapshot.winnerAgentId}.`
+      message: winnerDisplayName
+        ? `Match settled for ${winnerDisplayName}.`
         : "Match closed without a winner.",
     });
     runtime.snapshot.events = [
