@@ -1,10 +1,12 @@
 import crypto from "node:crypto";
 
 import {
+  gameConfig,
   baseSkillValue,
   formatDisplayName,
-  gameConfig,
   sanitizeBaseName,
+  type ArenaPickup,
+  type ArenaPickupType,
   type AgentProfile,
   type ArenaCommand,
   type MatchEvent,
@@ -47,6 +49,7 @@ type RuntimePlayer = MatchPlayerState & {
   moveVector: { dx: number; dy: number };
   fireCooldownUntil: number;
   dodgeCooldownUntil: number;
+  reloadEndsAt: number;
   lastAutonomyAt: number;
   isBot: boolean;
 };
@@ -54,6 +57,8 @@ type RuntimePlayer = MatchPlayerState & {
 type MatchRuntime = {
   snapshot: MatchSnapshot;
   players: Map<string, RuntimePlayer>;
+  pickups: Map<string, ArenaPickup>;
+  lastPickupSpawnAt: number;
   timer: NodeJS.Timeout;
   paid: boolean;
 };
@@ -533,6 +538,7 @@ export class ArenaCoordinator {
     ).toISOString();
     const seed = Math.floor(Math.random() * 1_000_000);
     const players = new Map<string, RuntimePlayer>();
+    const pickups = new Map<string, ArenaPickup>();
     const spawnPoints = [
       { x: 160, y: 160 },
       { x: gameConfig.arenaSize.width - 160, y: 160 },
@@ -552,6 +558,7 @@ export class ArenaCoordinator {
         displayName: entry.agent.displayName,
         health: gameConfig.spawnHealth,
         ammo: gameConfig.spawnAmmo,
+        isReloading: false,
         kills: 0,
         shotsFired: 0,
         shotsHit: 0,
@@ -566,6 +573,7 @@ export class ArenaCoordinator {
         moveVector: { dx: 0, dy: 0 },
         fireCooldownUntil: 0,
         dodgeCooldownUntil: 0,
+        reloadEndsAt: 0,
         lastAutonomyAt: 0,
         isBot: entry.userAddress.startsWith("house-bot-"),
       };
@@ -586,6 +594,7 @@ export class ArenaCoordinator {
       endsAt,
       seed,
       players: Array.from(players.values()).map(toSnapshotPlayer),
+      pickups: [],
       events,
       winnerAgentId: null,
     };
@@ -597,6 +606,8 @@ export class ArenaCoordinator {
     return {
       snapshot,
       players,
+      pickups,
+      lastPickupSpawnAt: Date.now(),
       timer,
       paid,
     };
@@ -632,11 +643,20 @@ export class ArenaCoordinator {
           message: "Showdown starts now.",
         }),
       );
+      this.spawnPickup(runtime, events, "ammo");
+      this.spawnPickup(runtime, events, "health");
+      runtime.lastPickupSpawnAt = now;
     }
 
     for (const player of runtime.players.values()) {
       if (!player.alive) {
         continue;
+      }
+
+      if (player.reloadEndsAt > 0 && now >= player.reloadEndsAt) {
+        player.reloadEndsAt = 0;
+        player.isReloading = false;
+        player.ammo = gameConfig.maxAmmo;
       }
 
       player.x = clamp(
@@ -661,11 +681,70 @@ export class ArenaCoordinator {
         player.lastAutonomyAt = now;
         void this.runAutonomy(runtime, player.agentId);
       }
+
+      for (const pickup of runtime.pickups.values()) {
+        const distance = Math.hypot(player.x - pickup.x, player.y - pickup.y);
+        if (distance > gameConfig.pickupCollectRadius) {
+          continue;
+        }
+
+        if (pickup.type === "health" && player.health < gameConfig.spawnHealth) {
+          const restoredHealth = Math.min(
+            pickup.value,
+            gameConfig.spawnHealth - player.health,
+          );
+          if (restoredHealth <= 0) {
+            continue;
+          }
+
+          player.health += restoredHealth;
+          runtime.pickups.delete(pickup.id);
+          events.push(
+            createEvent({
+              type: "pickup",
+              actorAgentId: player.agentId,
+              message: `${player.displayName} grabs a tonic (+${restoredHealth} HP).`,
+            }),
+          );
+          continue;
+        }
+
+        if (pickup.type === "ammo" && player.ammo < gameConfig.maxAmmo) {
+          const restoredAmmo = Math.min(
+            pickup.value,
+            gameConfig.maxAmmo - player.ammo,
+          );
+          if (restoredAmmo <= 0) {
+            continue;
+          }
+
+          player.ammo += restoredAmmo;
+          player.isReloading = false;
+          player.reloadEndsAt = 0;
+          runtime.pickups.delete(pickup.id);
+          events.push(
+            createEvent({
+              type: "pickup",
+              actorAgentId: player.agentId,
+              message: `${player.displayName} pockets cartridges (+${restoredAmmo} ammo).`,
+            }),
+          );
+        }
+      }
+    }
+
+    if (
+      now - runtime.lastPickupSpawnAt >= gameConfig.pickupSpawnMs &&
+      runtime.pickups.size < gameConfig.maxArenaPickups
+    ) {
+      this.spawnPickup(runtime, events);
+      runtime.lastPickupSpawnAt = now;
     }
 
     runtime.snapshot.players = Array.from(runtime.players.values()).map(
       toSnapshotPlayer,
     );
+    runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     const alivePlayers = runtime.snapshot.players.filter(
       (player) => player.alive,
     );
@@ -773,7 +852,25 @@ export class ArenaCoordinator {
       actor.moveVector = { dx: 0, dy: 0 };
     }
 
+    if (
+      command.type === "reload" &&
+      !actor.isReloading &&
+      actor.ammo < gameConfig.maxAmmo
+    ) {
+      actor.isReloading = true;
+      actor.reloadEndsAt = now + gameConfig.reloadDurationMs;
+      events.push(
+        createEvent({
+          type: "reload",
+          actorAgentId: actor.agentId,
+          message: `${actor.displayName} starts reloading.`,
+        }),
+      );
+    }
+
     if (command.type === "dodge" && now >= actor.dodgeCooldownUntil) {
+      actor.isReloading = false;
+      actor.reloadEndsAt = 0;
       const dx = command.targetX - actor.x;
       const dy = command.targetY - actor.y;
       const distance = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
@@ -800,6 +897,7 @@ export class ArenaCoordinator {
 
     if (
       command.type === "fire" &&
+      !actor.isReloading &&
       actor.ammo > 0 &&
       now >= actor.fireCooldownUntil
     ) {
@@ -865,7 +963,42 @@ export class ArenaCoordinator {
     runtime.snapshot.players = Array.from(runtime.players.values()).map(
       toSnapshotPlayer,
     );
+    runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     return events;
+  }
+
+  private spawnPickup(
+    runtime: MatchRuntime,
+    events: MatchEvent[],
+    preferredType?: ArenaPickupType,
+  ) {
+    if (runtime.pickups.size >= gameConfig.maxArenaPickups) {
+      return;
+    }
+
+    const type =
+      preferredType ?? (Math.random() > 0.5 ? "health" : "ammo");
+    const pickup: ArenaPickup = {
+      id: crypto.randomUUID(),
+      type,
+      x: 220 + Math.random() * (gameConfig.arenaSize.width - 440),
+      y: 180 + Math.random() * (gameConfig.arenaSize.height - 360),
+      value:
+        type === "health"
+          ? gameConfig.healthPickupValue
+          : gameConfig.ammoPickupValue,
+    };
+
+    runtime.pickups.set(pickup.id, pickup);
+    events.push(
+      createEvent({
+        type: "pickup",
+        message:
+          type === "health"
+            ? "A tonic cache appears in the dust."
+            : "Fresh cartridges hit the arena floor.",
+      }),
+    );
   }
 
   private pickTarget(
@@ -899,6 +1032,7 @@ export class ArenaCoordinator {
     runtime.snapshot.players = Array.from(runtime.players.values()).map(
       toSnapshotPlayer,
     );
+    runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     void this.db.appendMatchEvents(runtime.snapshot.matchId, events);
     void this.db.createOrUpdateMatch(runtime.snapshot);
     this.broadcasts.emitEvents(runtime.snapshot.matchId, events);
@@ -960,6 +1094,7 @@ function toSnapshotPlayer(player: RuntimePlayer): MatchPlayerState {
     displayName: player.displayName,
     health: player.health,
     ammo: player.ammo,
+    isReloading: player.isReloading,
     kills: player.kills,
     shotsFired: player.shotsFired,
     shotsHit: player.shotsHit,

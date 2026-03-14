@@ -20,6 +20,20 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     const closestDistance = Math.hypot(closest.x - self.x, closest.y - self.y);
     return currentDistance < closestDistance ? current : closest;
   });
+  const nearestHealthPickup = context.snapshot.pickups
+    .filter((pickup) => pickup.type === "health")
+    .sort(
+      (left, right) =>
+        Math.hypot(left.x - self.x, left.y - self.y) -
+        Math.hypot(right.x - self.x, right.y - self.y),
+    )[0];
+  const nearestAmmoPickup = context.snapshot.pickups
+    .filter((pickup) => pickup.type === "ammo")
+    .sort(
+      (left, right) =>
+        Math.hypot(left.x - self.x, left.y - self.y) -
+        Math.hypot(right.x - self.x, right.y - self.y),
+    )[0];
   const dx = nearestEnemy.x - self.x;
   const dy = nearestEnemy.y - self.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
@@ -35,6 +49,32 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
       type: "dodge",
       targetX: self.x - dx,
       targetY: self.y - dy,
+    };
+  }
+
+  if (self.health < 55 && nearestHealthPickup) {
+    const pickupDx = nearestHealthPickup.x - self.x;
+    const pickupDy = nearestHealthPickup.y - self.y;
+    return {
+      type: "move",
+      dx: Math.max(-1, Math.min(1, pickupDx / Math.max(Math.abs(pickupDx), 1))),
+      dy: Math.max(-1, Math.min(1, pickupDy / Math.max(Math.abs(pickupDy), 1))),
+    };
+  }
+
+  if ((self.ammo <= 1 || self.isReloading) && nearestAmmoPickup) {
+    const pickupDx = nearestAmmoPickup.x - self.x;
+    const pickupDy = nearestAmmoPickup.y - self.y;
+    return {
+      type: "move",
+      dx: Math.max(-1, Math.min(1, pickupDx / Math.max(Math.abs(pickupDx), 1))),
+      dy: Math.max(-1, Math.min(1, pickupDy / Math.max(Math.abs(pickupDy), 1))),
+    };
+  }
+
+  if (self.ammo === 0 && !self.isReloading) {
+    return {
+      type: "reload",
     };
   }
 
@@ -98,7 +138,7 @@ export async function decideAutonomousAction(context: AutonomyContext): Promise<
             content: [
               {
                 type: "input_text",
-                text: "You control one arena cowboy agent. Return strict JSON matching the schema. Prioritize survival, valid actions, and concise reasoning.",
+                text: "You control one arena cowboy agent. Return strict JSON matching the schema. Prioritize survival, valid actions, supplies, and concise reasoning.",
               },
             ],
           },
@@ -162,6 +202,14 @@ export async function decideAutonomousAction(context: AutonomyContext): Promise<
                       required: ["type"],
                       properties: {
                         type: { const: "idle" },
+                      },
+                    },
+                    {
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["type"],
+                      properties: {
+                        type: { const: "reload" },
                       },
                     },
                   ],

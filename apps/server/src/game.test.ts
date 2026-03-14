@@ -39,6 +39,7 @@ describe("game helpers", () => {
       displayName: "Attacker",
       health: 100,
       ammo: 6,
+      isReloading: false,
       kills: 0,
       shotsFired: 0,
       shotsHit: 0,

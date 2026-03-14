@@ -15,11 +15,17 @@ export const gameConfig = {
   autonomyDecisionMs: 2 * 1000,
   spawnHealth: 100,
   spawnAmmo: 6,
+  maxAmmo: 6,
   movementSpeed: 225,
   projectileSpeed: 920,
   fireCooldownMs: 700,
   dodgeCooldownMs: 1_800,
+  reloadDurationMs: 1_500,
   pickupSpawnMs: 15_000,
+  pickupCollectRadius: 56,
+  maxArenaPickups: 3,
+  healthPickupValue: 25,
+  ammoPickupValue: 3,
   houseBotPrefix: "HouseBot",
 } as const;
 
@@ -116,6 +122,9 @@ export const arenaCommandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("idle"),
   }),
+  z.object({
+    type: z.literal("reload"),
+  }),
 ]);
 
 export type ArenaCommand = z.infer<typeof arenaCommandSchema>;
@@ -127,11 +136,25 @@ export const autonomyActionSchema = z.object({
 
 export type AutonomyAction = z.infer<typeof autonomyActionSchema>;
 
+export const arenaPickupTypeSchema = z.enum(["health", "ammo"]);
+export type ArenaPickupType = z.infer<typeof arenaPickupTypeSchema>;
+
+export const arenaPickupSchema = z.object({
+  id: z.string(),
+  type: arenaPickupTypeSchema,
+  x: z.number(),
+  y: z.number(),
+  value: z.number().int().positive(),
+});
+
+export type ArenaPickup = z.infer<typeof arenaPickupSchema>;
+
 export const matchPlayerStateSchema = z.object({
   agentId: z.string(),
   displayName: z.string(),
   health: z.number(),
   ammo: z.number(),
+  isReloading: z.boolean(),
   kills: z.number().int().nonnegative(),
   shotsFired: z.number().int().nonnegative(),
   shotsHit: z.number().int().nonnegative(),
@@ -151,6 +174,7 @@ export const matchEventSchema = z.object({
     "announcement",
     "move",
     "fire",
+    "reload",
     "hit",
     "dodge",
     "pickup",
@@ -171,6 +195,7 @@ export const matchSnapshotSchema = z.object({
   endsAt: z.string().nullable(),
   seed: z.number().int(),
   players: z.array(matchPlayerStateSchema),
+  pickups: z.array(arenaPickupSchema),
   events: z.array(matchEventSchema),
   winnerAgentId: z.string().nullable(),
 });

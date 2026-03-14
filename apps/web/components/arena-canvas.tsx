@@ -142,6 +142,18 @@ export function ArenaCanvas({
           targetX: pointerPositionRef.current.x,
           targetY: pointerPositionRef.current.y,
         });
+        return;
+      }
+
+      if (
+        key === "r" &&
+        isPressed &&
+        !event.repeat &&
+        selectedPlayerIsControllable()
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        onCommandRef.current({ type: "reload" });
       }
     }
 
@@ -191,6 +203,7 @@ export function ArenaCanvas({
       class ArenaScene extends Phaser.Scene {
         private sprites = new Map<string, any>();
         private labels = new Map<string, any>();
+        private pickupSprites = new Map<string, any>();
         private processedEventIds = new Set<string>();
         private activeMatchId: string | null = null;
 
@@ -322,6 +335,40 @@ export function ArenaCanvas({
               }
             }
 
+            for (const pickup of nextSnapshot.pickups) {
+              if (!this.pickupSprites.has(pickup.id)) {
+                const accent = pickup.type === "health" ? 0x82d39e : 0xf0bf76;
+                const label = pickup.type === "health" ? "+" : "A";
+                const glow = this.add.circle(0, 0, 24, accent, 0.12);
+                glow.setBlendMode(Phaser.BlendModes.ADD);
+                const body = this.add.rectangle(0, 0, 22, 22, accent, 0.9);
+                body.setStrokeStyle(2, 0x120b08, 0.35);
+                const icon = this.add.text(0, 0, label, {
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "14px",
+                  color: pickup.type === "health" ? "#12311f" : "#2d1807",
+                }).setOrigin(0.5);
+                const container = this.add.container(pickup.x, pickup.y, [
+                  glow,
+                  body,
+                  icon,
+                ]);
+                this.pickupSprites.set(pickup.id, container);
+              }
+
+              const sprite = this.pickupSprites.get(pickup.id);
+              if (sprite) {
+                sprite.setPosition(pickup.x, pickup.y);
+              }
+            }
+
+            for (const [pickupId, sprite] of this.pickupSprites.entries()) {
+              if (!nextSnapshot.pickups.some((pickup) => pickup.id === pickupId)) {
+                sprite.destroy(true);
+                this.pickupSprites.delete(pickupId);
+              }
+            }
+
             for (const event of nextSnapshot.events) {
               if (this.processedEventIds.has(event.id)) {
                 continue;
@@ -369,9 +416,21 @@ export function ArenaCanvas({
                 this.pulseAt(targetPosition.x, targetPosition.y, 0xdf6c39, 0.28, 22);
               }
               break;
+            case "reload":
+              if (actorPosition) {
+                this.pulseAt(actorPosition.x, actorPosition.y, 0x7ab7ff, 0.24, 20);
+              }
+              break;
             case "dodge":
               if (actorPosition) {
                 this.ringAt(actorPosition.x, actorPosition.y, 0xd9b27a);
+              }
+              break;
+            case "pickup":
+              if (actorPosition) {
+                this.pulseAt(actorPosition.x, actorPosition.y, 0x82d39e, 0.22, 24);
+              } else {
+                this.flashBanner("SUPPLIES");
               }
               break;
             case "elimination":

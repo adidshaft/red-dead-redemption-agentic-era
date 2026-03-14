@@ -38,6 +38,7 @@ function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Pa
         displayName: agent.displayName,
         health: 100,
         ammo: 6,
+        isReloading: false,
         kills: 0,
         shotsFired: 0,
         shotsHit: 0,
@@ -53,6 +54,7 @@ function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Pa
         displayName: "Enemy-1",
         health: 80,
         ammo: 6,
+        isReloading: false,
         kills: 0,
         shotsFired: 0,
         shotsHit: 0,
@@ -64,6 +66,7 @@ function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Pa
         alive: true,
       },
     ],
+    pickups: [],
     events: [],
     ...snapshotOverrides,
   };
@@ -86,6 +89,7 @@ describe("chooseFallbackCommand", () => {
             displayName: "Marshal-ABC123",
             health: 20,
             ammo: 6,
+            isReloading: false,
             kills: 0,
             shotsFired: 0,
             shotsHit: 0,
@@ -101,6 +105,7 @@ describe("chooseFallbackCommand", () => {
             displayName: "Enemy-1",
             health: 80,
             ammo: 6,
+            isReloading: false,
             kills: 0,
             shotsFired: 0,
             shotsHit: 0,
@@ -116,5 +121,104 @@ describe("chooseFallbackCommand", () => {
     );
 
     expect(command.type).toBe("dodge");
+  });
+
+  it("reloads when out of ammo and no ammo pickup is available", () => {
+    const command = chooseFallbackCommand(
+      createContext(undefined, {
+        players: [
+          {
+            agentId: "agent-1",
+            displayName: "Marshal-ABC123",
+            health: 75,
+            ammo: 0,
+            isReloading: false,
+            kills: 0,
+            shotsFired: 0,
+            shotsHit: 0,
+            damageDealt: 0,
+            score: 0,
+            mode: "autonomous",
+            x: 200,
+            y: 200,
+            alive: true,
+          },
+          {
+            agentId: "enemy-1",
+            displayName: "Enemy-1",
+            health: 80,
+            ammo: 6,
+            isReloading: false,
+            kills: 0,
+            shotsFired: 0,
+            shotsHit: 0,
+            damageDealt: 0,
+            score: 0,
+            mode: "manual",
+            x: 520,
+            y: 200,
+            alive: true,
+          },
+        ],
+        pickups: [],
+      }),
+    );
+
+    expect(command).toEqual({ type: "reload" });
+  });
+
+  it("moves toward health supplies when badly hurt", () => {
+    const command = chooseFallbackCommand(
+      createContext(undefined, {
+        players: [
+          {
+            agentId: "agent-1",
+            displayName: "Marshal-ABC123",
+            health: 40,
+            ammo: 4,
+            isReloading: false,
+            kills: 0,
+            shotsFired: 0,
+            shotsHit: 0,
+            damageDealt: 0,
+            score: 0,
+            mode: "autonomous",
+            x: 200,
+            y: 200,
+            alive: true,
+          },
+          {
+            agentId: "enemy-1",
+            displayName: "Enemy-1",
+            health: 80,
+            ammo: 6,
+            isReloading: false,
+            kills: 0,
+            shotsFired: 0,
+            shotsHit: 0,
+            damageDealt: 0,
+            score: 0,
+            mode: "manual",
+            x: 420,
+            y: 220,
+            alive: true,
+          },
+        ],
+        pickups: [
+          {
+            id: "pickup-health",
+            type: "health",
+            x: 230,
+            y: 200,
+            value: 25,
+          },
+        ],
+      }),
+    );
+
+    expect(command.type).toBe("move");
+    if (command.type === "move") {
+      expect(command.dx).toBeGreaterThan(0);
+    }
   });
 });

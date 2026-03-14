@@ -11,6 +11,7 @@ import {
   Minimize,
   PlugZap,
   RadioTower,
+  RotateCcw,
   ShieldPlus,
   Sword,
   Wallet,
@@ -472,11 +473,17 @@ export function GameShell() {
       case "fire":
         playStartTone(350, 0.06);
         break;
+      case "reload":
+        playStartTone(280, 0.1);
+        break;
       case "hit":
         playStartTone(210, 0.08);
         break;
       case "dodge":
         playStartTone(520, 0.07);
+        break;
+      case "pickup":
+        playStartTone(640, 0.08);
         break;
       case "elimination":
         playStartTone(160, 0.18);
@@ -830,6 +837,10 @@ export function GameShell() {
     handleArenaCommand({ type: "idle" });
   }
 
+  function handleReloadAction() {
+    handleArenaCommand({ type: "reload" });
+  }
+
   const buyDisabled =
     !deployedContractAddress || !walletClient || busyAction !== null;
   const liveAgentStats = selectedAgent?.skills ?? null;
@@ -1085,7 +1096,7 @@ export function GameShell() {
                 <BriefingCard
                   eyebrow="How To Play"
                   title="Move, aim, survive"
-                  body="WASD moves your rider, click fires at the nearest rival under your cursor, and Space triggers a dodge to break pressure."
+                  body="WASD moves your rider, click fires at the nearest rival under your cursor, Space triggers a dodge, and R reloads when your chamber runs dry."
                 />
                 <BriefingCard
                   eyebrow="Skill Impact"
@@ -1194,7 +1205,7 @@ export function GameShell() {
                         <span className="text-stone-300/65">{selectedSnapshotPlayer.health}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="w-6 text-stone-300/55">AMO</span>
+                        <span className="w-10 text-stone-300/55">AMMO</span>
                         <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10">
                           <div
                             className="h-full rounded-full bg-[#f0bf76] transition-all"
@@ -1204,7 +1215,9 @@ export function GameShell() {
                         <span className="text-stone-300/65">{selectedSnapshotPlayer.ammo}</span>
                       </div>
                       <div className="mt-1.5 text-[10px] text-stone-300/50">
-                        WASD move · Click fire · Space dodge
+                        {selectedSnapshotPlayer.isReloading
+                          ? "Reloading... keep moving or grab ammo."
+                          : "WASD move · Click fire · Space dodge · R reload"}
                       </div>
                     </>
                   ) : (
@@ -1255,7 +1268,7 @@ export function GameShell() {
                       <Crosshair className="h-4 w-4 shrink-0 text-[#f0bf76]" />
                       <span className="font-medium">
                         {selectedAgent?.mode === "manual"
-                          ? "WASD move · Click fire · Space dodge"
+                          ? "WASD move · Click fire · Space dodge · R reload"
                           : "Set agent to manual to take direct control"}
                       </span>
                     </div>
@@ -1276,8 +1289,14 @@ export function GameShell() {
                         Combat:{" "}
                         <span className="text-[#f6ead7]">
                           {selectedSnapshotPlayer
-                            ? `${selectedSnapshotPlayer.health}HP · ${selectedSnapshotPlayer.ammo}rnd`
+                            ? `${selectedSnapshotPlayer.health}HP · ${selectedSnapshotPlayer.ammo}rnd${selectedSnapshotPlayer.isReloading ? " · reloading" : ""}`
                             : "—"}
+                        </span>
+                      </div>
+                      <div>
+                        Supplies:{" "}
+                        <span className="text-[#f6ead7]">
+                          {snapshot?.pickups.length ?? 0} live pickups
                         </span>
                       </div>
                       {snapshot?.status === "finished" && winnerDisplayName && (
@@ -1289,7 +1308,7 @@ export function GameShell() {
                   </div>
                   <div className="shrink-0">
                     <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
-                      D-Pad
+                      D-Pad + Reload
                     </div>
                     <div className="grid w-[108px] grid-cols-3 gap-1.5">
                       <span />
@@ -1339,6 +1358,14 @@ export function GameShell() {
                         D
                       </button>
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleReloadAction}
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/20 bg-amber-100/8 px-2 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/14"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Reload
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1381,7 +1408,7 @@ export function GameShell() {
                   />
                 </div>
                 <div className="mt-4 rounded-[20px] border border-white/8 bg-black/14 p-3 text-sm text-stone-200/72">
-                  Gold marks your rider. Green dots are active rivals. Faded dots have already been eliminated.
+                  Gold marks your rider. Green dots are active rivals. Faded dots are eliminated. Gold crosses are health tonics and amber squares are ammo caches.
                 </div>
               </div>
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
@@ -1639,6 +1666,27 @@ function ArenaMinimap({
     <div className="rounded-[22px] border border-white/8 bg-[#170f0b] p-3">
       <div className="relative aspect-[16/9] overflow-hidden rounded-[18px] border border-amber-300/10 bg-[radial-gradient(circle_at_top,_rgba(236,183,102,0.12),_transparent_48%),linear-gradient(180deg,_rgba(52,32,22,0.95),_rgba(19,11,8,0.98))]">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(244,227,199,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(244,227,199,0.06)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        {snapshot.pickups.map((pickup) => {
+          const left = `${(pickup.x / 1600) * 100}%`;
+          const top = `${(pickup.y / 900) * 100}%`;
+          return (
+            <div
+              key={pickup.id}
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left, top }}
+            >
+              <div
+                className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[8px] font-bold ${
+                  pickup.type === "health"
+                    ? "border-[#f8e3b4]/60 bg-[#f0bf76]/70 text-[#20120b]"
+                    : "border-amber-200/40 bg-[#df6c39]/75 text-white"
+                }`}
+              >
+                {pickup.type === "health" ? "+" : "A"}
+              </div>
+            </div>
+          );
+        })}
         {snapshot.players.map((player) => {
           const left = `${(player.x / 1600) * 100}%`;
           const top = `${(player.y / 900) * 100}%`;
