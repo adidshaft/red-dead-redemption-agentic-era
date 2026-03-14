@@ -94,6 +94,8 @@ type AgentOperation = {
   action: "buy_skill" | "queue_paid" | "queue_practice" | "buy_autonomy_pass";
 };
 
+type ConsoleTab = "overview" | "autonomy" | "onchain" | "history" | "spectate";
+
 export function GameShell() {
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
@@ -128,6 +130,7 @@ export function GameShell() {
   const [matchCountdown, setMatchCountdown] = useState<number | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [txReveals, setTxReveals] = useState<TxReveal[]>([]);
+  const [activeConsoleTab, setActiveConsoleTab] = useState<ConsoleTab>("overview");
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
   const arenaFrameRef = useRef<HTMLDivElement | null>(null);
@@ -1410,196 +1413,200 @@ export function GameShell() {
                 />
               </div>
             </div>
-          <div className="rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
-                  Roster
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
-                  Your Agents
-                </h2>
-              </div>
-              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-stone-200/70">
-                {agents.length}/3
-              </span>
-            </div>
-            <div className="scrollbar-thin flex max-h-[320px] flex-col gap-3 overflow-auto pr-1">
-              {agents.map((agent) => {
-                const active = agent.id === selectedAgent?.id;
-                return (
-                  <button
-                    type="button"
-                    key={agent.id}
-                    onClick={() => setSelectedAgentId(agent.id)}
-                    className={`group relative overflow-hidden rounded-[24px] border p-1 text-left transition-all ${active ? "border-[var(--accent-soft)]/40 bg-[var(--accent)]/10 shadow-[0_0_32px_rgba(229,141,60,0.15)]" : "border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5"}`}
-                  >
-                    <div className="flex flex-col sm:flex-row gap-4 p-4">
-                      {/* Portrait Element */}
-                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[16px] border border-white/10 bg-black/40">
-                         {/* Fallback pattern while loading or if missing */}
-                         <div className="absolute inset-0 dust-grid opacity-30" />
-                         <img src="/agents/placeholder.png" alt={agent.displayName} className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105" />
-                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                         <div className={`absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full px-2 py-0.5 max-w-[calc(100%-16px)] text-[9px] font-bold uppercase tracking-wider backdrop-blur-md ${agent.mode === "autonomous" ? "bg-[#b53c1e]/80 text-[#f2e3cd]" : "bg-[#7ed2b4]/80 text-[#0d0a08]"}`}>
-                             <span className="truncate">{agent.mode}</span>
-                         </div>
-                      </div>
-
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className={`truncate text-xl font-bold font-[var(--font-heading)] ${active ? "text-[var(--accent-soft)]" : "text-[var(--foreground)]"}`}>
-                              {agent.displayName}
-                            </h3>
-                            <p className="mt-1 truncate text-[10px] uppercase tracking-[0.22em] text-[var(--circuit-line)] opacity-80">
-                              {agent.isStarter ? "starter unit" : "secondary unit"} • {agent.walletAddress.slice(0,6)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                          {skillKeys.map((skill) => (
-                            <div
-                              key={skill}
-                              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${active ? "border-[var(--accent-soft)]/20 bg-black/40 text-[var(--accent-soft)]" : "border-white/5 bg-black/20 text-stone-400"}`}
-                            >
-                              <span className="opacity-60">{skillLabels[skill].slice(0,3).toUpperCase()}</span>
-                              <span className="font-semibold text-[var(--foreground)]">{agent.skills[skill]}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-              {agents.length === 0 && (
-                <EmptyState label="No agents yet. Sign in and create your first outlaw." />
-              )}
-            </div>
-          </div>
-              <div className="grid gap-4 rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">
-                    Operator Notes
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">
-                    Build Your Crew
-                  </h2>
+                    <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">
+                      Frontier Briefing
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">
+                      What matters first
+                    </h2>
                   </div>
                   <Bot className="h-8 w-8 text-[#f0bf76]" />
                 </div>
-                {isConnected && (
-                  <div className="rounded-[24px] border border-amber-200/14 bg-amber-100/6 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.24em] text-amber-100/58">
-                          Frontier Briefing
-                        </p>
-                        <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
-                          Learn the loop fast
-                        </h3>
-                      </div>
-                      <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-stone-200/62">
-                        {authToken ? "Signed In" : "Wallet Connected"}
-                      </span>
-                    </div>
-                    <div className="mt-4 grid gap-2 text-sm text-stone-200/72">
-                      <QuickBriefRow
-                        step={authToken ? "Ready" : "1"}
-                        title={authToken ? "Session active" : "Sign the session"}
-                        body={
-                          authToken
-                            ? "Your wallet session is active. Mint or select an agent to continue."
-                            : "Approve the wallet signature once to unlock agents, queueing, and receipts."
-                        }
-                      />
-                      <QuickBriefRow
-                        step={selectedAgent ? "Ready" : "2"}
-                        title={selectedAgent ? "Agent selected" : "Choose a rider"}
-                        body={
-                          selectedAgent
-                            ? `${selectedAgent.displayName} is your active rider.`
-                            : "Create or select an agent, then decide whether it fights manually or autonomously."
-                        }
-                      />
-                      <QuickBriefRow
-                        step="3"
-                        title="Win the arena"
-                        body="Queue a match, stay inside the shrinking dust ring, grab ammo and tonic caches, and outlast the other riders."
-                      />
-                      <QuickBriefRow
-                        step="4"
-                        title="Work the onchain loop"
-                        body="Upgrades, paid entries, and settlement live on X Layer. Premium x402 flows unlock stronger autonomy tooling."
-                      />
-                    </div>
+                {isConnected ? (
+                  <div className="mt-4 grid gap-2 text-sm text-stone-200/72">
+                    <QuickBriefRow
+                      step={authToken ? "Ready" : "1"}
+                      title={authToken ? "Session active" : "Sign the session"}
+                      body={
+                        authToken
+                          ? "Your wallet session is ready. Pick a rider, choose a mode, and queue a run."
+                          : "Approve one wallet signature to unlock agent actions, queueing, and onchain receipts."
+                      }
+                    />
+                    <QuickBriefRow
+                      step={selectedAgent ? "Ready" : "2"}
+                      title={selectedAgent ? "Rider selected" : "Pick or mint a rider"}
+                      body={
+                        selectedAgent
+                          ? `${selectedAgent.displayName} is active. Switch between manual and autonomous control any time.`
+                          : "Create or select a rider. Every rider gets five core skills and a linked treasury wallet."
+                      }
+                    />
+                    <QuickBriefRow
+                      step="3"
+                      title="Survive the showdown"
+                      body="Queue a match, stay inside the dust ring, grab supplies, and claim the pot if you win."
+                    />
                   </div>
+                ) : (
+                  <p className="mt-4 text-sm text-stone-200/72">
+                    Connect a wallet first. The game will then show you the exact three-step loop to get a rider into the frontier.
+                  </p>
                 )}
+              </div>
+
+              <div className="rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+                      Roster
+                    </p>
+                    <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+                      Your Agents
+                    </h2>
+                  </div>
+                  <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-stone-200/70">
+                    {agents.length}/3
+                  </span>
+                </div>
+                <div className="scrollbar-thin flex max-h-[220px] flex-col gap-2 overflow-auto pr-1">
+                  {agents.map((agent) => {
+                    const active = agent.id === selectedAgent?.id;
+                    return (
+                      <button
+                        type="button"
+                        key={agent.id}
+                        onClick={() => setSelectedAgentId(agent.id)}
+                        className={`rounded-[20px] border px-4 py-3 text-left transition ${
+                          active
+                            ? "border-[var(--accent-soft)]/35 bg-[var(--accent)]/10"
+                            : "border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-[#f6ead7]">
+                              {agent.displayName}
+                            </div>
+                            <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
+                              {agent.isStarter ? "starter" : "secondary"} • {truncateAddress(agent.walletAddress)}
+                            </div>
+                          </div>
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] ${
+                              agent.mode === "manual"
+                                ? "border-[#7ed2b4]/25 bg-[#7ed2b4]/10 text-[#c5f4e9]"
+                                : "border-[#df6c39]/25 bg-[#df6c39]/10 text-[#ffd0ae]"
+                            }`}
+                          >
+                            {agent.mode}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {agents.length === 0 && (
+                    <EmptyState label="No agents yet. Sign in and mint your first frontier rider." compact />
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">
+                      Build Your Crew
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">
+                      Mint a rider
+                    </h2>
+                  </div>
+                  <Gem className="h-8 w-8 text-[#f0bf76]" />
+                </div>
                 <label className="space-y-2">
                   <span className="text-sm text-stone-200/70">Base name</span>
                   <input
-                  value={baseName}
-                  onChange={(event) => setBaseName(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm outline-none ring-0 placeholder:text-stone-400 focus:border-amber-300/35"
-                  placeholder="Marshal"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={handleCreateAgent}
-                disabled={!authToken || busyAction === "create-agent"}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200/20 bg-amber-100/10 px-4 py-3 text-sm font-medium text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-50"
-              >
-                {busyAction === "create-agent" ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Gem className="h-4 w-4" />
-                )}
-                {authToken ? "Mint a New Agent Profile" : "Sign In to Mint an Agent"}
-              </button>
-              <p className="text-sm text-stone-300/68">
-                Every agent is named as{" "}
-                <span className="font-semibold text-[#f6dfb7]">
-                  BaseName-ULIDSuffix
-                </span>
-                , starts with five core stats, and gets a linked subwallet for
-                settlement.
-              </p>
-              {!authToken ? (
-                <p className="text-xs text-amber-100/75">
-                  Next step: click <span className="font-semibold">Sign In</span> above, approve the wallet signature, then mint the agent.
+                    value={baseName}
+                    onChange={(event) => setBaseName(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm outline-none ring-0 placeholder:text-stone-400 focus:border-amber-300/35"
+                    placeholder="Marshal"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleCreateAgent}
+                  disabled={!authToken || busyAction === "create-agent"}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200/20 bg-amber-100/10 px-4 py-3 text-sm font-medium text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-50"
+                >
+                  {busyAction === "create-agent" ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Gem className="h-4 w-4" />
+                  )}
+                  {authToken ? "Mint a New Agent Profile" : "Sign In to Mint an Agent"}
+                </button>
+                <p className="text-sm text-stone-300/68">
+                  Riders are named <span className="font-semibold text-[#f6dfb7]">BaseName-ULIDSuffix</span> and start with five core stats plus a linked treasury wallet.
                 </p>
-              ) : null}
+              </div>
             </div>
           </div>
         </div>
 
 
-          <section className="western-card rounded-[30px] border p-5">
-            <div className="mb-4 flex items-center justify-between">
+          <section className="western-card order-2 rounded-[30px] border p-5">
+            <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--accent-soft)]/60">
-                  Loadout
+                  Operations Console
                 </p>
                 <h2 className="mt-1 font-[var(--font-heading)] text-3xl font-bold text-[var(--foreground)]">
-                  Skill Network
+                  Deeper systems
                 </h2>
+                <p className="mt-2 max-w-2xl text-sm text-stone-200/68">
+                  Keep the arena in front. Open only the lane you need when you need it.
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={handleAutonomyPass}
-                disabled={!selectedAgent || busyAction !== null}
-                className="rounded-full border border-[#df6c39]/40 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/18 disabled:opacity-50"
-              >
-                x402 Autonomy Pass
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <ConsoleTabButton
+                  label="Overview"
+                  active={activeConsoleTab === "overview"}
+                  onClick={() => setActiveConsoleTab("overview")}
+                />
+                <ConsoleTabButton
+                  label="Autonomy"
+                  active={activeConsoleTab === "autonomy"}
+                  onClick={() => setActiveConsoleTab("autonomy")}
+                />
+                <ConsoleTabButton
+                  label="Onchain"
+                  active={activeConsoleTab === "onchain"}
+                  onClick={() => setActiveConsoleTab("onchain")}
+                />
+                <ConsoleTabButton
+                  label="History"
+                  active={activeConsoleTab === "history"}
+                  onClick={() => setActiveConsoleTab("history")}
+                />
+                <ConsoleTabButton
+                  label="Spectate"
+                  active={activeConsoleTab === "spectate"}
+                  onClick={() => setActiveConsoleTab("spectate")}
+                />
+              </div>
             </div>
 
             {selectedAgent && liveAgentStats ? (
+            activeConsoleTab === "spectate" ? (
+              <EmptyState label="Spectate mode is active below. Use the live frontier board to follow public matches." />
+            ) : (
             <div className="grid gap-4 xl:grid-cols-2">
               <div className="space-y-4">
+              {(activeConsoleTab === "overview" || activeConsoleTab === "history") && (
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1630,8 +1637,9 @@ export function GameShell() {
                   </div>
                 </div>
               </div>
+              )}
 
-              {campaignStats && (
+              {(activeConsoleTab === "overview" || activeConsoleTab === "history") && campaignStats && (
                 <div className="rounded-[24px] border border-amber-200/12 bg-[linear-gradient(180deg,rgba(26,18,12,0.92),rgba(14,10,8,0.96))] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1708,7 +1716,7 @@ export function GameShell() {
                 </div>
               )}
 
-              {operationQueue.length > 0 && (
+              {activeConsoleTab === "autonomy" && operationQueue.length > 0 && (
                 <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(10,14,14,0.92),rgba(7,9,10,0.96))] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1762,6 +1770,7 @@ export function GameShell() {
                 </div>
               )}
 
+              {activeConsoleTab === "overview" && (
               <div className="space-y-3">
                 {skillKeys.map((skill) => (
                   <div
@@ -1794,7 +1803,9 @@ export function GameShell() {
                   </div>
                 ))}
               </div>
+              )}
 
+              {activeConsoleTab === "history" && (
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
@@ -1867,9 +1878,10 @@ export function GameShell() {
                   )}
                 </div>
               </div>
+              )}
               </div>
               <div className="space-y-4">
-              {autonomyPlan && (
+              {activeConsoleTab === "autonomy" && autonomyPlan && (
                 <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(13,18,16,0.92),rgba(8,10,9,0.96))] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1984,6 +1996,7 @@ export function GameShell() {
                 </div>
               )}
 
+              {activeConsoleTab === "onchain" && (
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                 <div className="mb-4 rounded-[18px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-3 py-3">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/68">
@@ -2072,7 +2085,9 @@ export function GameShell() {
                   ))}
                 </div>
               </div>
+              )}
 
+              {activeConsoleTab === "autonomy" && (
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-[#f6ead7]">
@@ -2100,7 +2115,9 @@ export function GameShell() {
                   )}
                 </div>
               </div>
+              )}
 
+              {activeConsoleTab === "autonomy" && (
               <div className="rounded-[24px] border border-[#df6c39]/18 bg-[#df6c39]/6 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -2207,14 +2224,18 @@ export function GameShell() {
                   </div>
                 )}
               </div>
+              )}
               </div>
             </div>
+            )
+          ) : activeConsoleTab === "spectate" ? (
+            <EmptyState label="Spectate mode is active below. You do not need a selected rider to watch live public matches." />
           ) : (
             <EmptyState label="Select or create an agent to inspect skills, queue matches, and review receipts." />
           )}
         </section>
 
-          <section className="western-card rounded-[30px] border p-5">
+          <section className="western-card order-1 rounded-[30px] border p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
@@ -2687,40 +2708,19 @@ export function GameShell() {
                     )}
                   </div>
                 </div>
-                <div className="mt-4 border-t border-white/5 pt-4">
-                  <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
-                    Event Feed
-                  </p>
-                  <div className="scrollbar-thin max-h-52 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
-                    {recentEvents.length === 0 && (
-                      <EmptyState
-                        label="No events yet. Queue a match to start the duel."
-                        compact
-                      />
-                    )}
-                    {recentEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className={`rounded-2xl border px-3 py-2 ${getEventToneClasses(event.type)}`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] uppercase tracking-[0.18em] opacity-70">
-                            {formatEventTypeLabel(event.type)}
-                          </span>
-                        </div>
-                        <div className="mt-1">
-                          {event.message}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="mt-4 border-t border-white/5 pt-4 text-sm text-stone-200/72">
+                  Deeper event history and autonomy chatter live in the operations console, so the arena stays readable while you play.
                 </div>
               </div>
             </div>
           </section>
 
 
-      <section className="western-card rounded-[30px] border p-5">
+      <section
+        className={`western-card order-3 rounded-[30px] border p-5 ${
+          activeConsoleTab === "spectate" ? "" : "hidden"
+        }`}
+      >
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
@@ -3046,6 +3046,30 @@ function QuickBriefRow({
         <div className="mt-1 text-sm text-stone-200/72">{body}</div>
       </div>
     </div>
+  );
+}
+
+function ConsoleTabButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-2 text-xs uppercase tracking-[0.18em] transition ${
+        active
+          ? "border-amber-300/28 bg-amber-100/12 text-[#f6ead7]"
+          : "border-white/10 bg-white/4 text-stone-200/68 hover:border-white/20 hover:text-white"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 

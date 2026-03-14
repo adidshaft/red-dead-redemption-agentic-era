@@ -17,6 +17,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Five core skills: Quickdraw, Grit, Trailcraft, Tactics, Fortune.
 - Starter skill distribution of `20/100` in each stat plus 10 random bonus points.
 - Manual or autonomous combat in a 4-agent free-for-all arena.
+- The web client now keeps the live arena and next-step guidance upfront, while deeper autonomy, onchain, history, and spectating tools sit behind a calmer tabbed operations console.
 - Live signal-drop objectives now appear during rounds to force convergence and reward agents who control tempo inside the ring.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
