@@ -158,6 +158,10 @@ export function GameShell() {
     snapshot?.status === "queued" ||
     snapshot?.status === "in_progress" ||
     snapshot?.status === "settling";
+  const showPreMatchBrief =
+    !snapshot ||
+    snapshot.status === "queued" ||
+    snapshot.status === "finished";
   const roundClockLabel = useMemo(() => {
     if (!snapshot?.endsAt) {
       return "03:00";
@@ -1067,6 +1071,29 @@ export function GameShell() {
                 </button>
               </div>
             </div>
+            {showPreMatchBrief && (
+              <div className="mb-4 grid gap-4 xl:grid-cols-3">
+                <BriefingCard
+                  eyebrow="Phase"
+                  title={arenaPhaseLabel}
+                  body={
+                    queueState?.status === "queued"
+                      ? "Your slot is locked in. Stay on this screen while the arena fills and the showdown countdown starts."
+                      : "Pick a rider, make sure they are in manual or autonomous mode, then queue into the frontier."
+                  }
+                />
+                <BriefingCard
+                  eyebrow="How To Play"
+                  title="Move, aim, survive"
+                  body="WASD moves your rider, click fires at the nearest rival under your cursor, and Space triggers a dodge to break pressure."
+                />
+                <BriefingCard
+                  eyebrow="Skill Impact"
+                  title="Stats decide the duel"
+                  body="Quickdraw increases pressure, Grit helps you tank hits, Trailcraft powers dodges, Tactics sharpens aim, and Fortune creates swing moments. Score comes from eliminations, damage, and survival."
+                />
+              </div>
+            )}
             <div
               ref={arenaFrameRef}
               className={`relative overflow-hidden rounded-[28px] border border-white/8 bg-[#120b08] ${
@@ -1172,15 +1199,6 @@ export function GameShell() {
                       : "none"}
                   </div>
                 </div>
-                <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-100/6 px-3 py-3 text-xs text-stone-200/72">
-                  <div className="font-semibold uppercase tracking-[0.18em] text-[#f0bf76]">
-                    Objective
-                  </div>
-                  <div className="mt-2">
-                    Land shots, finish rivals, and survive the timer. Score is
-                    driven by eliminations, damage dealt, and staying alive.
-                  </div>
-                </div>
                 <div className="mt-4">
                   <div className="mb-2 text-xs uppercase tracking-[0.18em] text-stone-300/55">
                     Backup controls
@@ -1273,25 +1291,8 @@ export function GameShell() {
                     selectedAgentId={selectedAgent?.id}
                   />
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <LegendCard
-                    title="What To Do"
-                    items={[
-                      "Close distance until enemies are within your firing lane.",
-                      "Click a rival dot or silhouette to fire at them.",
-                      "Use dodge to break line-of-sight when focused.",
-                    ]}
-                  />
-                  <LegendCard
-                    title="Skill Impact"
-                    items={[
-                      "Quickdraw boosts damage and shot pressure.",
-                      "Grit lowers incoming damage and helps you survive.",
-                      "Trailcraft strengthens dodges and escapes.",
-                      "Tactics sharpens accuracy and decision quality.",
-                      "Fortune raises crit chances and swing moments.",
-                    ]}
-                  />
+                <div className="mt-4 rounded-[20px] border border-white/8 bg-black/14 p-3 text-sm text-stone-200/72">
+                  Gold marks your rider. Green dots are active rivals. Faded dots have already been eliminated.
                 </div>
               </div>
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
@@ -1576,22 +1577,25 @@ function ArenaMinimap({
   );
 }
 
-function LegendCard({
+function BriefingCard({
+  eyebrow,
   title,
-  items,
+  body,
 }: {
+  eyebrow: string;
   title: string;
-  items: string[];
+  body: string;
 }) {
   return (
-    <div className="rounded-[20px] border border-white/8 bg-black/14 p-3">
+    <div className="rounded-[22px] border border-amber-300/12 bg-amber-100/6 p-4">
       <div className="text-xs uppercase tracking-[0.18em] text-[#f0bf76]">
+        {eyebrow}
+      </div>
+      <div className="mt-2 text-base font-semibold text-[#f6ead7]">
         {title}
       </div>
-      <div className="mt-2 space-y-2 text-sm text-stone-200/70">
-        {items.map((item) => (
-          <div key={item}>{item}</div>
-        ))}
+      <div className="mt-2 text-sm text-stone-200/72">
+        {body}
       </div>
     </div>
   );
