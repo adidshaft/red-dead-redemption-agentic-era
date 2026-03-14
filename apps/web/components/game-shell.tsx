@@ -444,6 +444,37 @@ export function GameShell() {
       ? `House bots arrive in ${queueWaitCountdown}s`
       : "Building a four-rider field";
   }, [queueState, queueWaitCountdown, snapshot]);
+  const queueProgressRatio = useMemo(() => {
+    if (!queueState?.queuedAt || snapshot) {
+      return 0;
+    }
+
+    const queuedAt = new Date(queueState.queuedAt).getTime();
+    const elapsed = Math.max(0, clockNow - queuedAt);
+    return Math.max(
+      0,
+      Math.min(1, elapsed / gameConfig.humanQueueFillMs),
+    );
+  }, [clockNow, queueState?.queuedAt, snapshot]);
+  const selectedModeGuide = useMemo(() => {
+    if (!selectedAgent) {
+      return null;
+    }
+
+    if (selectedAgent.mode === "manual") {
+      return {
+        label: "Manual mode",
+        detail:
+          "You control movement, shots, dodge, and reload once the match starts.",
+      };
+    }
+
+    return {
+      label: "Autopilot mode",
+      detail:
+        "The rider handles the full fight on its own while you watch the cyan YOU marker and live calls.",
+    };
+  }, [selectedAgent]);
   const queueLocked =
     busyAction !== null ||
     queueState?.status === "queued" ||
@@ -2496,6 +2527,16 @@ export function GameShell() {
                     ? "Pick the rider you want in the next showdown. Queue buttons are in the arena section below."
                     : "Select a rider from the list or mint a new one to continue."}
                 </div>
+                {selectedModeGuide && (
+                  <div className="mt-3 rounded-[18px] border border-white/8 bg-white/[0.04] px-3 py-3">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                      {selectedModeGuide.label}
+                    </div>
+                    <div className="mt-1 text-sm text-stone-200/72">
+                      {selectedModeGuide.detail}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="rounded-[24px] border border-amber-200/10 bg-black/12 p-4">
                 <div className="flex items-start justify-between gap-4">
@@ -2997,7 +3038,7 @@ export function GameShell() {
                   ) : (
                     <Sword className="h-4 w-4" />
                   )}
-                  {queueLocked ? "Queued / In Match" : "Paid Queue"}
+                  {queueLocked ? "Run Active" : "Deploy Paid Run"}
                 </button>
                 <button
                   type="button"
@@ -3005,16 +3046,57 @@ export function GameShell() {
                   disabled={!selectedAgent || queueLocked}
                   className="rounded-full border border-white/14 px-4 py-2 text-sm text-white/80 transition hover:border-white/28 disabled:opacity-50"
                 >
-                  {queueLocked ? "Queue Locked" : "Practice Queue"}
+                  {queueLocked ? "Run Locked" : "Open Practice Run"}
                 </button>
               </div>
             </div>
             {queueState?.status === "queued" && (
-              <div className="mb-4 rounded-[24px] border border-amber-200/14 bg-amber-100/6 px-4 py-3 text-sm text-stone-200/76">
-                <span className="font-semibold text-[#f6ead7]">Showdown prep:</span>{" "}
-                {queueWaitLabel
-                  ? `${queueWaitLabel}. Stay on this screen while the countdown arms.`
-                  : "Your slot is locked in. Stay on this screen while the arena fills and the countdown starts."}
+              <div className="mb-4 rounded-[24px] border border-amber-200/14 bg-amber-100/6 px-4 py-4 text-sm text-stone-200/76">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-amber-100/58">
+                      Showdown prep
+                    </div>
+                    <div className="mt-1 font-semibold text-[#f6ead7]">
+                      {queueWaitLabel ?? "Your slot is locked. Waiting for the field to fill."}
+                    </div>
+                  </div>
+                  <div className="rounded-full border border-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/70">
+                    {selectedAgent?.mode === "autonomous" ? "Autopilot queued" : "Manual queued"}
+                  </div>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/30">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#d5752d,#f0bf76)] transition-all duration-300"
+                    style={{ width: `${Math.max(8, queueProgressRatio * 100)}%` }}
+                  />
+                </div>
+                <div className="mt-3 grid gap-2 text-[11px] text-stone-200/70 md:grid-cols-3">
+                  <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
+                    <div className="text-[9px] uppercase tracking-[0.18em] text-stone-300/56">
+                      1. Slot
+                    </div>
+                    <div className="mt-1 text-[#f6ead7]">Locked for {selectedAgent?.displayName ?? "your rider"}</div>
+                  </div>
+                  <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
+                    <div className="text-[9px] uppercase tracking-[0.18em] text-stone-300/56">
+                      2. Field fill
+                    </div>
+                    <div className="mt-1 text-[#f6ead7]">
+                      {queueWaitCountdown && queueWaitCountdown > 0
+                        ? `House bots arrive in about ${queueWaitCountdown}s`
+                        : "Bots are arming now"}
+                    </div>
+                  </div>
+                  <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
+                    <div className="text-[9px] uppercase tracking-[0.18em] text-stone-300/56">
+                      3. Opening bell
+                    </div>
+                    <div className="mt-1 text-[#f6ead7]">
+                      Stay on this screen for the countdown and spawn cue.
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             <div
