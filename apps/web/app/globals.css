@@ -1,13 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #120d0a;
-  --foreground: #f6ead7;
-  --panel: rgba(28, 18, 13, 0.84);
-  --panel-border: rgba(228, 189, 126, 0.24);
-  --accent: #d5752d;
-  --accent-soft: #f0bf76;
-  --field: rgba(255, 244, 227, 0.08);
+  --background: #0d0a08;
+  --foreground: #f2e3cd;
+  --panel: rgba(18, 12, 9, 0.88);
+  --panel-border: rgba(228, 189, 126, 0.35);
+  --accent: #e58d3c;
+  --accent-soft: #f4c885;
+  --onchain-glow: rgba(126, 210, 180, 0.65);
+  --circuit-line: rgba(150, 220, 200, 0.15);
+  --field: rgba(255, 235, 205, 0.05);
 }
 
 * {
@@ -18,9 +20,9 @@ html,
 body {
   min-height: 100%;
   background:
-    radial-gradient(circle at top left, rgba(214, 125, 45, 0.22), transparent 35%),
-    radial-gradient(circle at bottom right, rgba(102, 56, 29, 0.55), transparent 32%),
-    linear-gradient(160deg, #1f130d 0%, #120d0a 35%, #090605 100%);
+    radial-gradient(circle at top left, rgba(230, 140, 60, 0.18), transparent 45%),
+    radial-gradient(circle at bottom right, rgba(120, 210, 180, 0.08), transparent 40%),
+    linear-gradient(160deg, #18100a 0%, #0d0a08 40%, #060403 100%);
   color: var(--foreground);
 }
 
@@ -29,23 +31,40 @@ body {
 }
 
 .western-card {
-  background: linear-gradient(180deg, rgba(32, 20, 14, 0.92), rgba(18, 12, 9, 0.9));
+  background: linear-gradient(180deg, rgba(26, 17, 12, 0.95), rgba(12, 8, 6, 0.98));
   border: 1px solid var(--panel-border);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
 }
 
 .dust-grid {
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 24px 24px;
+    radial-gradient(var(--circuit-line) 1px, transparent 1px),
+    linear-gradient(var(--field) 1px, transparent 1px),
+    linear-gradient(90deg, var(--field) 1px, transparent 1px);
+  background-size: 32px 32px, 64px 64px, 64px 64px;
+  background-position: -16px -16px, 0 0, 0 0;
+}
+
+.circuit-bg {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    var(--circuit-line) 10px,
+    var(--circuit-line) 11px
+  );
 }
 
 .scrollbar-thin::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(240, 191, 118, 0.35);
+  background: rgba(244, 200, 133, 0.3);
   border-radius: 999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 200, 133, 0.5);
 }

@@ -1004,38 +1004,43 @@ export function GameShell() {
                     type="button"
                     key={agent.id}
                     onClick={() => setSelectedAgentId(agent.id)}
-                    className={`rounded-[24px] border p-4 text-left transition ${active ? "border-amber-300/35 bg-amber-100/10" : "border-white/8 bg-white/3 hover:border-white/16"}`}
+                    className={`group relative overflow-hidden rounded-[24px] border p-1 text-left transition-all ${active ? "border-[var(--accent-soft)]/40 bg-[var(--accent)]/10 shadow-[0_0_32px_rgba(229,141,60,0.15)]" : "border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5"}`}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-[#f6ead7]">
-                          {agent.displayName}
-                        </h3>
-                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">
-                          {agent.mode} •{" "}
-                          {agent.isStarter ? "starter" : "secondary"}
-                        </p>
+                    <div className="flex flex-col sm:flex-row gap-4 p-4">
+                      {/* Portrait Element */}
+                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[16px] border border-white/10 bg-black/40">
+                         {/* Fallback pattern while loading or if missing */}
+                         <div className="absolute inset-0 dust-grid opacity-30" />
+                         <img src="/agents/placeholder.png" alt={agent.displayName} className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105" />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                         <div className={`absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full px-2 py-0.5 max-w-[calc(100%-16px)] text-[9px] font-bold uppercase tracking-wider backdrop-blur-md ${agent.mode === "autonomous" ? "bg-[#b53c1e]/80 text-[#f2e3cd]" : "bg-[#7ed2b4]/80 text-[#0d0a08]"}`}>
+                             <span className="truncate">{agent.mode}</span>
+                         </div>
                       </div>
-                      <div
-                        className={`rounded-full px-3 py-1 text-xs ${agent.mode === "autonomous" ? "bg-[#df6c39]/20 text-[#ffd0ae]" : "bg-[#7ed2b4]/15 text-[#bdece0]"}`}
-                      >
-                        {agent.mode}
-                      </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-stone-200/72">
-                      {skillKeys.map((skill) => (
-                        <div
-                          key={skill}
-                          className="rounded-2xl border border-white/8 bg-black/12 px-3 py-2"
-                        >
-                          <div className="text-stone-300/60">
-                            {skillLabels[skill]}
-                          </div>
-                          <div className="mt-1 text-base font-semibold text-[#f6ead7]">
-                            {agent.skills[skill]}
+
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className={`truncate text-xl font-bold font-[var(--font-heading)] ${active ? "text-[var(--accent-soft)]" : "text-[var(--foreground)]"}`}>
+                              {agent.displayName}
+                            </h3>
+                            <p className="mt-1 truncate text-[10px] uppercase tracking-[0.22em] text-[var(--circuit-line)] opacity-80">
+                              {agent.isStarter ? "starter unit" : "secondary unit"} • {agent.walletAddress.slice(0,6)}
+                            </p>
                           </div>
                         </div>
-                      ))}
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                          {skillKeys.map((skill) => (
+                            <div
+                              key={skill}
+                              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${active ? "border-[var(--accent-soft)]/20 bg-black/40 text-[var(--accent-soft)]" : "border-white/5 bg-black/20 text-stone-400"}`}
+                            >
+                              <span className="opacity-60">{skillLabels[skill].slice(0,3).toUpperCase()}</span>
+                              <span className="font-semibold text-[var(--foreground)]">{agent.skills[skill]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </button>
                 );
@@ -1124,38 +1129,51 @@ export function GameShell() {
                 </div>
               )}
               {snapshot?.status === "finished" && (
-                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/55 backdrop-blur-sm">
-                  <div className="rounded-[32px] border border-amber-200/22 bg-black/75 px-8 py-8 text-center shadow-[0_20px_80px_rgba(0,0,0,0.55)]">
-                    <div className="text-xs uppercase tracking-[0.3em] text-amber-100/60">Showdown Over</div>
-                    {winnerDisplayName ? (
-                      <>
-                        <div className="mt-3 font-[var(--font-heading)] text-5xl text-[#f6dfb7]">
-                          {winnerDisplayName}
+                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[#0d0a08]/85 backdrop-blur-md">
+                  <div className="relative w-[600px] max-w-[90%] overflow-hidden rounded-[32px] border border-[var(--panel-border)] bg-[var(--panel)] px-10 py-12 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)]">
+                    <div className="absolute inset-0 circuit-bg opacity-10" />
+                    <div className="relative">
+                      <div className="flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.4em] text-[var(--accent)]/80">
+                        <span className="h-px w-8 bg-[var(--accent)]/30" />
+                        Showdown Concluded
+                        <span className="h-px w-8 bg-[var(--accent)]/30" />
+                      </div>
+                      
+                      {winnerDisplayName ? (
+                        <div className="mt-6 mb-8">
+                          <div className="font-[var(--font-heading)] text-7xl font-bold tracking-tight text-[var(--accent-soft)] drop-shadow-[0_0_24px_rgba(244,200,133,0.3)]">
+                            {winnerDisplayName}
+                          </div>
+                          <div className="mt-2 text-sm uppercase tracking-[0.2em] text-[var(--foreground)]/60">Wins the Frontier</div>
                         </div>
-                        <div className="mt-1 text-sm text-stone-300/65">wins the frontier</div>
-                      </>
-                    ) : (
-                      <div className="mt-3 font-[var(--font-heading)] text-4xl text-[#f6dfb7]">DRAW</div>
-                    )}
-                    <div className="mt-6 space-y-2 text-left min-w-[260px]">
-                      {scoreboardPlayers.map((player, i) => (
-                        <div
-                          key={player.agentId}
-                          className={`flex items-center gap-4 rounded-2xl px-4 py-2.5 ${
-                            player.agentId === snapshot.winnerAgentId
-                              ? "bg-amber-100/12 border border-amber-300/18"
-                              : player.agentId === selectedAgent?.id
-                                ? "bg-[#7ed2b4]/10"
-                                : "bg-white/5"
-                          }`}
-                        >
-                          <span className="w-5 text-center text-xs text-stone-400/70">{i + 1}</span>
-                          <span className="flex-1 truncate text-sm font-medium text-[#f6ead7]">{player.displayName}</span>
-                          <span className="text-xs text-stone-300/55">{player.kills}K</span>
-                          <span className="text-xs text-stone-300/55">{player.damageDealt}dmg</span>
-                          <span className="text-xs font-semibold text-[#f0bf76]">{player.score}pts</span>
+                      ) : (
+                        <div className="mt-6 mb-8 font-[var(--font-heading)] text-6xl font-bold tracking-tight text-[var(--foreground)]/80">
+                          DRAW
                         </div>
-                      ))}
+                      )}
+
+                      <div className="mt-8 space-y-2 text-left">
+                        {scoreboardPlayers.map((player, i) => (
+                          <div
+                            key={player.agentId}
+                            className={`flex items-center gap-4 rounded-[18px] px-5 py-3 transition-colors ${
+                              player.agentId === snapshot.winnerAgentId
+                                ? "bg-[var(--accent)]/15 border border-[var(--accent-soft)]/30"
+                                : player.agentId === selectedAgent?.id
+                                  ? "bg-[var(--onchain-glow)]/15 border border-[var(--onchain-glow)]/30"
+                                  : "bg-white/5 border border-transparent"
+                            }`}
+                          >
+                            <span className="w-6 text-center text-xs font-bold text-[var(--foreground)]/40">{i + 1}</span>
+                            <span className={`flex-1 truncate text-base font-medium ${
+                               player.agentId === snapshot.winnerAgentId ? "text-[var(--accent-soft)]" : "text-[var(--foreground)]"
+                            }`}>{player.displayName}</span>
+                            <span className="text-xs uppercase tracking-wider text-[var(--foreground)]/50">{player.kills} K</span>
+                            <span className="text-xs uppercase tracking-wider text-[var(--foreground)]/50">{player.damageDealt} DMG</span>
+                            <span className="text-sm font-bold text-[var(--accent-soft)]">{player.score} PTS</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1187,65 +1205,70 @@ export function GameShell() {
                   </div>
                 </div>
               )}
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
-                <div className="rounded-2xl border border-white/10 bg-black/50 px-3 py-2.5 text-xs text-stone-100/88 shadow-[0_10px_40px_rgba(0,0,0,0.28)] backdrop-blur">
-                  {selectedSnapshotPlayer?.alive ? (
-                    <>
-                      <div className="mb-1.5 font-semibold text-[#f0bf76]">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 p-6 bg-gradient-to-t from-black/80 via-black/20 to-transparent">
+                {selectedSnapshotPlayer?.alive ? (
+                  <div className="flex items-end gap-6">
+                    {/* HUD Portrait */}
+                    <div className="relative h-24 w-24 overflow-hidden rounded-[16px] border-2 border-[var(--panel-border)] bg-[#0d0a08] shadow-[0_0_24px_rgba(0,0,0,0.6)]">
+                      <img src="/agents/placeholder.png" alt="Agent" className="h-full w-full object-cover" />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black to-transparent p-2 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--accent-soft)]">
                         {selectedSnapshotPlayer.displayName}
                       </div>
-                      <div className="mb-1 flex items-center gap-2">
-                        <span className="w-6 text-stone-300/55">HP</span>
-                        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10">
+                    </div>
+                    {/* HUD Bars */}
+                    <div className="flex flex-col gap-3 pb-1">
+                      <div className="flex items-center gap-3">
+                        <span className="w-10 text-[10px] font-bold uppercase tracking-widest text-[#7ed2b4]/70">Health</span>
+                        <div className="relative h-3 w-48 overflow-hidden rounded bg-black/60 shadow-inner">
+                          <div className="absolute inset-0 bg-[var(--circuit-line)] opacity-20" />
                           <div
-                            className="h-full rounded-full bg-[#7ed2b4] transition-all"
+                            className="h-full bg-[#7ed2b4] shadow-[0_0_8px_rgba(126,210,180,0.5)] transition-all ease-out"
                             style={{ width: `${Math.max(0, selectedSnapshotPlayer.health)}%` }}
                           />
                         </div>
-                        <span className="text-stone-300/65">{selectedSnapshotPlayer.health}</span>
+                        <span className="w-8 text-sm font-black text-[#7ed2b4] drop-shadow-[0_0_4px_rgba(126,210,180,0.5)]">{selectedSnapshotPlayer.health}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-10 text-stone-300/55">AMMO</span>
-                        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10">
-                          <div
-                            className="h-full rounded-full bg-[#f0bf76] transition-all"
-                            style={{ width: `${Math.min(100, (selectedSnapshotPlayer.ammo / 6) * 100)}%` }}
-                          />
+                      
+                      <div className="flex items-center gap-3">
+                        <span className="w-10 text-[10px] font-bold uppercase tracking-widest text-[var(--accent-soft)]/70">Ammo</span>
+                        <div className="flex h-3 w-48 gap-1 rounded bg-black/60 p-0.5">
+                           {[...Array(6)].map((_, i) => (
+                             <div 
+                               key={i} 
+                               className={`flex-1 rounded-sm transition-colors ${i < selectedSnapshotPlayer.ammo ? "bg-[var(--accent-soft)] shadow-[0_0_8px_rgba(244,200,133,0.4)]" : "bg-transparent border border-white/10"}`} 
+                             />
+                           ))}
                         </div>
-                        <span className="text-stone-300/65">{selectedSnapshotPlayer.ammo}</span>
+                        <span className="w-8 text-sm font-black text-[var(--accent-soft)] drop-shadow-[0_0_4px_rgba(244,200,133,0.5)]">{selectedSnapshotPlayer.ammo}</span>
                       </div>
-                      <div className="mt-1.5 text-[10px] text-stone-300/50">
-                        {selectedSnapshotPlayer.isReloading
-                          ? "Reloading... keep moving or grab ammo."
-                          : "WASD move · Click fire · Space dodge · R reload"}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="font-semibold uppercase tracking-[0.18em] text-[#f0bf76]">
-                        {snapshot?.status === "in_progress" ? "Spectating" : "Arena Controls"}
-                      </div>
-                      <div className="mt-0.5 text-stone-300/70">
-                        {selectedAgent?.mode === "manual"
-                          ? snapshot?.status === "in_progress"
-                            ? "Your rider is not in this showdown."
-                            : "WASD · Click · Space"
-                          : "Set agent to manual to take control."}
-                      </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-[var(--panel-border)]/50 bg-[var(--panel)] px-5 py-4 text-xs shadow-[0_10px_40px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                    <div className="font-bold uppercase tracking-[0.2em] text-[var(--accent-soft)]">
+                      {snapshot?.status === "in_progress" ? "Spectating Module Active" : "Arena Systems Offline"}
+                    </div>
+                    <div className="mt-1.5 text-[var(--foreground)]/70">
+                      {selectedAgent?.mode === "manual"
+                        ? snapshot?.status === "in_progress"
+                          ? "Your rider is not in this showdown."
+                          : "Awaiting valid operational status."
+                        : "Switch to manual mode to engage controls."}
+                    </div>
+                  </div>
+                )}
+                
                 <button
                   type="button"
                   onClick={() => void handleArenaFullscreenToggle()}
-                  className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/12 bg-black/45 px-4 py-2 text-sm text-stone-100/88 backdrop-blur transition hover:border-white/25 hover:bg-black/60"
+                  className="pointer-events-auto flex items-center gap-2 rounded-full border border-[var(--panel-border)] bg-[var(--panel)] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)] backdrop-blur-md transition hover:border-[var(--accent-soft)] hover:text-[var(--accent-soft)]"
                 >
                   {arenaFullscreen ? (
                     <Minimize className="h-4 w-4" />
                   ) : (
                     <Expand className="h-4 w-4" />
                   )}
-                  {arenaFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                  {arenaFullscreen ? "Exit" : "Expand"}
                 </button>
               </div>
               <ArenaCanvas
@@ -1392,42 +1415,47 @@ export function GameShell() {
               </div>
             </div>
             <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#f6ead7]">
-                    Frontier Map
+              <div className="rounded-[24px] border border-[var(--panel-border)] bg-black/20 p-5 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
+                  <p className="font-[var(--font-heading)] text-lg font-bold text-[var(--foreground)]">
+                    Local Ledger Map
                   </p>
-                  <span className="text-[11px] uppercase tracking-[0.18em] text-stone-300/55">
-                    Whole arena
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--circuit-line)]">
+                    Active Grid
                   </span>
                 </div>
-                <div className="mt-3">
+                <div className="mt-4">
                   <ArenaMinimap
                     snapshot={snapshot}
                     selectedAgentId={selectedAgent?.id}
                   />
                 </div>
-                <div className="mt-4 rounded-[20px] border border-white/8 bg-black/14 p-3 text-sm text-stone-200/72">
-                  Gold marks your rider. Green dots are active rivals. Faded dots are eliminated. Gold crosses are health tonics and amber squares are ammo caches.
+                <div className="mt-4 flex flex-wrap gap-4 text-[10px] uppercase tracking-wider text-[var(--foreground)]/60">
+                   <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]"/> Your Rider</div>
+                   <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#7ed2b4]"/> Rival</div>
+                   <div className="flex items-center gap-1.5"><span className="flex h-2 w-2 items-center justify-center font-black text-[#7ed2b4]">+</span> Health</div>
+                   <div className="flex items-center gap-1.5"><span className="flex h-2 w-2 items-center justify-center font-black text-[var(--accent)]">A</span> Ammo</div>
                 </div>
               </div>
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#f6ead7]">
-                    {snapshot?.status === "finished"
-                      ? "Final Standings"
-                      : "Live Scoreboard"}
-                  </p>
-                  <span className="text-[11px] uppercase tracking-[0.18em] text-stone-300/55">
-                    Kills • HP • score
-                  </span>
-                </div>
-                <div className="mt-3">
-                  <ScoreboardTable
-                    players={scoreboardPlayers}
-                    selectedAgentId={selectedAgent?.id}
-                    winnerAgentId={snapshot?.winnerAgentId ?? null}
-                  />
+                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
+                  Event Feed
+                </p>
+                <div className="scrollbar-thin max-h-44 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
+                  {recentEvents.length === 0 && (
+                    <EmptyState
+                      label="No events yet. Queue a match to start the duel."
+                      compact
+                    />
+                  )}
+                  {recentEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
+                    >
+                      {event.message}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1436,11 +1464,11 @@ export function GameShell() {
           <section className="western-card rounded-[30px] border p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--accent-soft)]/60">
                   Loadout
                 </p>
-                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
-                  Skill Shop
+                <h2 className="mt-1 font-[var(--font-heading)] text-3xl font-bold text-[var(--foreground)]">
+                  Skill Network
                 </h2>
               </div>
               <button
@@ -1454,180 +1482,180 @@ export function GameShell() {
             </div>
 
             {selectedAgent && liveAgentStats ? (
-              <div className="space-y-4">
-                <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-[#f6ead7]">
-                        {selectedAgent.displayName}
-                      </h3>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">
-                        {selectedAgent.walletAddress}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleModeChange("manual")}
-                        disabled={busyAction !== null}
-                        className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "manual" ? "bg-[#7ed2b4]/18 text-[#c5f4e9]" : "border border-white/12 text-white/70"}`}
-                      >
-                        Manual
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleModeChange("autonomous")}
-                        disabled={busyAction !== null}
-                        className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "autonomous" ? "bg-[#df6c39]/18 text-[#ffd0ae]" : "border border-white/12 text-white/70"}`}
-                      >
-                        Autonomous
-                      </button>
-                    </div>
+            <div className="space-y-4">
+              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#f6ead7]">
+                      {selectedAgent.displayName}
+                    </h3>
+                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">
+                      {selectedAgent.walletAddress}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange("manual")}
+                      disabled={busyAction !== null}
+                      className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "manual" ? "bg-[#7ed2b4]/18 text-[#c5f4e9]" : "border border-white/12 text-white/70"}`}
+                    >
+                      Manual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange("autonomous")}
+                      disabled={busyAction !== null}
+                      className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "autonomous" ? "bg-[#df6c39]/18 text-[#ffd0ae]" : "border border-white/12 text-white/70"}`}
+                    >
+                      Autonomous
+                    </button>
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-3">
-                  {skillKeys.map((skill) => (
-                    <div
-                      key={skill}
-                      className="rounded-[24px] border border-white/8 bg-black/12 p-4"
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <div className="text-sm font-semibold text-[#f6ead7]">
-                            {skillLabels[skill]}
-                          </div>
-                          <div className="mt-1 text-xs text-stone-200/60">
-                            Current: {selectedAgent.skills[skill]} / 100
-                          </div>
+              <div className="space-y-3">
+                {skillKeys.map((skill) => (
+                  <div
+                    key={skill}
+                    className="rounded-[24px] border border-white/8 bg-black/12 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-semibold text-[#f6ead7]">
+                          {skillLabels[skill]}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleBuySkill(skill)}
-                          disabled={buyDisabled}
-                          className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
-                        >
-                          Buy +5 •{" "}
-                          {formatWeiToOkb(
-                            calculateSkillPurchasePrice(
-                              selectedAgent.skills[skill],
-                            ),
-                          )}
-                        </button>
+                        <div className="mt-1 text-xs text-stone-200/60">
+                          Current: {selectedAgent.skills[skill]} / 100
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                  <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
-                    Onchain History
-                  </p>
-                  <div className="scrollbar-thin max-h-56 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
-                    {transactions.length === 0 && (
-                      <EmptyState
-                        label="No confirmed X Layer receipts yet."
-                        compact
-                      />
-                    )}
-                    {transactions.map((receipt) => (
-                      <a
-                        key={receipt.txHash}
-                        href={receipt.explorerUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block rounded-2xl border border-white/8 bg-white/4 px-3 py-3 transition hover:border-white/14"
+                      <button
+                        type="button"
+                        onClick={() => handleBuySkill(skill)}
+                        disabled={buyDisabled}
+                        className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="font-medium text-[#f6ead7]">
-                            {formatReceiptPurpose(receipt.purpose)}
-                          </span>
-                          <span
-                            className={`rounded-full px-2 py-1 text-[11px] uppercase ${receipt.status === "confirmed" ? "bg-emerald-200/12 text-emerald-200" : "bg-stone-200/10 text-stone-200/70"}`}
-                          >
-                            {receipt.status}
-                          </span>
-                        </div>
-                        <div className="mt-2 text-xs text-stone-200/62">
-                          {truncateHash(receipt.txHash)}
-                        </div>
-                        <div className="mt-2 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
-                          <span>{receipt.matchId ? `Match ${receipt.matchId.slice(-6)}` : "Agent action"}</span>
-                          <span className="inline-flex items-center gap-1 text-[#f0bf76]">
-                            Explorer
-                            <ExternalLink className="h-3 w-3" />
-                          </span>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                {autonomyHint && (
-                  <pre className="scrollbar-thin max-h-64 overflow-auto rounded-[24px] border border-white/8 bg-black/14 p-4 text-xs text-stone-200/70">
-                    {autonomyHint}
-                  </pre>
-                )}
-              </div>
-            ) : (
-              <EmptyState label="Select or create an agent to inspect skills, queue matches, and review receipts." />
-            )}
-          </section>
-        </div>
-
-        <section className="western-card rounded-[30px] border p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
-                Observer
-              </p>
-              <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
-                Live Frontier
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                const response = await fetchLiveMatches();
-                setLiveMatches(response.matches);
-              }}
-              className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/75 transition hover:border-white/22 hover:text-white"
-            >
-              Refresh
-            </button>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {liveMatches.length === 0 && (
-              <EmptyState label="No public matches are live right now." />
-            )}
-            {liveMatches.map((match) => (
-              <div
-                key={match.matchId}
-                className="rounded-[24px] border border-white/8 bg-black/10 p-4"
-              >
-                <div className="text-xs uppercase tracking-[0.18em] text-stone-200/60">
-                  {match.status}
-                </div>
-                <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
-                  {match.matchId}
-                </div>
-                <div className="mt-3 space-y-2 text-sm text-stone-200/68">
-                  {match.players.map((player) => (
-                    <div
-                      key={player.agentId}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
-                    >
-                      <span>{player.displayName}</span>
-                      <span>{player.health} HP</span>
+                        Buy +5 •{" "}
+                        {formatWeiToOkb(
+                          calculateSkillPurchasePrice(
+                            selectedAgent.skills[skill],
+                          ),
+                        )}
+                      </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
+                  Onchain History
+                </p>
+                <div className="scrollbar-thin max-h-56 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
+                  {transactions.length === 0 && (
+                    <EmptyState
+                      label="No confirmed X Layer receipts yet."
+                      compact
+                    />
+                  )}
+                  {transactions.map((receipt) => (
+                    <a
+                      key={receipt.txHash}
+                      href={receipt.explorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-2xl border border-white/8 bg-white/4 px-3 py-3 transition hover:border-white/14"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium text-[#f6ead7]">
+                          {formatReceiptPurpose(receipt.purpose)}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[11px] uppercase ${receipt.status === "confirmed" ? "bg-emerald-200/12 text-emerald-200" : "bg-stone-200/10 text-stone-200/70"}`}
+                        >
+                          {receipt.status}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-stone-200/62">
+                        {truncateHash(receipt.txHash)}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
+                        <span>{receipt.matchId ? `Match ${receipt.matchId.slice(-6)}` : "Agent action"}</span>
+                        <span className="inline-flex items-center gap-1 text-[#f0bf76]">
+                          Explorer
+                          <ExternalLink className="h-3 w-3" />
+                        </span>
+                      </div>
+                    </a>
                   ))}
                 </div>
               </div>
-            ))}
-          </div>
+
+              {autonomyHint && (
+                <pre className="scrollbar-thin max-h-64 overflow-auto rounded-[24px] border border-white/8 bg-black/14 p-4 text-xs text-stone-200/70">
+                  {autonomyHint}
+                </pre>
+              )}
+            </div>
+          ) : (
+            <EmptyState label="Select or create an agent to inspect skills, queue matches, and review receipts." />
+          )}
         </section>
+      </div>
+
+      <section className="western-card rounded-[30px] border p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+              Observer
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+              Live Frontier
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              const response = await fetchLiveMatches();
+              setLiveMatches(response.matches);
+            }}
+            className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/75 transition hover:border-white/22 hover:text-white"
+          >
+            Refresh
+          </button>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {liveMatches.length === 0 && (
+            <EmptyState label="No public matches are live right now." />
+          )}
+          {liveMatches.map((match) => (
+            <div
+              key={match.matchId}
+              className="rounded-[24px] border border-white/8 bg-black/10 p-4"
+            >
+              <div className="text-xs uppercase tracking-[0.18em] text-stone-200/60">
+                {match.status}
+              </div>
+              <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                {match.matchId}
+              </div>
+              <div className="mt-3 space-y-2 text-sm text-stone-200/68">
+                {match.players.map((player) => (
+                  <div
+                    key={player.agentId}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
+                  >
+                    <span>{player.displayName}</span>
+                    <span>{player.health} HP</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
-    </main>
+    </section>
+  </main>
   );
 }
 

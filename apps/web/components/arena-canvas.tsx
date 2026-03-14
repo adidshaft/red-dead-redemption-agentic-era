@@ -215,43 +215,32 @@ export function ArenaCanvas({
           this.cameras.main.setBackgroundColor("#2a1710");
           onControlReadyChangeRef.current?.(true);
 
-          // Dusty ground — subtle radial gradient approximated with overlaid rects
-          this.add.rectangle(800, 450, 1600, 900, 0x3a2214, 1);
-          this.add.rectangle(800, 450, 1400, 750, 0x422616, 1);
-          this.add.rectangle(800, 450, 1100, 560, 0x4a2c1a, 0.6);
+          // Deep warm dirt base
+          this.add.rectangle(800, 450, 1600, 900, 0x1a120b, 1);
+          // Mid-ground gradient shadow
+          this.add.rectangle(800, 450, 1500, 800, 0x24180e, 0.85);
+          // Highlighted center dust
+          this.add.rectangle(800, 450, 1200, 600, 0x301c10, 0.5);
 
-          // Arena border
-          this.add.rectangle(800, 450, 1560, 860, 0x000000, 0).setStrokeStyle(6, 0xe9c58d, 0.28);
-          this.add.rectangle(800, 450, 1540, 840, 0x000000, 0).setStrokeStyle(1, 0xe9c58d, 0.08);
-
-          // Faint grid
+          // Faint tactical/ledger grid
           const graphics = this.add.graphics();
-          graphics.lineStyle(1, 0xf3dbb0, 0.04);
-          for (let x = 0; x <= 1600; x += 100) {
+          graphics.lineStyle(1, 0x96dcc8, 0.05);
+          for (let x = 0; x <= 1600; x += 80) {
             graphics.moveTo(x, 0);
             graphics.lineTo(x, 900);
           }
-          for (let y = 0; y <= 900; y += 100) {
+          for (let y = 0; y <= 900; y += 80) {
             graphics.moveTo(0, y);
             graphics.lineTo(1600, y);
           }
           graphics.strokePath();
 
-          // Corner decorations
-          const cornerSize = 22;
-          for (const [cx, cy] of [[60, 60], [1540, 60], [60, 840], [1540, 840]] as [number,number][]) {
-            const cg = this.add.graphics();
-            cg.lineStyle(2, 0xe9c58d, 0.3);
-            cg.moveTo(cx - cornerSize, cy); cg.lineTo(cx, cy); cg.lineTo(cx, cy - cornerSize);
-            cg.moveTo(cx + cornerSize, cy); cg.lineTo(cx, cy); cg.lineTo(cx, cy + cornerSize);
-            cg.strokePath();
-          }
-
-          // Center mark
+          // Center ledger ring
           const cg = this.add.graphics();
-          cg.lineStyle(1, 0xe9c58d, 0.15);
-          cg.strokeCircle(800, 450, 80);
-          cg.strokeCircle(800, 450, 8);
+          cg.lineStyle(2, 0x96dcc8, 0.12);
+          cg.strokeCircle(800, 450, 120);
+          cg.lineStyle(1, 0xe58d3c, 0.25);
+          cg.strokeCircle(800, 450, 10);
 
           this.input.on("pointermove", (pointer: any) => {
             pointerPositionRef.current = { x: pointer.worldX, y: pointer.worldY };
@@ -281,48 +270,66 @@ export function ArenaCanvas({
             for (const player of nextSnapshot.players) {
               if (!this.sprites.has(player.agentId)) {
                 const isSelected = player.agentId === selectedAgentIdRef.current;
-                const color = isSelected ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4;
-                const glow = this.add.circle(player.x, player.y, isSelected ? 38 : 30, color, isSelected ? 0.18 : 0.08);
-                const body = this.add.circle(player.x, player.y, isSelected ? 22 : 18, color, player.alive ? 1 : 0.35);
-                const ring = this.add.circle(player.x, player.y, isSelected ? 30 : 26, 0x000000, 0).setStrokeStyle(isSelected ? 3 : 2, 0xf4e3c7, isSelected ? 0.55 : 0.25);
-                const maxBar = isSelected ? 42 : 30;
+                const baseColor = isSelected ? 0xf4c885 : player.mode === "autonomous" ? 0xb53c1e : 0x7ed2b4;
+                const glowGfx = this.add.graphics();
+                glowGfx.fillStyle(baseColor, isSelected ? 0.35 : 0.15);
+                glowGfx.fillCircle(0, 0, isSelected ? 48 : 36);
+                glowGfx.setBlendMode(Phaser.BlendModes.ADD);
+
+                const body = this.add.circle(0, 0, isSelected ? 24 : 18, baseColor, player.alive ? 1 : 0.25);
+                const ring = this.add.circle(0, 0, isSelected ? 34 : 26, 0x000000, 0).setStrokeStyle(isSelected ? 4 : 2, isSelected ? 0xffe6b3 : 0xffffff, isSelected ? 0.8 : 0.25);
+                
+                const maxBar = isSelected ? 46 : 32;
                 const hpFrac = Math.max(0, Math.min(1, player.health / 100));
-                const hpColor = hpFrac > 0.5 ? 0x7ed2b4 : hpFrac > 0.25 ? 0xf0bf76 : 0xf25555;
-                const hpBg = this.add.rectangle(player.x, player.y - 34, maxBar, 6, 0x0a0806, 0.75);
-                const hp = this.add.rectangle(player.x, player.y - 34, Math.max(2, hpFrac * maxBar), 6, hpColor, 0.92);
-                const label = this.add.text(player.x, player.y + 28, player.displayName, {
-                  fontFamily: "var(--font-body)",
-                  fontSize: isSelected ? "14px" : "12px",
-                  color: "#f8f2e8",
+                const hpColor = hpFrac > 0.5 ? 0x7ed2b4 : hpFrac > 0.25 ? 0xf4c885 : 0xe84a4a;
+                const hpBg = this.add.rectangle(0, -38, maxBar, 8, 0x0d0a08, 0.85);
+                hpBg.setStrokeStyle(1, 0x4a3b32, 0.8);
+                const hp = this.add.rectangle(0 - (maxBar / 2) + Math.max(2, hpFrac * maxBar) / 2, -38, Math.max(2, hpFrac * maxBar), 6, hpColor, 0.95);
+                
+                const labelBg = this.add.rectangle(0, 32, 100, 20, 0x000000, 0.4);
+                const label = this.add.text(0, 32, player.displayName, {
+                  fontFamily: "var(--font-heading)",
+                  fontSize: isSelected ? "15px" : "12px",
+                  color: isSelected ? "#f4c885" : "#f2e3cd",
                   align: "center",
+                  letterSpacing: isSelected ? 1 : 0,
                 }).setOrigin(0.5);
-                const container = this.add.container(player.x, player.y, [glow, ring, body, hpBg, hp]);
+
+                const container = this.add.container(player.x, player.y, [glowGfx, ring, body, hpBg, hp, labelBg, label]);
                 this.sprites.set(player.agentId, container);
-                this.labels.set(player.agentId, label);
+                this.labels.set(player.agentId, { hpBg, hp, ring, body, glowGfx, labelBg, label });
               }
 
               const sprite = this.sprites.get(player.agentId);
-              const label = this.labels.get(player.agentId);
-              if (sprite && label) {
+              const spriteData = this.labels.get(player.agentId);
+              if (sprite && spriteData) {
                 sprite.setPosition(player.x, player.y);
-                const [glow, ring, body, hpBg, hp] = sprite.list as any[];
                 const isSelected = player.agentId === selectedAgentIdRef.current;
-                body.setFillStyle(
-                  isSelected ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4,
-                  player.alive ? 1 : 0.35,
-                );
-                glow.setRadius(isSelected ? 38 : 30);
-                glow.setFillStyle(isSelected ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4, isSelected ? 0.18 : 0.08);
-                ring.setStrokeStyle(isSelected ? 3 : 2, 0xf4e3c7, isSelected ? 0.55 : 0.25);
-                const maxBar2 = isSelected ? 42 : 30;
+                const baseColor = isSelected ? 0xf4c885 : player.mode === "autonomous" ? 0xb53c1e : 0x7ed2b4;
+
+                spriteData.body.setFillStyle(baseColor, player.alive ? 1 : 0.25);
+                spriteData.glowGfx.clear();
+                spriteData.glowGfx.fillStyle(baseColor, isSelected ? 0.35 : 0.15);
+                spriteData.glowGfx.fillCircle(0, 0, isSelected ? 48 : 36);
+                
+                if (isSelected && player.alive) {
+                    spriteData.ring.rotation += 0.05;
+                }
+                spriteData.ring.setStrokeStyle(isSelected ? 4 : 2, isSelected ? 0xffe6b3 : 0xffffff, isSelected ? 0.8 : 0.25);
+
+                const maxBar2 = isSelected ? 46 : 32;
                 const hpFrac2 = Math.max(0, Math.min(1, player.health / 100));
-                const hpColor2 = hpFrac2 > 0.5 ? 0x7ed2b4 : hpFrac2 > 0.25 ? 0xf0bf76 : 0xf25555;
-                hpBg.setSize(maxBar2, 6);
-                hp.setSize(Math.max(2, hpFrac2 * maxBar2), 6);
-                hp.setFillStyle(hpColor2, 0.92);
-                label.setPosition(player.x, player.y + 28);
-                label.setAlpha(player.alive ? 1 : 0.45);
-                label.setFontSize(isSelected ? "14px" : "12px");
+                const hpColor2 = hpFrac2 > 0.5 ? 0x7ed2b4 : hpFrac2 > 0.25 ? 0xf4c885 : 0xe84a4a;
+                
+                spriteData.hpBg.setSize(maxBar2, 8);
+                const hpWidth = Math.max(2, hpFrac2 * maxBar2);
+                spriteData.hp.setSize(hpWidth, 6);
+                spriteData.hp.setPosition(0 - (maxBar2 / 2) + hpWidth / 2, -38);
+                spriteData.hp.setFillStyle(hpColor2, 0.95);
+
+                spriteData.label.setAlpha(player.alive ? 1 : 0.45);
+                spriteData.labelBg.setAlpha(player.alive ? 1 : 0.15);
+                spriteData.labelBg.width = spriteData.label.width + 12;
               }
             }
 
@@ -337,19 +344,26 @@ export function ArenaCanvas({
 
             for (const pickup of nextSnapshot.pickups) {
               if (!this.pickupSprites.has(pickup.id)) {
-                const accent = pickup.type === "health" ? 0x82d39e : 0xf0bf76;
+                const accent = pickup.type === "health" ? 0x7ed2b4 : 0xf4c885;
                 const label = pickup.type === "health" ? "+" : "A";
-                const glow = this.add.circle(0, 0, 24, accent, 0.12);
-                glow.setBlendMode(Phaser.BlendModes.ADD);
-                const body = this.add.rectangle(0, 0, 22, 22, accent, 0.9);
-                body.setStrokeStyle(2, 0x120b08, 0.35);
+                const glowGfx = this.add.graphics();
+                glowGfx.fillStyle(accent, 0.25);
+                glowGfx.fillCircle(0, 0, 32);
+                glowGfx.setBlendMode(Phaser.BlendModes.ADD);
+
+                const body = this.add.rectangle(0, 0, 26, 26, accent, 0.95);
+                body.setStrokeStyle(2, 0x060403, 0.8);
+                body.rotation = Math.PI / 4; // Diamond shape
+                
                 const icon = this.add.text(0, 0, label, {
                   fontFamily: "var(--font-heading)",
-                  fontSize: "14px",
-                  color: pickup.type === "health" ? "#12311f" : "#2d1807",
+                  fontSize: "18px",
+                  color: "#060403",
+                  fontStyle: "bold",
                 }).setOrigin(0.5);
+
                 const container = this.add.container(pickup.x, pickup.y, [
-                  glow,
+                  glowGfx,
                   body,
                   icon,
                 ]);
@@ -359,6 +373,8 @@ export function ArenaCanvas({
               const sprite = this.pickupSprites.get(pickup.id);
               if (sprite) {
                 sprite.setPosition(pickup.x, pickup.y);
+                const [glowGfx, body] = sprite.list as any[];
+                body.rotation += 0.02; // Spin animation
               }
             }
 
@@ -435,7 +451,8 @@ export function ArenaCanvas({
               break;
             case "elimination":
               if (targetPosition) {
-                this.ringAt(targetPosition.x, targetPosition.y, 0xf25555, 44, 220);
+                this.ringAt(targetPosition.x, targetPosition.y, 0xe84a4a, 44, 300);
+                this.pulseAt(targetPosition.x, targetPosition.y, 0xe84a4a, 0.4, 60);
               }
               break;
             case "settled":
@@ -526,9 +543,8 @@ export function ArenaCanvas({
       game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: containerRef.current,
-        width: 1600,
         height: 900,
-        backgroundColor: "#26170f",
+        backgroundColor: "#0d0a08",
         scale: {
           mode: Phaser.Scale.FIT,
           autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -547,10 +563,13 @@ export function ArenaCanvas({
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      className="h-full w-full overflow-hidden rounded-[28px] border border-white/10 bg-[#1b110c] outline-none"
-    />
+    <div className="relative h-full w-full overflow-hidden rounded-[28px] border border-white/10 bg-[#0d0a08] outline-none group">
+      <div
+        ref={containerRef}
+        tabIndex={0}
+        className="h-full w-full outline-none"
+      />
+      <div className="pointer-events-none absolute inset-0 z-40 h-full w-full" style={{ backgroundImage: 'url(/ui/arena_frame.png)', backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }} />
+    </div>
   );
 }
