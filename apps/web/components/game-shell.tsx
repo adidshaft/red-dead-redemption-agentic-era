@@ -427,6 +427,13 @@ export function GameShell() {
     () => recentEvents.filter((event) => event.type === "autonomy").slice(-4),
     [recentEvents],
   );
+  const latestAutonomyCall = useMemo(
+    () =>
+      autonomyEvents.length > 0
+        ? simplifyAutonomyCall(autonomyEvents[autonomyEvents.length - 1]!.message)
+        : null,
+    [autonomyEvents],
+  );
   const criticalEvents = useMemo(
     () =>
       recentEvents
@@ -1564,22 +1571,12 @@ export function GameShell() {
     selectedAgent,
     walletClient,
   ]);
-  const autonomySignals = useMemo(() => {
-    if (!autonomyPlan) {
-      return [];
-    }
-
-    return [
-      `Readiness ${autonomyPlan.readinessScore}%`,
-      `${formatConfidenceBand(autonomyPlan.confidenceBand)} confidence`,
-      `${formatObjectivePosture(autonomyPlan.objectivePosture)} objective posture`,
-      `${formatEconomyPosture(autonomyPlan.economyPosture)} economy`,
-      `${autonomyPlan.recommendedQueue === "paid" ? "Paid" : "Practice"} queue next`,
-    ];
-  }, [autonomyPlan]);
   const autonomyWireFeed = useMemo(() => {
     if (autonomyEvents.length > 0) {
-      return autonomyEvents.slice(-3).reverse().map((event) => event.message);
+      return autonomyEvents
+        .slice(-3)
+        .reverse()
+        .map((event) => simplifyAutonomyCall(event.message));
     }
 
     if (!autonomyPlan) {
@@ -1592,6 +1589,66 @@ export function GameShell() {
       autonomyPlan.objectiveDirective,
     ];
   }, [autonomyEvents, autonomyPlan]);
+  const autopilotStatusCards = useMemo(() => {
+    if (!selectedAgent || !autonomyPlan) {
+      return [];
+    }
+
+    return [
+      {
+        label: "Status",
+        value:
+          selectedAgent.mode === "autonomous"
+            ? "Driving the rider in live fights"
+            : "Ready when you switch it on",
+        detail:
+          selectedAgent.mode === "autonomous"
+            ? "Movement, shots, dodge, reload, and pickup routes are automated in-match."
+            : "You still control the rider until you switch to Autopilot.",
+      },
+      {
+        label: "Next move",
+        value: operationQueue[0]?.label ?? autonomyPlan.missionTitle,
+        detail: operationQueue[0]?.detail ?? autonomyPlan.missionDetail,
+      },
+      {
+        label: "Queue next",
+        value:
+          autonomyPlan.recommendedQueue === "paid"
+            ? "Paid showdown"
+            : "Practice run",
+        detail:
+          autonomyPlan.recommendedQueue === "paid"
+            ? "The planner thinks this rider is ready to risk the pot."
+            : "The planner wants one more rep before the next paid run.",
+      },
+    ];
+  }, [autonomyPlan, operationQueue, selectedAgent]);
+  const autopilotLoopSteps = useMemo(() => {
+    if (!autonomyPlan) {
+      return [];
+    }
+
+    return [
+      {
+        label: "Fight",
+        detail:
+          selectedAgent?.mode === "autonomous"
+            ? "Autopilot handles movement, aim, dodge, and reload in the arena."
+            : "Switch modes when you want the rider to fight alone.",
+      },
+      {
+        label: "Upgrade",
+        detail: `Next upgrade target is ${skillLabels[autonomyPlan.nextSkill]}.`,
+      },
+      {
+        label: "Compound",
+        detail: autonomyPlan.autonomyPassActive
+          ? "Premium planning is live for tighter paid-run timing."
+          : "Premium x402 unlock tightens the paid-run and upgrade loop.",
+      },
+    ];
+  }, [autonomyPlan, selectedAgent?.mode]);
   const settlementExplorerUrl = useMemo(() => {
     if (!snapshot?.settlementTxHash) {
       return null;
@@ -3135,7 +3192,7 @@ export function GameShell() {
                 </div>
               </div>
             ) : activeConsoleTab === "autonomy" ? (
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="space-y-4">
                   <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(13,18,16,0.92),rgba(8,10,9,0.96))] p-4">
                     {autonomyPlan ? (
@@ -3147,73 +3204,69 @@ export function GameShell() {
                             </p>
                             <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
                               {selectedAgent?.mode === "autonomous"
-                                ? "Autopilot is live"
-                                : "Autopilot is available"}
+                                ? "Your rider can run the fight alone"
+                                : "Autopilot is ready when you are"}
                             </h3>
                             <p className="mt-2 max-w-2xl text-sm text-stone-200/72">
                               {selectedAgent?.mode === "autonomous"
-                                ? "This rider will move, aim, dodge, and reload on its own. You can stay in the arena and watch the cyan YOU marker."
-                                : "Switch this rider to Autopilot if you want the fight handled automatically. The planner below only shows the next simple move."}
+                                ? "Queue this rider and stay in the arena. The agent will move, shoot, dodge, reload, and chase pickups on its own."
+                                : "Manual keeps you in control. Autopilot takes over only inside live matches."}
                             </p>
                           </div>
                           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-stone-200/72">
                             {autonomyPlan.readinessScore}% ready
                           </span>
                         </div>
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
-                            <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                              What it will do next
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                          {autopilotStatusCards.map((card) => (
+                            <div
+                              key={card.label}
+                              className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72"
+                            >
+                              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                                {card.label}
+                              </div>
+                              <div className="mt-2 font-semibold text-[#f6ead7]">
+                                {card.value}
+                              </div>
+                              <div className="mt-1 text-xs text-stone-300/60">
+                                {card.detail}
+                              </div>
                             </div>
-                            <div className="mt-2 font-semibold text-[#f6ead7]">
-                              {operationQueue[0]?.label ?? autonomyPlan.missionTitle}
-                            </div>
-                            <div className="mt-1 text-xs text-stone-300/60">
-                              {operationQueue[0]?.detail ?? autonomyPlan.missionDetail}
-                            </div>
-                          </div>
-                          <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
-                            <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                              Queue choice
-                            </div>
-                            <div className="mt-2 font-semibold text-[#f6ead7]">
-                              {autonomyPlan.recommendedQueue === "paid"
-                                ? "Paid showdown"
-                                : "Practice run"}
-                            </div>
-                            <div className="mt-1 text-xs text-stone-300/60">
-                              {autonomyPlan.economyDirective}
-                            </div>
-                          </div>
-                          <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
-                            <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                              Fight style
-                            </div>
-                            <div className="mt-2 text-[#f6ead7]">{autonomyPlan.combatDirective}</div>
-                          </div>
-                          <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
-                            <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                              Objective focus
-                            </div>
-                            <div className="mt-2 text-[#f6ead7]">{autonomyPlan.objectiveDirective}</div>
-                          </div>
+                          ))}
                         </div>
-                        <div className="mt-4 rounded-[18px] border border-[#7ed2b4]/16 bg-[#7ed2b4]/[0.06] px-4 py-4">
-                          <div className="text-[10px] uppercase tracking-[0.18em] text-[#7ed2b4]/58">
-                            Plain-English read
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                          {autopilotLoopSteps.map((step) => (
+                            <div
+                              key={step.label}
+                              className="rounded-[18px] border border-[#7ed2b4]/16 bg-[#7ed2b4]/[0.05] px-4 py-3"
+                            >
+                              <div className="text-[10px] uppercase tracking-[0.18em] text-[#bfeee0]/70">
+                                {step.label}
+                              </div>
+                              <div className="mt-2 text-sm text-stone-200/74">
+                                {step.detail}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-4 rounded-[18px] border border-white/8 bg-black/14 px-4 py-4">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                            Live autopilot calls
                           </div>
-                          <div className="mt-2 text-sm text-stone-200/72">
-                            {autonomyPlan.summary}
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em]">
-                            {autonomySignals.slice(0, 4).map((signal) => (
-                              <span
-                                key={signal}
-                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-stone-200/72"
-                              >
-                                {signal}
-                              </span>
-                            ))}
+                          <div className="mt-3 grid gap-2">
+                            {autonomyWireFeed.length > 0 ? (
+                              autonomyWireFeed.slice(0, 3).map((message) => (
+                                <div
+                                  key={message}
+                                  className="rounded-[16px] border border-white/8 bg-black/12 px-3 py-3 text-sm text-stone-200/72"
+                                >
+                                  {message}
+                                </div>
+                              ))
+                            ) : (
+                              <EmptyState label="No live autopilot calls yet." compact />
+                            )}
                           </div>
                         </div>
                       </>
@@ -3221,40 +3274,18 @@ export function GameShell() {
                       <EmptyState label="Select a rider to see the simplified autopilot plan." compact />
                     )}
                   </div>
-                  <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                      Latest autopilot calls
-                    </div>
-                    <div className="mt-3 grid gap-2">
-                      {autonomyWireFeed.length > 0 ? (
-                        autonomyWireFeed.slice(0, 3).map((message) => (
-                          <div
-                            key={message}
-                            className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-sm text-stone-200/72"
-                          >
-                            {message}
-                          </div>
-                        ))
-                      ) : (
-                        <EmptyState label="No live autopilot calls yet." compact />
-                      )}
-                    </div>
-                  </div>
                 </div>
                 <div className="space-y-4">
                   <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                      What autopilot means
+                      What it means
                     </div>
                     <div className="mt-3 space-y-2 text-sm text-stone-200/72">
                       <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        It only takes over during a live match. Outside the arena, you still choose upgrades and queue runs.
+                        Autopilot only takes over once the match starts. Outside the arena, you still choose skills and queue runs.
                       </div>
                       <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        In a match, it handles movement, shots, dodges, reloads, and pickup routes automatically.
-                      </div>
-                      <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        Premium x402 unlocks a tighter planning loop for paid runs and upgrade timing.
+                        In the fight, it reacts to ring pressure, enemies, cover, drops, and reload timing without extra clicks from you.
                       </div>
                     </div>
                   </div>
@@ -3268,7 +3299,7 @@ export function GameShell() {
                     <div className="mt-2 text-sm text-stone-200/72">
                       {premiumLaneSummary.detail}
                     </div>
-                    <div className="mt-3 grid gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+                    <div className="mt-3 grid gap-2">
                       {premiumLaneSteps.slice(0, 2).map((step) => (
                         <div
                           key={step.label}
@@ -3278,8 +3309,10 @@ export function GameShell() {
                               : "border-white/8 bg-black/14 text-stone-200/72"
                           }`}
                         >
-                          <div className="font-semibold">{step.label}</div>
-                          <div className="mt-1 text-[10px] normal-case tracking-normal opacity-80">
+                          <div className="text-xs font-semibold uppercase tracking-[0.14em]">
+                            {step.label}
+                          </div>
+                          <div className="mt-1 text-[11px] normal-case tracking-normal opacity-80">
                             {step.detail}
                           </div>
                         </div>
@@ -3323,8 +3356,8 @@ export function GameShell() {
                       Next actions
                     </div>
                     <div className="mt-3 grid gap-2">
-                      {operationQueue.slice(0, 2).length > 0 ? (
-                        operationQueue.slice(0, 2).map((operation) => (
+                      {operationQueue.length > 0 ? (
+                        operationQueue.slice(0, 3).map((operation) => (
                           <button
                             type="button"
                             key={operation.id}
@@ -4167,6 +4200,19 @@ export function GameShell() {
                         </div>
                       ))}
                     </div>
+                    {selectedAgent?.mode === "autonomous" && (
+                      <div className="rounded-[16px] border border-[#7ed2b4]/16 bg-[#7ed2b4]/8 px-3 py-3">
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-[#c8f6ea]/72">
+                          Autopilot call
+                        </div>
+                        <div className="mt-1 font-semibold text-[#f6ead7]">
+                          {latestAutonomyCall ?? "Waiting for the first live decision."}
+                        </div>
+                        <div className="mt-1 text-[11px] leading-relaxed text-stone-200/66">
+                          Watch the cyan rider and the minimap. This line updates when the agent changes its immediate plan.
+                        </div>
+                      </div>
+                    )}
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                       {selectedAgent?.mode === "manual" ? (
                         <>
@@ -5074,67 +5120,6 @@ function getSignalToneClasses(tone: BattleTone) {
   }
 }
 
-function formatCampaignPriority(
-  value: AutonomyPlan["campaignPriority"],
-) {
-  switch (value) {
-    case "buy_skill":
-      return "Approve next skill upgrade";
-    case "queue_paid":
-      return "Deploy a paid showdown run";
-    case "buy_autonomy_pass":
-      return "Unlock premium autonomy";
-    case "run_practice":
-      return "Run a practice frontier cycle";
-  }
-}
-
-function formatCampaignPriorityDetail(plan: AutonomyPlan) {
-  switch (plan.campaignPriority) {
-    case "buy_skill":
-      return `The next approved upgrade should be ${skillLabels[plan.nextSkill]}. ${plan.nextSkillReason}`;
-    case "queue_paid":
-      return "The agent has enough momentum to push into the paid queue and try to compound settlements.";
-    case "buy_autonomy_pass":
-      return "Premium autonomy is now the highest-leverage upgrade for this agent's planning and queue discipline.";
-    case "run_practice":
-      return "Stay in practice until the current doctrine is sharper, then move back into higher-risk economy actions.";
-  }
-}
-
-function formatConfidenceBand(value: AutonomyPlan["confidenceBand"]) {
-  switch (value) {
-    case "high":
-      return "High";
-    case "medium":
-      return "Medium";
-    case "low":
-      return "Low";
-  }
-}
-
-function formatObjectivePosture(value: AutonomyPlan["objectivePosture"]) {
-  switch (value) {
-    case "contest":
-      return "Contest";
-    case "flank":
-      return "Flank";
-    case "hold":
-      return "Hold";
-  }
-}
-
-function formatEconomyPosture(value: AutonomyPlan["economyPosture"]) {
-  switch (value) {
-    case "bootstrap":
-      return "Bootstrap";
-    case "compounding":
-      return "Compounding";
-    case "aggressive":
-      return "Aggressive";
-  }
-}
-
 function formatCampaignTier(value: AgentCampaignStats["campaignTier"]) {
   switch (value) {
     case "rookie":
@@ -5159,6 +5144,10 @@ function formatShortDateTime(value: string) {
   } catch {
     return value;
   }
+}
+
+function simplifyAutonomyCall(message: string) {
+  return message.replace(/^[^:]+ directive:\s*/i, "");
 }
 
 function formatWeiToOkb(value: bigint) {
