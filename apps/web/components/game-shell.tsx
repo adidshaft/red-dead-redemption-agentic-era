@@ -179,6 +179,9 @@ export function GameShell() {
     snapshot?.status === "queued" ||
     snapshot?.status === "in_progress" ||
     snapshot?.status === "settling";
+  const canSpectateLiveMatch =
+    !queueLocked &&
+    !(snapshot?.status === "in_progress" && Boolean(selectedSnapshotPlayer?.alive));
   const roundClockLabel = useMemo(() => {
     if (!snapshot?.endsAt) {
       return "03:00";
@@ -924,6 +927,19 @@ export function GameShell() {
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function handleSpectateMatch(match: MatchSnapshot) {
+    if (!authToken || !socketRef.current) {
+      setStatus("Sign in first to spectate a live frontier match.");
+      return;
+    }
+
+    socketRef.current.emit("match:join", { matchId: match.matchId });
+    setSnapshot(match);
+    setRecentEvents(match.events.slice(-8));
+    setQueueState(null);
+    setStatus(`Spectating live match ${match.matchId.slice(-6)}.`);
   }
 
   async function ensureAgentRegisteredOnchain(agent: AgentProfile) {
@@ -1983,23 +1999,77 @@ export function GameShell() {
               key={match.matchId}
               className="rounded-[24px] border border-white/8 bg-black/10 p-4"
             >
-              <div className="text-xs uppercase tracking-[0.18em] text-stone-200/60">
-                {match.status}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-stone-200/60">
+                    {match.paid ? "paid showdown" : "practice showdown"}
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                    Match {match.matchId.slice(-6)}
+                  </div>
+                </div>
+                <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/65">
+                  {match.status}
+                </span>
               </div>
-              <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
-                {match.matchId}
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
+                <div>
+                  Autonomy:{" "}
+                  <span className="text-[#f6ead7]">
+                    {match.players.filter((player) => player.mode === "autonomous").length}/
+                    {match.players.length}
+                  </span>
+                </div>
+                <div>
+                  Ring:{" "}
+                  <span className="text-[#f6ead7]">
+                    {Math.round(match.safeZone.radius)}px
+                  </span>
+                </div>
+                <div>
+                  Pot:{" "}
+                  <span className="text-[#f6ead7]">
+                    {match.paid
+                      ? formatWeiToOkb(matchEntryFeeWei * BigInt(match.players.length))
+                      : "Practice"}
+                  </span>
+                </div>
+                <div>
+                  Leader:{" "}
+                  <span className="text-[#f6ead7]">
+                    {(() => {
+                      const leader = [...match.players].sort(
+                        (left, right) => right.score - left.score,
+                      )[0];
+                      return leader?.displayName ?? "—";
+                    })()}
+                  </span>
+                </div>
               </div>
               <div className="mt-3 space-y-2 text-sm text-stone-200/68">
-                {match.players.map((player) => (
+                {match.players.slice(0, 4).map((player) => (
                   <div
                     key={player.agentId}
                     className="flex items-center justify-between gap-3 rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
                   >
-                    <span>{player.displayName}</span>
+                    <div className="min-w-0">
+                      <div className="truncate">{player.displayName}</div>
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/50">
+                        {player.mode}
+                      </div>
+                    </div>
                     <span>{player.health} HP</span>
                   </div>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => handleSpectateMatch(match)}
+                disabled={!canSpectateLiveMatch || !authToken}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/12 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white/80 transition hover:border-white/24 hover:text-white disabled:opacity-50"
+              >
+                Watch Live
+              </button>
             </div>
           ))}
         </div>
