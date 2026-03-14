@@ -2234,40 +2234,64 @@ export function GameShell() {
                 onControlReadyChange={setArenaReadyForControls}
               />
             </div>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-3 text-sm text-stone-200/72">
-                    <div className="flex items-center gap-2 text-stone-200/80">
-                      <Crosshair className="h-4 w-4 shrink-0 text-[#f0bf76]" />
-                      <span className="font-medium">
-                        {selectedAgent?.mode === "manual"
-                          ? "WASD move · Click fire · Space dodge · R reload"
-                          : "Set agent to manual to take direct control"}
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                      <span className="rounded-full border border-white/8 px-2.5 py-1">
+                        {arenaPhaseLabel}
+                      </span>
+                      <span className="rounded-full border border-white/8 px-2.5 py-1">
+                        {roundClockLabel}
+                      </span>
+                      <span className="rounded-full border border-white/8 px-2.5 py-1">
+                        {safeZoneLabel}
+                      </span>
+                      <span className="rounded-full border border-white/8 px-2.5 py-1">
+                        {matchEconomy ? formatWeiToOkb(matchEconomy.totalPot) : "Practice"}
                       </span>
                     </div>
-                    <div className="grid gap-2 text-xs text-stone-300/60 sm:grid-cols-2 xl:grid-cols-4">
-                      <div>Phase: <span className="text-[#f6ead7]">{arenaPhaseLabel}</span></div>
-                      <div>Clock: <span className="text-[#f6ead7]">{roundClockLabel}</span></div>
-                      <div>Zone: <span className="text-[#f6ead7]">{safeZoneLabel}</span></div>
-                      <div>Objective: <span className="text-[#f6ead7]">{snapshot?.objective ? `${snapshot.objective.label} • ${objectiveTimerLabel ?? "Live"}` : "No live objective"}</span></div>
-                      <div>Pot: <span className="text-[#f6ead7]">{matchEconomy ? formatWeiToOkb(matchEconomy.totalPot) : "Practice round"}</span></div>
-                      <div>Rider: <span className="text-[#f6ead7]">{selectedSnapshotPlayer ? selectedSnapshotPlayer.alive ? `${selectedSnapshotPlayer.displayName} alive` : `${selectedSnapshotPlayer.displayName} out` : "not in showdown"}</span></div>
-                      <div>Combat: <span className="text-[#f6ead7]">{selectedSnapshotPlayer ? `${selectedSnapshotPlayer.health}HP · ${selectedSnapshotPlayer.ammo}rnd${selectedSnapshotPlayer.isReloading ? " · reloading" : ""}` : "—"}</span></div>
-                      <div>Supplies: <span className="text-[#f6ead7]">{snapshot?.pickups.length ?? 0} live pickups</span></div>
-                      <div>Feed: <span className="text-[#f6ead7]">{recentEvents.length} recent calls</span></div>
-                    </div>
-                    {snapshot?.status === "finished" && winnerDisplayName && (
-                      <div className="font-semibold text-[#f0bf76]">
-                        Winner: {winnerDisplayName}
+                    <div className="grid gap-2 text-xs text-stone-200/72 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
+                        Objective:{" "}
+                        <span className="text-[#f6ead7]">
+                          {snapshot?.objective ? `${snapshot.objective.label}${objectiveTimerLabel ? ` • ${objectiveTimerLabel}` : ""}` : "Hold the ring"}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                  <div className="shrink-0 rounded-[20px] border border-white/8 bg-black/20 p-3">
-                    <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
-                      D-Pad + Reload
+                      <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
+                        Rider:{" "}
+                        <span className="text-[#f6ead7]">
+                          {selectedSnapshotPlayer
+                            ? selectedSnapshotPlayer.alive
+                              ? `${selectedSnapshotPlayer.displayName} alive`
+                              : `${selectedSnapshotPlayer.displayName} out`
+                            : "Not in showdown"}
+                        </span>
+                      </div>
+                      <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
+                        Combat:{" "}
+                        <span className="text-[#f6ead7]">
+                          {selectedSnapshotPlayer
+                            ? `${selectedSnapshotPlayer.health} HP • ${selectedSnapshotPlayer.ammo} ammo`
+                            : "—"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="grid w-[108px] grid-cols-3 gap-1.5">
+                    <div className="flex items-center gap-2 text-xs text-stone-200/76">
+                      <Crosshair className="h-3.5 w-3.5 shrink-0 text-[#f0bf76]" />
+                      <span>
+                        {selectedAgent?.mode === "manual"
+                          ? "WASD move, click fires, space dodges, R reloads."
+                          : "Switch to manual if you want direct control."}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-[18px] border border-white/8 bg-black/20 p-3">
+                    <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
+                      Quick controls
+                    </div>
+                    <div className="grid w-[96px] grid-cols-3 gap-1">
                       <span />
                       <button
                         type="button"
@@ -2276,7 +2300,7 @@ export function GameShell() {
                         onMouseLeave={stopDirectionalMove}
                         onTouchStart={() => startDirectionalMove(0, -1)}
                         onTouchEnd={stopDirectionalMove}
-                        className="rounded-xl border border-white/10 bg-white/6 px-2 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
+                        className="rounded-lg border border-white/10 bg-white/6 px-2 py-1.5 text-[11px] text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
                       >
                         W
                       </button>
@@ -2288,7 +2312,7 @@ export function GameShell() {
                         onMouseLeave={stopDirectionalMove}
                         onTouchStart={() => startDirectionalMove(-1, 0)}
                         onTouchEnd={stopDirectionalMove}
-                        className="rounded-xl border border-white/10 bg-white/6 px-2 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
+                        className="rounded-lg border border-white/10 bg-white/6 px-2 py-1.5 text-[11px] text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
                       >
                         A
                       </button>
@@ -2299,7 +2323,7 @@ export function GameShell() {
                         onMouseLeave={stopDirectionalMove}
                         onTouchStart={() => startDirectionalMove(0, 1)}
                         onTouchEnd={stopDirectionalMove}
-                        className="rounded-xl border border-white/10 bg-white/6 px-2 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
+                        className="rounded-lg border border-white/10 bg-white/6 px-2 py-1.5 text-[11px] text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
                       >
                         S
                       </button>
@@ -2310,7 +2334,7 @@ export function GameShell() {
                         onMouseLeave={stopDirectionalMove}
                         onTouchStart={() => startDirectionalMove(1, 0)}
                         onTouchEnd={stopDirectionalMove}
-                        className="rounded-xl border border-white/10 bg-white/6 px-2 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
+                        className="rounded-lg border border-white/10 bg-white/6 px-2 py-1.5 text-[11px] text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
                       >
                         D
                       </button>
@@ -2318,7 +2342,7 @@ export function GameShell() {
                     <button
                       type="button"
                       onClick={handleReloadAction}
-                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/20 bg-amber-100/8 px-2 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/14"
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300/20 bg-amber-100/8 px-2 py-1.5 text-[11px] text-[#f6ead7] transition hover:bg-amber-100/14"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                       Reload
@@ -2326,56 +2350,40 @@ export function GameShell() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-[24px] border border-[var(--panel-border)] bg-black/20 p-5 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]">
-                <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
-                  <p className="font-[var(--font-heading)] text-lg font-bold text-[var(--foreground)]">
+              <div className="rounded-[24px] border border-[var(--panel-border)] bg-black/20 p-4 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="font-[var(--font-heading)] text-base font-bold text-[var(--foreground)]">
                     Field Intel
                   </p>
                   <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--circuit-line)]">
-                    Active Grid
+                    Live
                   </span>
                 </div>
-                <div className="mt-4">
-                  <ArenaMinimap
-                    snapshot={snapshot}
-                    selectedAgentId={arenaFocusAgentId}
-                  />
-                </div>
-                <div className="mt-4 flex flex-wrap gap-4 text-[10px] uppercase tracking-wider text-[var(--foreground)]/60">
-                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]"/> Your Rider</div>
-                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#7ed2b4]"/> Rival</div>
-                  <div className="flex items-center gap-1.5"><span className="flex h-2 w-2 items-center justify-center font-black text-[#7ed2b4]">+</span> Health</div>
-                  <div className="flex items-center gap-1.5"><span className="flex h-2 w-2 items-center justify-center font-black text-[var(--accent)]">A</span> Ammo</div>
-                </div>
-                <div className="mt-4 border-t border-white/5 pt-4">
-                  <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
-                    Critical Calls
-                  </p>
-                  <div className="space-y-2">
-                    {criticalEvents.length === 0 ? (
-                      <EmptyState
-                        label="Ring shifts, eliminations, and objective claims will surface here."
-                        compact
-                      />
-                    ) : (
-                      criticalEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className={`rounded-2xl border px-3 py-2 ${getEventToneClasses(event.type)}`}
-                        >
-                          <div className="text-[10px] uppercase tracking-[0.18em] opacity-70">
-                            {formatEventTypeLabel(event.type)}
-                          </div>
-                          <div className="mt-1 text-sm">
-                            {event.message}
-                          </div>
+                <ArenaMinimap
+                  snapshot={snapshot}
+                  selectedAgentId={arenaFocusAgentId}
+                />
+                <div className="mt-3 space-y-2">
+                  {criticalEvents.length === 0 ? (
+                    <EmptyState
+                      label="Ring shifts and eliminations will surface here."
+                      compact
+                    />
+                  ) : (
+                    criticalEvents.slice(-2).map((event) => (
+                      <div
+                        key={event.id}
+                        className={`rounded-[16px] border px-3 py-2 ${getEventToneClasses(event.type)}`}
+                      >
+                        <div className="text-[10px] uppercase tracking-[0.18em] opacity-70">
+                          {formatEventTypeLabel(event.type)}
                         </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-                <div className="mt-4 border-t border-white/5 pt-4 text-sm text-stone-200/72">
-                  Deeper event history and autonomy chatter live in the operations console, so the arena stays readable while you play.
+                        <div className="mt-1 text-xs">
+                          {event.message}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -2440,94 +2448,82 @@ export function GameShell() {
             </div>
           </div>
         )}
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-3">
           {sortedLiveMatches.length === 0 && (
             <EmptyState label="No public matches are live right now." />
           )}
           {sortedLiveMatches.map((match, index) => (
             <div
               key={match.matchId}
-              className="rounded-[24px] border border-white/8 bg-black/10 p-4"
+              className="rounded-[22px] border border-white/8 bg-black/10 p-4"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-stone-200/60">
-                    {match.paid ? "paid showdown" : "practice showdown"}
-                  </div>
-                  <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
-                    Match {match.matchId.slice(-6)}
-                  </div>
-                </div>
-                <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/65">
-                  {index === 0 ? "spotlight" : match.status}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
-                <div>
-                  Autonomy:{" "}
-                  <span className="text-[#f6ead7]">
-                    {match.players.filter((player) => player.mode === "autonomous").length}/
-                    {match.players.length}
-                  </span>
-                </div>
-                <div>
-                  Ring:{" "}
-                  <span className="text-[#f6ead7]">
-                    {Math.round(match.safeZone.radius)}px
-                  </span>
-                </div>
-                <div>
-                  Pot:{" "}
-                  <span className="text-[#f6ead7]">
-                    {match.paid
-                      ? formatWeiToOkb(matchEntryFeeWei * BigInt(match.players.length))
-                      : "Practice"}
-                  </span>
-                </div>
-                <div>
-                  Leader:{" "}
-                  <span className="text-[#f6ead7]">
-                    {(() => {
-                      const leader = [...match.players].sort(
-                        (left, right) => right.score - left.score,
-                      )[0];
-                      return leader?.displayName ?? "—";
-                    })()}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3 space-y-2 text-sm text-stone-200/68">
-                {match.players.slice(0, 4).map((player) => (
-                  <div
-                    key={player.agentId}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate">{player.displayName}</div>
-                      <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/50">
-                        {player.mode}
-                      </div>
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm font-semibold text-[#f6ead7]">
+                      Match {match.matchId.slice(-6)}
                     </div>
-                    <span>{player.health} HP</span>
+                    <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/65">
+                      {match.paid ? "paid" : "practice"}
+                    </span>
+                    <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/65">
+                      {index === 0 ? "spotlight" : match.status}
+                    </span>
                   </div>
-                ))}
+                  <div className="mt-2 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
+                    <span>
+                      Riders{" "}
+                      <span className="text-[#f6ead7]">{match.players.length}</span>
+                    </span>
+                    <span>
+                      Auto{" "}
+                      <span className="text-[#f6ead7]">
+                        {match.players.filter((player) => player.mode === "autonomous").length}
+                      </span>
+                    </span>
+                    <span>
+                      Ring <span className="text-[#f6ead7]">{Math.round(match.safeZone.radius)}px</span>
+                    </span>
+                    <span>
+                      Pot{" "}
+                      <span className="text-[#f6ead7]">
+                        {match.paid
+                          ? formatWeiToOkb(matchEntryFeeWei * BigInt(match.players.length))
+                          : "Practice"}
+                      </span>
+                    </span>
+                    <span>
+                      Leader{" "}
+                      <span className="text-[#f6ead7]">
+                        {(() => {
+                          const leader = [...match.players].sort(
+                            (left, right) => right.score - left.score,
+                          )[0];
+                          return leader?.displayName ?? "—";
+                        })()}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSpectateMatch(match)}
+                    disabled={!canSpectateLiveMatch || !authToken}
+                    className="rounded-full border border-white/12 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white/80 transition hover:border-white/24 hover:text-white disabled:opacity-50"
+                  >
+                    Watch
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSpectateMatch(match, { followLeader: true })}
+                    disabled={!canSpectateLiveMatch || !authToken}
+                    className="rounded-full border border-[#7ed2b4]/20 bg-[#7ed2b4]/8 px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#c5f4e9] transition hover:bg-[#7ed2b4]/14 disabled:opacity-50"
+                  >
+                    Leader Cam
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => handleSpectateMatch(match)}
-                disabled={!canSpectateLiveMatch || !authToken}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/12 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white/80 transition hover:border-white/24 hover:text-white disabled:opacity-50"
-              >
-                Watch Live
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSpectateMatch(match, { followLeader: true })}
-                disabled={!canSpectateLiveMatch || !authToken}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#7ed2b4]/20 bg-[#7ed2b4]/8 px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#c5f4e9] transition hover:bg-[#7ed2b4]/14 disabled:opacity-50"
-              >
-                Jump to Leader Cam
-              </button>
             </div>
           ))}
         </div>
