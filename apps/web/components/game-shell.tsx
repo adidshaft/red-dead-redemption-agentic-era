@@ -609,6 +609,15 @@ export function GameShell() {
         };
       }
 
+      if (selectedSnapshotPlayer.coverLabel) {
+        return {
+          eyebrow: "Cover",
+          title: `Hold ${selectedSnapshotPlayer.coverLabel}`,
+          detail: `You’re protected by ${selectedSnapshotPlayer.coverBonus ?? 0}% cover. Use the angle to reload, bait a peek, or break toward the next objective.`,
+          tone: "success",
+        };
+      }
+
       if (snapshot.objective) {
         const objectiveDistance = Math.round(
           Math.hypot(
@@ -727,6 +736,14 @@ export function GameShell() {
           label: `${selectedThreat.player.displayName} • ${Math.round(selectedThreat.distance)}px`,
           tone: selectedThreat.distance <= 220 ? "danger" : "neutral",
           icon: <RadioTower className="h-3.5 w-3.5" />,
+        });
+      }
+
+      if (selectedSnapshotPlayer.coverLabel) {
+        signals.push({
+          label: `${selectedSnapshotPlayer.coverLabel} cover • ${selectedSnapshotPlayer.coverBonus ?? 0}%`,
+          tone: "success",
+          icon: <ShieldPlus className="h-3.5 w-3.5" />,
         });
       }
     }
@@ -3159,13 +3176,13 @@ export function GameShell() {
                         {matchEconomy ? formatWeiToOkb(matchEconomy.totalPot) : "Practice"}
                       </span>
                     </div>
-                    <div className="grid gap-2 text-xs text-stone-200/72 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-2 text-xs text-stone-200/72 sm:grid-cols-2 xl:grid-cols-4">
                       <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
                         Next call:{" "}
                         <span className="text-[#f6ead7]">{battleDirective.title}</span>
                       </div>
                       <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
-                        Threat:{" "}
+                        Pressure:{" "}
                         <span className="text-[#f6ead7]">
                           {selectedRingState?.outside
                             ? `Outside ring • ${selectedRingState.distanceFromEdge}px`
@@ -3174,6 +3191,14 @@ export function GameShell() {
                               : snapshot?.objective
                                 ? `${snapshot.objective.label}${objectiveTimerLabel ? ` • ${objectiveTimerLabel}` : ""}`
                                 : "No live threat tagged"}
+                        </span>
+                      </div>
+                      <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">
+                        Position:{" "}
+                        <span className="text-[#f6ead7]">
+                          {selectedSnapshotPlayer?.coverLabel
+                            ? `${selectedSnapshotPlayer.coverLabel} • ${selectedSnapshotPlayer.coverBonus ?? 0}% cover`
+                            : "Open ground"}
                         </span>
                       </div>
                       <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2">

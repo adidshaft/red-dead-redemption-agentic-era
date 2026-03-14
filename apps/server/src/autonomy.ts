@@ -1,4 +1,11 @@
-import { autonomyActionSchema, type AgentProfile, type ArenaCommand, type AutonomyAction, type MatchSnapshot } from "@rdr/shared";
+import {
+  autonomyActionSchema,
+  frontierLandmarks,
+  type AgentProfile,
+  type ArenaCommand,
+  type AutonomyAction,
+  type MatchSnapshot,
+} from "@rdr/shared";
 
 import { deriveDoctrineProfile } from "./autonomy-plan.js";
 import { config } from "./config.js";
@@ -7,17 +14,6 @@ export type AutonomyContext = {
   agent: AgentProfile;
   snapshot: MatchSnapshot;
 };
-
-const frontierAnchors = [
-  { x: 520, y: 265, label: "saloon lane" },
-  { x: 1080, y: 255, label: "hotel lane" },
-  { x: 800, y: 280, label: "wagon street" },
-  { x: 610, y: 455, label: "west street" },
-  { x: 990, y: 455, label: "east street" },
-  { x: 520, y: 640, label: "wash row" },
-  { x: 1080, y: 640, label: "stable row" },
-  { x: 800, y: 620, label: "main corral" },
-] as const;
 
 function clampUnit(value: number) {
   return Math.max(-1, Math.min(1, value));
@@ -74,7 +70,7 @@ function pickFrontierAnchor(context: AutonomyContext, self: MatchSnapshot["playe
     };
   })();
 
-  return frontierAnchors
+  return frontierLandmarks
     .filter(
       (anchor) =>
         distanceBetween(anchor.x, anchor.y, safeZone.centerX, safeZone.centerY) <
@@ -87,6 +83,28 @@ function pickFrontierAnchor(context: AutonomyContext, self: MatchSnapshot["playe
         distanceBetween(anchor.x, anchor.y, self.x, self.y) * 0.45 +
         distanceBetween(anchor.x, anchor.y, nearestEnemy.x, nearestEnemy.y) *
           (doctrine.objectivePosture === "hold" ? 0.1 : 0.25),
+    }))
+    .sort((left, right) => left.score - right.score)[0]?.anchor ?? null;
+}
+
+function pickNearestCover(
+  context: AutonomyContext,
+  self: MatchSnapshot["players"][number],
+  nearestEnemy: MatchSnapshot["players"][number],
+) {
+  const safeZone = context.snapshot.safeZone;
+
+  return frontierLandmarks
+    .filter(
+      (anchor) =>
+        distanceBetween(anchor.x, anchor.y, safeZone.centerX, safeZone.centerY) <
+        safeZone.radius - 40,
+    )
+    .map((anchor) => ({
+      anchor,
+      score:
+        distanceBetween(anchor.x, anchor.y, self.x, self.y) * 0.7 +
+        distanceBetween(anchor.x, anchor.y, nearestEnemy.x, nearestEnemy.y) * -0.32,
     }))
     .sort((left, right) => left.score - right.score)[0]?.anchor ?? null;
 }
@@ -135,6 +153,9 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     zoneDistance > Math.max(0, context.snapshot.safeZone.radius - 36);
   const activeObjective = context.snapshot.objective;
   const frontierAnchor = pickFrontierAnchor(context, self, nearestEnemy);
+  const nearestCover = pickNearestCover(context, self, nearestEnemy);
+  const activeBounty = context.snapshot.bounty;
+  const selfIsMarked = activeBounty?.targetAgentId === self.agentId;
 
   if (outsideSafeZone) {
     return moveToward(self.x, self.y, context.snapshot.safeZone.centerX, context.snapshot.safeZone.centerY);
@@ -148,18 +169,29 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     };
   }
 
+  if (self.ammo === 0 && !self.isReloading && !nearestAmmoPickup) {
+    return {
+      type: "reload",
+    };
+  }
+
+  if (
+    nearestCover &&
+    (self.health < 40 ||
+      self.ammo <= 1 ||
+      self.isReloading ||
+      selfIsMarked) &&
+    (distance < 340 || selfIsMarked)
+  ) {
+    return moveToward(self.x, self.y, nearestCover.x, nearestCover.y);
+  }
+
   if (self.health < doctrine.healthPickupThreshold && nearestHealthPickup) {
     return moveToward(self.x, self.y, nearestHealthPickup.x, nearestHealthPickup.y);
   }
 
   if ((self.ammo <= doctrine.ammoPickupThreshold || self.isReloading) && nearestAmmoPickup) {
     return moveToward(self.x, self.y, nearestAmmoPickup.x, nearestAmmoPickup.y);
-  }
-
-  if (self.ammo === 0 && !self.isReloading) {
-    return {
-      type: "reload",
-    };
   }
 
   if (
@@ -202,6 +234,35 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
       self.health >= 55
     ) {
       return moveToward(self.x, self.y, activeObjective.x, activeObjective.y);
+    }
+  }
+
+  if (
+    activeBounty &&
+    activeBounty.targetAgentId !== self.agentId
+  ) {
+    const bountyTarget = context.snapshot.players.find(
+      (player) =>
+        player.agentId === activeBounty.targetAgentId && player.alive,
+    );
+    if (bountyTarget) {
+      const bountyDistance = distanceBetween(
+        self.x,
+        self.y,
+        bountyTarget.x,
+        bountyTarget.y,
+      );
+      if (bountyDistance <= doctrine.preferredFireRange + 40 && self.ammo > 0) {
+        return {
+          type: "fire",
+          targetX: bountyTarget.x,
+          targetY: bountyTarget.y,
+        };
+      }
+
+      if (bountyDistance > doctrine.preferredFireRange * 0.82) {
+        return moveToward(self.x, self.y, bountyTarget.x, bountyTarget.y);
+      }
     }
   }
 

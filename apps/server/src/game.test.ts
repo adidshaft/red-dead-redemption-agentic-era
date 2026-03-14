@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { applySkillUpgrade } from "@rdr/shared";
 
-import { computeDamage, computeSafeZone, createArenaObjective, createStarterSkills, generateAgentIdentity, resolveShot } from "./game.js";
+import {
+  computeDamage,
+  computeSafeZone,
+  createArenaObjective,
+  createStarterSkills,
+  generateAgentIdentity,
+  getFrontierCover,
+  resolveShot,
+} from "./game.js";
 
 describe("game helpers", () => {
   it("creates starter skills with a 10-point bonus budget and a 30-point cap", () => {
@@ -48,6 +56,8 @@ describe("game helpers", () => {
       mode: "manual" as const,
       x: 0,
       y: 0,
+      coverLabel: null,
+      coverBonus: 0,
       alive: true,
       ownerAddress: "0x1",
       skills: {
@@ -68,6 +78,8 @@ describe("game helpers", () => {
       ...attacker,
       agentId: "t1",
       displayName: "Target",
+      coverLabel: "Saloon",
+      coverBonus: 18,
       skills: {
         quickdraw: 20,
         grit: 40,
@@ -79,6 +91,23 @@ describe("game helpers", () => {
 
     expect(computeDamage(attacker as never, target as never, () => 0.99)).toBeGreaterThan(0);
     expect(resolveShot(attacker as never, target as never, () => 0.01).hit).toBe(true);
+  });
+
+  it("grants cover near frontier landmarks", () => {
+    const cover = getFrontierCover({
+      x: 520,
+      y: 250,
+      skills: {
+        quickdraw: 24,
+        grit: 34,
+        trailcraft: 36,
+        tactics: 20,
+        fortune: 20,
+      },
+    } as never);
+
+    expect(cover?.label).toBe("Saloon");
+    expect(cover?.bonus).toBeGreaterThan(0);
   });
 
   it("shrinks the safe zone over the course of a match", () => {

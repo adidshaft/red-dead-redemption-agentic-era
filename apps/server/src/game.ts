@@ -5,6 +5,7 @@ import {
   gameConfig,
   type ArenaObjective,
   baseSkillValue,
+  frontierLandmarks,
   formatDisplayName,
   sanitizeBaseName,
   type ArenaPickup,
@@ -49,6 +50,8 @@ type PendingPaidMatch = {
 type RuntimePlayer = MatchPlayerState & {
   ownerAddress: string;
   skills: SkillSet;
+  coverLabel: string | null;
+  coverBonus: number;
   moveVector: { dx: number; dy: number };
   fireCooldownUntil: number;
   dodgeCooldownUntil: number;
@@ -119,8 +122,9 @@ export function computeDamage(
       attacker.skills.quickdraw * 0.12 + attacker.skills.tactics * 0.08,
     );
   const mitigation = Math.round(target.skills.grit * 0.05);
+  const coverMitigation = Math.round((target.coverBonus ?? 0) * 0.35);
   const critBonus = critRoll < 0.08 + attacker.skills.fortune * 0.001 ? 8 : 0;
-  return Math.max(6, baseDamage + critBonus - mitigation);
+  return Math.max(6, baseDamage + critBonus - mitigation - coverMitigation);
 }
 
 export function resolveShot(
@@ -128,6 +132,9 @@ export function resolveShot(
   target: RuntimePlayer,
   random = Math.random,
 ) {
+  const coverPenalty =
+    (target.coverBonus ?? 0) * 0.008 +
+    (target.coverLabel ? 0.03 : 0);
   const hitChance = Math.max(
     0.4,
     Math.min(
@@ -135,7 +142,8 @@ export function resolveShot(
       0.55 +
         attacker.skills.quickdraw * 0.002 +
         attacker.skills.tactics * 0.0015 -
-        target.skills.trailcraft * 0.0012,
+        target.skills.trailcraft * 0.0012 -
+        coverPenalty,
     ),
   );
   const hit = random() <= hitChance;
@@ -255,6 +263,48 @@ export function createArenaBounty(
     displayName: target.displayName,
     bonusScore: gameConfig.bountyScoreValue,
   };
+}
+
+export function getFrontierCover(
+  player: Pick<RuntimePlayer, "x" | "y" | "skills">,
+) {
+  const nearest = frontierLandmarks
+    .map((landmark) => ({
+      landmark,
+      distance: Math.hypot(landmark.x - player.x, landmark.y - player.y),
+    }))
+    .filter(({ landmark, distance }) => distance <= landmark.coverRadius)
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (!nearest) {
+    return null;
+  }
+
+  const proximity =
+    1 - nearest.distance / Math.max(1, nearest.landmark.coverRadius);
+  const coverBonus = clamp(
+    Math.round(
+      8 +
+        proximity * 8 +
+        player.skills.trailcraft * 0.12 +
+        player.skills.grit * 0.06,
+    ),
+    8,
+    gameConfig.coverMaxBonus,
+  );
+
+  return {
+    label: nearest.landmark.label,
+    bonus: coverBonus,
+    x: nearest.landmark.x,
+    y: nearest.landmark.y,
+  };
+}
+
+function applyCoverState(player: RuntimePlayer) {
+  const cover = getFrontierCover(player);
+  player.coverLabel = cover?.label ?? null;
+  player.coverBonus = cover?.bonus ?? 0;
 }
 
 function createEvent(event: Omit<MatchEvent, "id" | "createdAt">): MatchEvent {
@@ -681,6 +731,8 @@ export class ArenaCoordinator {
         mode: entry.agent.mode,
         x: spawn.x,
         y: spawn.y,
+        coverLabel: null,
+        coverBonus: 0,
         alive: true,
         ownerAddress: entry.agent.ownerAddress,
         skills: entry.agent.skills,
@@ -694,6 +746,7 @@ export class ArenaCoordinator {
         isBot: entry.userAddress.startsWith("house-bot-"),
         objectiveBonus: 0,
       };
+      applyCoverState(player);
       players.set(entry.agent.id, player);
       events.push(
         createEvent({
@@ -869,6 +922,7 @@ export class ArenaCoordinator {
         60,
         gameConfig.arenaSize.height - 60,
       );
+      applyCoverState(player);
 
       const safeZoneDistance = Math.hypot(
         player.x - runtime.snapshot.safeZone.centerX,
@@ -1162,12 +1216,15 @@ export class ArenaCoordinator {
         60,
         gameConfig.arenaSize.height - 60,
       );
+      applyCoverState(actor);
       actor.dodgeCooldownUntil = now + gameConfig.dodgeCooldownMs;
       events.push(
         createEvent({
           type: "dodge",
           actorAgentId: actor.agentId,
-          message: `${actor.displayName} dives for cover.`,
+          message: actor.coverLabel
+            ? `${actor.displayName} dives into ${actor.coverLabel} cover.`
+            : `${actor.displayName} dives for cover.`,
         }),
       );
     }
@@ -1405,6 +1462,8 @@ function toSnapshotPlayer(player: RuntimePlayer): MatchPlayerState {
     mode: player.mode,
     x: player.x,
     y: player.y,
+    coverLabel: player.coverLabel,
+    coverBonus: player.coverBonus,
     alive: player.alive,
     lastCommand: player.lastCommand,
   };

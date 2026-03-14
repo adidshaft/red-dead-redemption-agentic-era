@@ -2,7 +2,11 @@
 
 import { useEffect, useRef } from "react";
 
-import type { ArenaCommand, MatchSnapshot } from "@rdr/shared";
+import {
+  frontierLandmarks,
+  type ArenaCommand,
+  type MatchSnapshot,
+} from "@rdr/shared";
 
 type ArenaCanvasProps = {
   snapshot: MatchSnapshot | null;
@@ -370,6 +374,52 @@ export function ArenaCanvas({
                     nextSnapshot.objective.y,
                     48,
                   );
+                }
+
+                if (nextSnapshot.bounty) {
+                  const bountyTarget = nextSnapshot.players.find(
+                    (player) =>
+                      player.agentId === nextSnapshot.bounty?.targetAgentId,
+                  );
+                  if (bountyTarget) {
+                    this.guidanceGraphics.lineStyle(
+                      2,
+                      nextSnapshot.bounty.targetAgentId === selectedPlayer.agentId
+                        ? 0xe84a4a
+                        : 0xdf6c39,
+                      nextSnapshot.bounty.targetAgentId === selectedPlayer.agentId
+                        ? 0.22
+                        : 0.14,
+                    );
+                    this.guidanceGraphics.beginPath();
+                    this.guidanceGraphics.moveTo(selectedPlayer.x, selectedPlayer.y);
+                    this.guidanceGraphics.lineTo(bountyTarget.x, bountyTarget.y);
+                    this.guidanceGraphics.strokePath();
+                    this.guidanceGraphics.strokeCircle(
+                      bountyTarget.x,
+                      bountyTarget.y,
+                      54,
+                    );
+                  }
+                }
+
+                if (selectedPlayer.coverLabel) {
+                  const coverLandmark = frontierLandmarks.find(
+                    (landmark) => landmark.label === selectedPlayer.coverLabel,
+                  );
+                  if (coverLandmark) {
+                    this.guidanceGraphics.lineStyle(3, 0x7ed2b4, 0.42);
+                    this.guidanceGraphics.strokeCircle(
+                      coverLandmark.x,
+                      coverLandmark.y,
+                      coverLandmark.coverRadius * 0.55,
+                    );
+                    this.guidanceGraphics.lineStyle(1, 0x7ed2b4, 0.18);
+                    this.guidanceGraphics.beginPath();
+                    this.guidanceGraphics.moveTo(selectedPlayer.x, selectedPlayer.y);
+                    this.guidanceGraphics.lineTo(coverLandmark.x, coverLandmark.y);
+                    this.guidanceGraphics.strokePath();
+                  }
                 }
 
                 if (selectedPlayer.isReloading) {

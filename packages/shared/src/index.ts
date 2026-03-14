@@ -36,12 +36,27 @@ export const gameConfig = {
   bountyFirstSpawnMs: 12_000,
   bountyRespawnMs: 24_000,
   bountyScoreValue: 90,
+  coverRadius: 108,
+  coverMaxBonus: 18,
   safeZoneStartRadius: 520,
   safeZoneEndRadius: 150,
   safeZoneShrinkDelayMs: 20 * 1000,
   safeZoneDamagePerTick: 2,
   houseBotPrefix: "HouseBot",
 } as const;
+
+export const frontierLandmarks = [
+  { id: "saloon", label: "Saloon", x: 520, y: 250, coverRadius: 108 },
+  { id: "hotel", label: "Hotel", x: 1080, y: 250, coverRadius: 108 },
+  { id: "wagon-street", label: "Wagon Street", x: 800, y: 280, coverRadius: 94 },
+  { id: "west-street", label: "West Street", x: 610, y: 455, coverRadius: 88 },
+  { id: "east-street", label: "East Street", x: 990, y: 455, coverRadius: 88 },
+  { id: "wash", label: "Wash", x: 520, y: 640, coverRadius: 104 },
+  { id: "stable", label: "Stable", x: 1080, y: 640, coverRadius: 104 },
+  { id: "corral", label: "Main Corral", x: 800, y: 620, coverRadius: 96 },
+] as const;
+
+export type FrontierLandmark = (typeof frontierLandmarks)[number];
 
 export const skillKeys = [
   "quickdraw",
@@ -205,6 +220,8 @@ export const matchPlayerStateSchema = z.object({
   mode: agentModeSchema,
   x: z.number(),
   y: z.number(),
+  coverLabel: z.string().nullable().optional(),
+  coverBonus: z.number().int().nonnegative().optional(),
   alive: z.boolean(),
   lastCommand: arenaCommandSchema.optional(),
 });
