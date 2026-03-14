@@ -172,10 +172,6 @@ export function GameShell() {
     snapshot?.status === "queued" ||
     snapshot?.status === "in_progress" ||
     snapshot?.status === "settling";
-  const showPreMatchBrief =
-    !snapshot ||
-    snapshot.status === "queued" ||
-    snapshot.status === "finished";
   const roundClockLabel = useMemo(() => {
     if (!snapshot?.endsAt) {
       return "03:00";
@@ -1063,21 +1059,68 @@ export function GameShell() {
                 />
               </div>
             </div>
-            <div className="grid gap-4 rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
-              <div className="flex items-start justify-between gap-4">
-                <div>
+              <div className="grid gap-4 rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
                   <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">
                     Operator Notes
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">
                     Build Your Crew
                   </h2>
+                  </div>
+                  <Bot className="h-8 w-8 text-[#f0bf76]" />
                 </div>
-                <Bot className="h-8 w-8 text-[#f0bf76]" />
-              </div>
-              <label className="space-y-2">
-                <span className="text-sm text-stone-200/70">Base name</span>
-                <input
+                {isConnected && (
+                  <div className="rounded-[24px] border border-amber-200/14 bg-amber-100/6 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.24em] text-amber-100/58">
+                          Frontier Briefing
+                        </p>
+                        <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                          Learn the loop fast
+                        </h3>
+                      </div>
+                      <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-stone-200/62">
+                        {authToken ? "Signed In" : "Wallet Connected"}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-2 text-sm text-stone-200/72">
+                      <QuickBriefRow
+                        step={authToken ? "Ready" : "1"}
+                        title={authToken ? "Session active" : "Sign the session"}
+                        body={
+                          authToken
+                            ? "Your wallet session is active. Mint or select an agent to continue."
+                            : "Approve the wallet signature once to unlock agents, queueing, and receipts."
+                        }
+                      />
+                      <QuickBriefRow
+                        step={selectedAgent ? "Ready" : "2"}
+                        title={selectedAgent ? "Agent selected" : "Choose a rider"}
+                        body={
+                          selectedAgent
+                            ? `${selectedAgent.displayName} is your active rider.`
+                            : "Create or select an agent, then decide whether it fights manually or autonomously."
+                        }
+                      />
+                      <QuickBriefRow
+                        step="3"
+                        title="Win the arena"
+                        body="Queue a match, stay inside the shrinking dust ring, grab ammo and tonic caches, and outlast the other riders."
+                      />
+                      <QuickBriefRow
+                        step="4"
+                        title="Work the onchain loop"
+                        body="Upgrades, paid entries, and settlement live on X Layer. Premium x402 flows unlock stronger autonomy tooling."
+                      />
+                    </div>
+                  </div>
+                )}
+                <label className="space-y-2">
+                  <span className="text-sm text-stone-200/70">Base name</span>
+                  <input
                   value={baseName}
                   onChange={(event) => setBaseName(event.target.value)}
                   className="w-full rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm outline-none ring-0 placeholder:text-stone-400 focus:border-amber-300/35"
@@ -1363,32 +1406,10 @@ export function GameShell() {
                 </button>
               </div>
             </div>
-            {showPreMatchBrief && (
-              <div className="mb-4 grid gap-4 md:grid-cols-3">
-                <BriefingCard
-                  eyebrow="Phase"
-                  title={arenaPhaseLabel}
-                  body={
-                    queueState?.status === "queued"
-                      ? "Your slot is locked in. Stay on this screen while the arena fills and the showdown countdown starts."
-                      : "Pick a rider, make sure they are in manual or autonomous mode, then queue into the frontier."
-                  }
-                />
-                <BriefingCard
-                  eyebrow="How To Play"
-                  title="Move, aim, survive"
-                  body="WASD moves your rider, click fires at the nearest rival under your cursor, Space triggers a dodge, and R reloads when your chamber runs dry. Stay inside the shrinking dust ring."
-                />
-                <BriefingCard
-                  eyebrow="Skill Impact"
-                  title="Stats decide the duel"
-                  body="Quickdraw increases pressure, Grit helps you tank hits, Trailcraft powers dodges, Tactics sharpens aim, and Fortune creates swing moments. Score comes from eliminations, damage, and survival."
-                />
-                <BriefingCard
-                  eyebrow="Objective"
-                  title="Control the circle"
-                  body="The frontier collapses into a final ring. Sweep ammo and tonic pickups, keep rotating toward the safe zone, and survive long enough to claim the pot."
-                />
+            {queueState?.status === "queued" && (
+              <div className="mb-4 rounded-[24px] border border-amber-200/14 bg-amber-100/6 px-4 py-3 text-sm text-stone-200/76">
+                <span className="font-semibold text-[#f6ead7]">Showdown prep:</span>{" "}
+                Your slot is locked in. Stay on this screen while the arena fills and the countdown starts.
               </div>
             )}
             <div
@@ -1943,25 +1964,23 @@ function ArenaMinimap({
   );
 }
 
-function BriefingCard({
-  eyebrow,
+function QuickBriefRow({
+  step,
   title,
   body,
 }: {
-  eyebrow: string;
+  step: string;
   title: string;
   body: string;
 }) {
   return (
-    <div className="rounded-[22px] border border-amber-300/12 bg-amber-100/6 p-4">
-      <div className="text-xs uppercase tracking-[0.18em] text-[#f0bf76]">
-        {eyebrow}
+    <div className="flex items-start gap-3 rounded-[18px] border border-white/8 bg-black/14 px-3 py-3">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-300/20 bg-amber-100/10 text-[10px] font-bold uppercase tracking-[0.18em] text-[#f0bf76]">
+        {step}
       </div>
-      <div className="mt-2 text-base font-semibold text-[#f6ead7]">
-        {title}
-      </div>
-      <div className="mt-2 text-sm text-stone-200/72">
-        {body}
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-[#f6ead7]">{title}</div>
+        <div className="mt-1 text-sm text-stone-200/72">{body}</div>
       </div>
     </div>
   );
