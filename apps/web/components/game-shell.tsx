@@ -94,7 +94,7 @@ type AgentOperation = {
   action: "buy_skill" | "queue_paid" | "queue_practice" | "buy_autonomy_pass";
 };
 
-type ConsoleTab = "overview" | "autonomy" | "onchain" | "history" | "spectate";
+type ConsoleTab = "overview" | "autonomy" | "onchain";
 
 export function GameShell() {
   const { address, isConnected, chainId } = useAccount();
@@ -1333,7 +1333,7 @@ export function GameShell() {
       <section className="mx-auto flex max-w-[1600px] flex-col gap-6">
         <div className="western-card relative overflow-hidden rounded-[32px] border px-6 py-6 md:px-10 md:py-8">
           <div className="absolute inset-0 dust-grid opacity-40" />
-          <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="relative grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="space-y-5">
               <p className="inline-flex rounded-full border border-amber-300/20 bg-amber-200/8 px-4 py-1 text-xs uppercase tracking-[0.28em] text-amber-100/80">
                 X Layer • OnchainOS • Agent Arena
@@ -1413,121 +1413,194 @@ export function GameShell() {
                 />
               </div>
             </div>
-            <div className="space-y-4">
-              <div className="rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">
-                      Frontier Briefing
-                    </p>
-                    <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">
-                      What matters first
-                    </h2>
-                  </div>
-                  <Bot className="h-8 w-8 text-[#f0bf76]" />
-                </div>
-                {isConnected ? (
-                  <div className="mt-4 grid gap-2 text-sm text-stone-200/72">
-                    <QuickBriefRow
-                      step={authToken ? "Ready" : "1"}
-                      title={authToken ? "Session active" : "Sign the session"}
-                      body={
-                        authToken
-                          ? "Your wallet session is ready. Pick a rider, choose a mode, and queue a run."
-                          : "Approve one wallet signature to unlock agent actions, queueing, and onchain receipts."
-                      }
-                    />
-                    <QuickBriefRow
-                      step={selectedAgent ? "Ready" : "2"}
-                      title={selectedAgent ? "Rider selected" : "Pick or mint a rider"}
-                      body={
-                        selectedAgent
-                          ? `${selectedAgent.displayName} is active. Switch between manual and autonomous control any time.`
-                          : "Create or select a rider. Every rider gets five core skills and a linked treasury wallet."
-                      }
-                    />
-                    <QuickBriefRow
-                      step="3"
-                      title="Survive the showdown"
-                      body="Queue a match, stay inside the dust ring, grab supplies, and claim the pot if you win."
-                    />
-                  </div>
-                ) : (
-                  <p className="mt-4 text-sm text-stone-200/72">
-                    Connect a wallet first. The game will then show you the exact three-step loop to get a rider into the frontier.
+            <div className="rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">
+                    Frontier Briefing
                   </p>
+                  <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">
+                    Start here
+                  </h2>
+                </div>
+                <Bot className="h-8 w-8 text-[#f0bf76]" />
+              </div>
+              {isConnected ? (
+                <div className="mt-4 grid gap-2 text-sm text-stone-200/72">
+                  <QuickBriefRow
+                    step={authToken ? "Ready" : "1"}
+                    title={authToken ? "Session active" : "Sign the session"}
+                    body={
+                      authToken
+                        ? "You are ready. Pick a rider below, choose a mode, and queue a run."
+                        : "Approve one wallet signature to unlock riders, queueing, and onchain receipts."
+                    }
+                  />
+                  <QuickBriefRow
+                    step={selectedAgent ? "Ready" : "2"}
+                    title={selectedAgent ? "Rider selected" : "Choose a rider"}
+                    body={
+                      selectedAgent
+                        ? `${selectedAgent.displayName} is active. Switch manual or autonomous mode before you queue.`
+                        : "Select a rider or mint one below. Each rider gets five core skills and a linked treasury."
+                    }
+                  />
+                  <QuickBriefRow
+                    step="3"
+                    title="Win and settle"
+                    body="Stay inside the dust ring, grab supplies, outlast the field, and collect the X Layer payout."
+                  />
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-stone-200/72">
+                  Connect a wallet first. The game will then show the shortest path from sign-in to your first showdown.
+                </p>
+              )}
+              {selectedAgent && (
+                <div className="mt-4 rounded-[22px] border border-white/8 bg-white/5 px-4 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
+                        Active rider
+                      </div>
+                      <div className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                        {selectedAgent.displayName}
+                      </div>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/72">
+                      {selectedAgent.mode}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <section className="western-card rounded-[30px] border p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+                Rider Deck
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+                Pick your rider
+              </h2>
+            </div>
+            {selectedAgent && (
+              <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                <span className="rounded-full border border-white/8 px-2.5 py-1">
+                  {selectedAgent.displayName}
+                </span>
+                {autonomyPlan && (
+                  <span className="rounded-full border border-white/8 px-2.5 py-1">
+                    Readiness {autonomyPlan.readinessScore}%
+                  </span>
                 )}
               </div>
-
-              <div className="rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
-                <div className="mb-4 flex items-center justify-between">
+            )}
+          </div>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="grid gap-2 md:grid-cols-2">
+              {agents.length === 0 ? (
+                <EmptyState label="No riders yet. Mint your first frontier rider from the card on the right." />
+              ) : (
+                agents.map((agent) => {
+                  const active = agent.id === selectedAgent?.id;
+                  return (
+                    <button
+                      type="button"
+                      key={agent.id}
+                      onClick={() => setSelectedAgentId(agent.id)}
+                      className={`rounded-[20px] border px-4 py-3 text-left transition ${
+                        active
+                          ? "border-[var(--accent-soft)]/35 bg-[var(--accent)]/10"
+                          : "border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-[#f6ead7]">
+                            {agent.displayName}
+                          </div>
+                          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
+                            {truncateAddress(agent.walletAddress)}
+                          </div>
+                        </div>
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] ${
+                            agent.mode === "manual"
+                              ? "border-[#7ed2b4]/25 bg-[#7ed2b4]/10 text-[#c5f4e9]"
+                              : "border-[#df6c39]/25 bg-[#df6c39]/10 text-[#ffd0ae]"
+                          }`}
+                        >
+                          {agent.mode}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
-                      Roster
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
+                      Active rider
                     </p>
-                    <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
-                      Your Agents
-                    </h2>
+                    <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                      {selectedAgent ? selectedAgent.displayName : "No rider selected"}
+                    </h3>
                   </div>
-                  <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-stone-200/70">
-                    {agents.length}/3
-                  </span>
-                </div>
-                <div className="scrollbar-thin flex max-h-[220px] flex-col gap-2 overflow-auto pr-1">
-                  {agents.map((agent) => {
-                    const active = agent.id === selectedAgent?.id;
-                    return (
+                  {selectedAgent && (
+                    <div className="flex gap-2">
                       <button
                         type="button"
-                        key={agent.id}
-                        onClick={() => setSelectedAgentId(agent.id)}
-                        className={`rounded-[20px] border px-4 py-3 text-left transition ${
-                          active
-                            ? "border-[var(--accent-soft)]/35 bg-[var(--accent)]/10"
-                            : "border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5"
+                        onClick={() => handleModeChange("manual")}
+                        disabled={busyAction !== null}
+                        className={`rounded-full px-3 py-2 text-xs ${
+                          selectedAgent.mode === "manual"
+                            ? "bg-[#7ed2b4]/18 text-[#c5f4e9]"
+                            : "border border-white/12 text-white/70"
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-[#f6ead7]">
-                              {agent.displayName}
-                            </div>
-                            <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
-                              {agent.isStarter ? "starter" : "secondary"} • {truncateAddress(agent.walletAddress)}
-                            </div>
-                          </div>
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] ${
-                              agent.mode === "manual"
-                                ? "border-[#7ed2b4]/25 bg-[#7ed2b4]/10 text-[#c5f4e9]"
-                                : "border-[#df6c39]/25 bg-[#df6c39]/10 text-[#ffd0ae]"
-                            }`}
-                          >
-                            {agent.mode}
-                          </span>
-                        </div>
+                        Manual
                       </button>
-                    );
-                  })}
-                  {agents.length === 0 && (
-                    <EmptyState label="No agents yet. Sign in and mint your first frontier rider." compact />
+                      <button
+                        type="button"
+                        onClick={() => handleModeChange("autonomous")}
+                        disabled={busyAction !== null}
+                        className={`rounded-full px-3 py-2 text-xs ${
+                          selectedAgent.mode === "autonomous"
+                            ? "bg-[#df6c39]/18 text-[#ffd0ae]"
+                            : "border border-white/12 text-white/70"
+                        }`}
+                      >
+                        Auto
+                      </button>
+                    </div>
                   )}
                 </div>
+                <div className="mt-3 text-sm text-stone-200/72">
+                  {selectedAgent
+                    ? "Pick the rider you want in the next showdown. Queue buttons are in the arena section below."
+                    : "Select a rider from the list or mint a new one to continue."}
+                </div>
               </div>
-
-              <div className="grid gap-4 rounded-[28px] border border-amber-200/10 bg-black/15 p-5 backdrop-blur">
+              <div className="rounded-[24px] border border-amber-200/10 bg-black/12 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.26em] text-amber-100/60">
-                      Build Your Crew
-                    </p>
-                    <h2 className="mt-2 text-2xl font-semibold text-[#f6ead7]">
                       Mint a rider
-                    </h2>
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                      Build your crew
+                    </h3>
                   </div>
-                  <Gem className="h-8 w-8 text-[#f0bf76]" />
+                  <Gem className="h-6 w-6 text-[#f0bf76]" />
                 </div>
-                <label className="space-y-2">
+                <label className="mt-4 block space-y-2">
                   <span className="text-sm text-stone-200/70">Base name</span>
                   <input
                     value={baseName}
@@ -1540,467 +1613,227 @@ export function GameShell() {
                   type="button"
                   onClick={handleCreateAgent}
                   disabled={!authToken || busyAction === "create-agent"}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200/20 bg-amber-100/10 px-4 py-3 text-sm font-medium text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-50"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-200/20 bg-amber-100/10 px-4 py-3 text-sm font-medium text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-50"
                 >
                   {busyAction === "create-agent" ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" />
                   ) : (
                     <Gem className="h-4 w-4" />
                   )}
-                  {authToken ? "Mint a New Agent Profile" : "Sign In to Mint an Agent"}
+                  {authToken ? "Mint New Agent Profile" : "Sign In to Mint an Agent"}
                 </button>
-                <p className="text-sm text-stone-300/68">
-                  Riders are named <span className="font-semibold text-[#f6dfb7]">BaseName-ULIDSuffix</span> and start with five core stats plus a linked treasury wallet.
-                </p>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
 
-          <section className="western-card order-2 rounded-[30px] border p-5">
-            <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--accent-soft)]/60">
-                  Operations Console
-                </p>
-                <h2 className="mt-1 font-[var(--font-heading)] text-3xl font-bold text-[var(--foreground)]">
-                  Deeper systems
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm text-stone-200/68">
-                  Keep the arena in front. Open only the lane you need when you need it.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <ConsoleTabButton
-                  label="Overview"
-                  active={activeConsoleTab === "overview"}
-                  onClick={() => setActiveConsoleTab("overview")}
-                />
-                <ConsoleTabButton
-                  label="Autonomy"
-                  active={activeConsoleTab === "autonomy"}
-                  onClick={() => setActiveConsoleTab("autonomy")}
-                />
-                <ConsoleTabButton
-                  label="Onchain"
-                  active={activeConsoleTab === "onchain"}
-                  onClick={() => setActiveConsoleTab("onchain")}
-                />
-                <ConsoleTabButton
-                  label="History"
-                  active={activeConsoleTab === "history"}
-                  onClick={() => setActiveConsoleTab("history")}
-                />
-                <ConsoleTabButton
-                  label="Spectate"
-                  active={activeConsoleTab === "spectate"}
-                  onClick={() => setActiveConsoleTab("spectate")}
-                />
-              </div>
+        <section className="western-card order-2 rounded-[30px] border p-5">
+          <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--accent-soft)]/60">
+                Operations Console
+              </p>
+              <h2 className="mt-1 font-[var(--font-heading)] text-3xl font-bold text-[var(--foreground)]">
+                Short answers only
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-stone-200/68">
+                This panel is now just support. Use it when you need the next upgrade, autonomy call, or onchain proof.
+              </p>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <ConsoleTabButton
+                label="Rider"
+                active={activeConsoleTab === "overview"}
+                onClick={() => setActiveConsoleTab("overview")}
+              />
+              <ConsoleTabButton
+                label="Autonomy"
+                active={activeConsoleTab === "autonomy"}
+                onClick={() => setActiveConsoleTab("autonomy")}
+              />
+              <ConsoleTabButton
+                label="Chain"
+                active={activeConsoleTab === "onchain"}
+                onClick={() => setActiveConsoleTab("onchain")}
+              />
+            </div>
+          </div>
 
-            {selectedAgent && liveAgentStats ? (
-            activeConsoleTab === "spectate" ? (
-              <EmptyState label="Spectate mode is active below. Use the live frontier board to follow public matches." />
-            ) : (
-            <div className="grid gap-4 xl:grid-cols-2">
-              <div className="space-y-4">
-              {(activeConsoleTab === "overview" || activeConsoleTab === "history") && (
-              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-semibold text-[#f6ead7]">
-                      {selectedAgent.displayName}
-                    </h3>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">
-                      {selectedAgent.walletAddress}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleModeChange("manual")}
-                      disabled={busyAction !== null}
-                      className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "manual" ? "bg-[#7ed2b4]/18 text-[#c5f4e9]" : "border border-white/12 text-white/70"}`}
-                    >
-                      Manual
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleModeChange("autonomous")}
-                      disabled={busyAction !== null}
-                      className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "autonomous" ? "bg-[#df6c39]/18 text-[#ffd0ae]" : "border border-white/12 text-white/70"}`}
-                    >
-                      Autonomous
-                    </button>
-                  </div>
-                </div>
-              </div>
-              )}
-
-              {(activeConsoleTab === "overview" || activeConsoleTab === "history") && campaignStats && (
-                <div className="rounded-[24px] border border-amber-200/12 bg-[linear-gradient(180deg,rgba(26,18,12,0.92),rgba(14,10,8,0.96))] p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+          {selectedAgent && liveAgentStats ? (
+            activeConsoleTab === "overview" ? (
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200/58">
-                        Campaign Ledger
+                      <p className="text-sm font-semibold text-[#f6ead7]">
+                        Skill Network
                       </p>
-                      <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
-                        {formatCampaignTier(campaignStats.campaignTier)}
-                      </h3>
-                      <p className="mt-2 text-sm text-stone-200/72">
-                        {campaignStats.matchesPlayed === 0
-                          ? "No finished frontier rounds yet. Run practice or paid matches to start the ledger."
-                          : `${selectedAgent.displayName} has logged ${campaignStats.matchesPlayed} frontier runs with ${campaignStats.wins} wins and ${campaignStats.podiums} podium finishes.`}
+                      <p className="mt-1 text-xs text-stone-300/58">
+                        Upgrade only what helps the next run.
                       </p>
                     </div>
-                    <div className="rounded-full border border-amber-200/18 bg-amber-100/8 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100/82">
-                      Hot streak {campaignStats.currentStreak}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <StatCard
-                      icon={<Sword className="h-3.5 w-3.5" />}
-                      label="Career"
-                      value={`${campaignStats.wins}W / ${campaignStats.matchesPlayed}R • ${campaignStats.paidMatches} paid entries`}
-                    />
-                    <StatCard
-                      icon={<RadioTower className="h-3.5 w-3.5" />}
-                      label="Placement"
-                      value={
-                        campaignStats.matchesPlayed === 0
-                          ? "No finishes"
-                          : `Avg #${campaignStats.averagePlacement.toFixed(2)} • ${campaignStats.podiums} podiums`
-                      }
-                    />
-                    <StatCard
-                      icon={<Crosshair className="h-3.5 w-3.5" />}
-                      label="Combat"
-                      value={`${campaignStats.totalKills} eliminations • ${campaignStats.totalDamage} damage`}
-                    />
-                    <StatCard
-                      icon={<Wallet className="h-3.5 w-3.5" />}
-                      label="Treasury"
-                      value={`${formatWeiToOkb(BigInt(campaignStats.careerPayoutWei))} • best score ${campaignStats.bestScore}`}
-                    />
-                  </div>
-
-                  <div className="mt-4 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-amber-200/58">
-                        Recent Frontier Placements
-                      </div>
-                      <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
-                        Total score {campaignStats.totalScore}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {campaignStats.recentPlacements.length === 0 ? (
-                        <span className="rounded-full border border-white/8 px-3 py-1 text-xs text-stone-300/60">
-                          No placements yet
-                        </span>
-                      ) : (
-                        campaignStats.recentPlacements.map((placement, index) => (
-                          <span
-                            key={`${placement}-${index}`}
-                            className={`rounded-full border px-3 py-1 text-xs ${placement === 1 ? "border-amber-300/30 bg-amber-100/10 text-[#f6ead7]" : placement === 2 ? "border-[#7ed2b4]/25 bg-[#7ed2b4]/10 text-[#c5f4e9]" : "border-white/10 bg-white/5 text-stone-200/72"}`}
-                          >
-                            Finish #{placement}
-                          </span>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeConsoleTab === "autonomy" && operationQueue.length > 0 && (
-                <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(10,14,14,0.92),rgba(7,9,10,0.96))] p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
-                        Campaign Ops Queue
-                      </p>
-                      <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
-                        Next approved actions
-                      </h3>
-                      <p className="mt-2 text-sm text-stone-200/72">
-                        This queue translates the planner into concrete owner-approved moves for the agent.
-                      </p>
-                    </div>
-                    <span className="rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/10 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[#c5f4e9]">
-                      {operationQueue.length} actions
-                    </span>
-                  </div>
-                  <div className="mt-4 grid gap-3">
-                    {operationQueue.map((operation, index) => (
-                      <div
-                        key={operation.id}
-                        className="flex flex-wrap items-start justify-between gap-3 rounded-[18px] border border-white/8 bg-black/16 px-4 py-3"
+                    {autonomyPlan && (
+                      <button
+                        type="button"
+                        onClick={() => handleBuySkill(autonomyPlan.nextSkill)}
+                        disabled={buyDisabled}
+                        className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
                       >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[10px] font-bold text-stone-200/72">
-                              {index + 1}
-                            </span>
-                            <span className="text-sm font-semibold text-[#f6ead7]">
-                              {operation.label}
-                            </span>
-                            <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${operation.status === "ready" ? "border-[#7ed2b4]/25 bg-[#7ed2b4]/10 text-[#c5f4e9]" : operation.status === "queued" ? "border-amber-300/22 bg-amber-100/10 text-[#f6ead7]" : "border-white/10 bg-white/5 text-stone-300/58"}`}>
-                              {operation.status}
-                            </span>
+                        Buy {skillLabels[autonomyPlan.nextSkill]}
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    {skillKeys.map((skill) => (
+                      <div
+                        key={skill}
+                        className="flex items-center justify-between gap-4 rounded-[18px] border border-white/8 bg-black/14 px-4 py-3"
+                      >
+                        <div>
+                          <div className="text-sm font-semibold text-[#f6ead7]">
+                            {skillLabels[skill]}
                           </div>
-                          <div className="mt-2 pl-8 text-sm text-stone-200/68">
-                            {operation.detail}
+                          <div className="mt-1 text-xs text-stone-200/60">
+                            {selectedAgent.skills[skill]} / 100
                           </div>
                         </div>
                         <button
                           type="button"
-                          onClick={() => void handleOperationExecute(operation)}
-                          disabled={operation.status !== "ready"}
-                          className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 disabled:opacity-45"
+                          onClick={() => handleBuySkill(skill)}
+                          disabled={buyDisabled}
+                          className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 transition hover:border-white/20 hover:bg-white/10 disabled:opacity-45"
                         >
-                          Execute
+                          +5 • {formatWeiToOkb(calculateSkillPurchasePrice(selectedAgent.skills[skill]))}
                         </button>
                       </div>
                     ))}
                   </div>
                 </div>
-              )}
-
-              {activeConsoleTab === "overview" && (
-              <div className="space-y-3">
-                {skillKeys.map((skill) => (
-                  <div
-                    key={skill}
-                    className="rounded-[24px] border border-white/8 bg-black/12 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-semibold text-[#f6ead7]">
-                          {skillLabels[skill]}
-                        </div>
-                        <div className="mt-1 text-xs text-stone-200/60">
-                          Current: {selectedAgent.skills[skill]} / 100
-                        </div>
+                <div className="space-y-4">
+                  {campaignStats ? (
+                    <div className="rounded-[24px] border border-amber-200/12 bg-[linear-gradient(180deg,rgba(26,18,12,0.92),rgba(14,10,8,0.96))] p-4">
+                      <div className="text-[10px] uppercase tracking-[0.24em] text-amber-200/58">
+                        Campaign Snapshot
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleBuySkill(skill)}
-                        disabled={buyDisabled}
-                        className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
-                      >
-                        Buy +5 •{" "}
-                        {formatWeiToOkb(
-                          calculateSkillPurchasePrice(
-                            selectedAgent.skills[skill],
-                          ),
-                        )}
-                      </button>
+                      <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                        {formatCampaignTier(campaignStats.campaignTier)}
+                      </div>
+                      <div className="mt-3 grid gap-2 text-sm text-stone-200/72">
+                        <div>{campaignStats.wins} wins from {campaignStats.matchesPlayed} runs</div>
+                        <div>{campaignStats.totalKills} eliminations total</div>
+                        <div>{formatWeiToOkb(BigInt(campaignStats.careerPayoutWei))} career payout</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              )}
-
-              {activeConsoleTab === "history" && (
-              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-[#f6ead7]">
-                      Frontier Tape
-                    </p>
-                    <p className="mt-1 text-xs text-stone-300/58">
-                      Recent finished runs for this agent.
-                    </p>
-                  </div>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
-                    {matchHistory.length} logged
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {matchHistory.length === 0 ? (
-                    <EmptyState
-                      label="No finished matches yet. Run a frontier cycle to start the tape."
-                      compact
-                    />
                   ) : (
-                    matchHistory.map((record) => (
-                      <div
-                        key={record.matchId}
-                        className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <div className="text-sm font-semibold text-[#f6ead7]">
-                              {record.paid ? "Paid Showdown" : "Practice Run"} • Finish #{record.placement}
-                            </div>
-                            <div className="mt-1 text-xs text-stone-300/58">
-                              {record.finishedAt ? formatShortDateTime(record.finishedAt) : "Pending archive"} • {record.players} riders
-                            </div>
-                          </div>
-                          <div className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] ${record.won ? "border-amber-300/30 bg-amber-100/10 text-[#f6ead7]" : "border-white/10 bg-white/5 text-stone-200/70"}`}>
-                            {record.won ? "Winner" : "Logged"}
-                          </div>
+                    <EmptyState label="Campaign stats appear after the first finished run." compact />
+                  )}
+                  <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-stone-300/56">
+                      Latest Run
+                    </div>
+                    {matchHistory[0] ? (
+                      <div className="mt-3 space-y-2 text-sm text-stone-200/72">
+                        <div className="font-semibold text-[#f6ead7]">
+                          {matchHistory[0].paid ? "Paid Showdown" : "Practice Run"} • Finish #{matchHistory[0].placement}
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
-                          <span className="rounded-full border border-white/8 px-2.5 py-1">
-                            Score {record.score}
-                          </span>
-                          <span className="rounded-full border border-white/8 px-2.5 py-1">
-                            Kills {record.kills}
-                          </span>
-                          <span className="rounded-full border border-white/8 px-2.5 py-1">
-                            Damage {record.damageDealt}
-                          </span>
-                          <span className="rounded-full border border-white/8 px-2.5 py-1">
-                            Payout {formatWeiToOkb(BigInt(record.payoutWei))}
-                          </span>
-                        </div>
-                        {record.settlementTxHash && (
-                          <a
-                            href={toExplorerTxUrl(
-                              record.settlementTxHash,
-                              process.env.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
-                            )}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-3 inline-flex items-center gap-2 text-xs text-[#7ed2b4] transition hover:text-[#c5f4e9]"
-                          >
-                            View settlement
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        )}
+                        <div>Score {matchHistory[0].score} • Kills {matchHistory[0].kills}</div>
+                        <div>Payout {formatWeiToOkb(BigInt(matchHistory[0].payoutWei))}</div>
                       </div>
-                    ))
+                    ) : (
+                      <EmptyState label="No finished run logged yet." compact />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : activeConsoleTab === "autonomy" ? (
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(13,18,16,0.92),rgba(8,10,9,0.96))] p-4">
+                  {autonomyPlan ? (
+                    <>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
+                            Autonomy Director
+                          </p>
+                          <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                            {autonomyPlan.doctrine}
+                          </h3>
+                        </div>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-stone-200/72">
+                          {autonomyPlan.readinessScore}% ready
+                        </span>
+                      </div>
+                      <div className="mt-4 grid gap-3 text-sm text-stone-200/72">
+                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3">
+                          Next move: <span className="font-semibold text-[#f6ead7]">{skillLabels[autonomyPlan.nextSkill]}</span>
+                        </div>
+                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3">
+                          Queue: <span className="font-semibold text-[#f6ead7]">{autonomyPlan.recommendedQueue}</span>
+                        </div>
+                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3">
+                          Combat: <span className="font-semibold text-[#f6ead7]">{autonomyPlan.combatDirective}</span>
+                        </div>
+                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3">
+                          Objective: <span className="font-semibold text-[#f6ead7]">{autonomyPlan.objectiveDirective}</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <EmptyState label="Autonomy planning appears once a rider is selected." compact />
                   )}
                 </div>
-              </div>
-              )}
-              </div>
-              <div className="space-y-4">
-              {activeConsoleTab === "autonomy" && autonomyPlan && (
-                <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(13,18,16,0.92),rgba(8,10,9,0.96))] p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
-                        Autonomy Director
-                      </p>
-                      <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
-                        {autonomyPlan.doctrine}
-                      </h3>
-                      <p className="mt-2 text-sm text-stone-200/72">
-                        {autonomyPlan.summary}
-                      </p>
+                <div className="space-y-4">
+                  <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                      Next approved actions
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan.mode === "autonomous" ? "border-[#df6c39]/35 bg-[#df6c39]/10 text-[#ffd0ae]" : "border-[#7ed2b4]/30 bg-[#7ed2b4]/10 text-[#c5f4e9]"}`}>
-                        {autonomyPlan.mode}
-                      </span>
-                      <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan.autonomyPassActive ? "border-emerald-200/30 bg-emerald-200/10 text-emerald-100" : "border-white/10 bg-white/5 text-stone-200/65"}`}>
-                        {autonomyPlan.autonomyPassActive ? "x402 Active" : "x402 Locked"}
-                      </span>
+                    <div className="mt-3 grid gap-2">
+                      {operationQueue.slice(0, 2).length > 0 ? (
+                        operationQueue.slice(0, 2).map((operation) => (
+                          <button
+                            type="button"
+                            key={operation.id}
+                            onClick={() => void handleOperationExecute(operation)}
+                            disabled={operation.status !== "ready"}
+                            className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-left text-sm text-stone-200/72 transition hover:border-white/18 disabled:opacity-45"
+                          >
+                            <div className="font-semibold text-[#f6ead7]">{operation.label}</div>
+                            <div className="mt-1 text-xs text-stone-300/58">{operation.detail}</div>
+                          </button>
+                        ))
+                      ) : (
+                        <EmptyState label="No queued autonomy actions right now." compact />
+                      )}
                     </div>
                   </div>
-                  <div className="mt-4 overflow-hidden rounded-[18px] border border-white/8 bg-black/16">
-                    <div className="grid gap-x-6 gap-y-4 p-4 sm:grid-cols-2">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">Campaign Priority</div>
-                        <div className="mt-1 font-semibold text-[#f6ead7]">{formatCampaignPriority(autonomyPlan.campaignPriority)}</div>
-                        <div className="mt-0.5 text-xs text-stone-200/68">{formatCampaignPriorityDetail(autonomyPlan)}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">Combat Directive</div>
-                        <div className="mt-1 text-xs text-stone-200/72">{autonomyPlan.combatDirective}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">Objective Doctrine</div>
-                        <div className="mt-1 text-xs text-stone-200/72">{autonomyPlan.objectiveDirective}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">x402 Lane</div>
-                        <div className="mt-1 text-xs text-stone-200/72">{autonomyPlan.x402Directive}</div>
-                        {autonomyPlan.autonomyPassValidUntil && (
-                          <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
-                            Valid until <span className="text-[#f6ead7]">{formatShortDateTime(autonomyPlan.autonomyPassValidUntil)}</span>
-                          </div>
-                        )}
-                      </div>
+                  <div className="rounded-[24px] border border-[#df6c39]/18 bg-[#df6c39]/6 p-4">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
+                      Premium Autonomy
                     </div>
-                    
-                    <div className="border-t border-white/8 bg-black/20 p-4">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">Economy Loop</div>
-                      <div className="mt-1 text-xs text-stone-200/72">{autonomyPlan.economyDirective}</div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
-                         <span className="rounded-full border border-white/8 px-2 py-0.5">Queue: {autonomyPlan.recommendedQueue}</span>
-                         <span className="rounded-full border border-white/8 px-2 py-0.5">Posture: {autonomyPlan.economyPosture}</span>
-                         <span className="rounded-full border border-white/8 px-2 py-0.5">Objective: {autonomyPlan.objectivePosture}</span>
-                         <span className="rounded-full border border-white/8 px-2 py-0.5">Confidence: {autonomyPlan.confidenceBand}</span>
-                      </div>
-                      <div className="mt-4 flex items-center justify-between gap-4">
-                        <span className="text-[10px] uppercase tracking-[0.16em] text-stone-300/58 shrink-0">Runway readiness</span>
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/6">
-                          <div
-                            className={`h-full rounded-full transition-all ${autonomyPlan.readinessScore >= 72 ? "bg-[linear-gradient(90deg,#7ed2b4,#d7f3d6)]" : autonomyPlan.readinessScore >= 42 ? "bg-[linear-gradient(90deg,#d4934f,#f6ead7)]" : "bg-[linear-gradient(90deg,#9a4e32,#df6c39)]"}`}
-                            style={{ width: `${autonomyPlan.readinessScore}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] uppercase tracking-[0.16em] text-stone-300/58 shrink-0">{autonomyPlan.readinessScore}%</span>
-                      </div>
+                    <div className="mt-2 text-sm text-stone-200/72">
+                      {autonomyPlan?.autonomyPassActive
+                        ? autonomyPassRemainingLabel ?? "Premium autonomy active"
+                        : "Optional x402 lane for stronger queue discipline."}
                     </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Queue: {autonomyPlan.upgradeQueue.map((skill) => skillLabels[skill]).join(" -> ")}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Upgrades: {autonomyPlan.skillPurchases}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Paid entries: {autonomyPlan.paidEntries}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Settlements: {autonomyPlan.settlements}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleBuySkill(autonomyPlan.nextSkill)}
-                      disabled={buyDisabled}
-                      className="rounded-full border border-amber-300/22 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/16 disabled:opacity-50"
-                    >
-                      Approve {skillLabels[autonomyPlan.nextSkill]}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQueue(true)}
-                      disabled={!selectedAgent || queueLocked}
-                      className="rounded-full border border-[#7ed2b4]/25 bg-[#7ed2b4]/10 px-3 py-2 text-xs text-[#c5f4e9] transition hover:bg-[#7ed2b4]/16 disabled:opacity-50"
-                    >
-                      Deploy Paid Run
-                    </button>
-                    {!autonomyPlan.autonomyPassActive && (
+                    {!autonomyPlan?.autonomyPassActive && (
                       <button
                         type="button"
                         onClick={handleAutonomyPass}
                         disabled={busyAction !== null}
-                        className="rounded-full border border-[#df6c39]/30 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/16 disabled:opacity-50"
+                        className="mt-3 rounded-full border border-[#df6c39]/30 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/16 disabled:opacity-50"
                       >
                         Unlock x402 Premium
                       </button>
                     )}
                   </div>
                 </div>
-              )}
-
-              {activeConsoleTab === "onchain" && (
-              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                <div className="mb-4 rounded-[18px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-3 py-3">
+              </div>
+            ) : (
+              <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+                <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/68">
-                    Chain Ops Board
+                    Chain Summary
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
                     <span className="rounded-full border border-white/8 px-2.5 py-1">
@@ -2015,223 +1848,56 @@ export function GameShell() {
                     <span className="rounded-full border border-white/8 px-2.5 py-1">
                       Settlements {transactionCounts.settlements}
                     </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Premium {transactionCounts.premium}
-                    </span>
                   </div>
-                  {lastConfirmedReceipt && (
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-white/6 bg-black/18 px-3 py-3 text-xs text-stone-200/70">
-                      <div>
-                        <div className="uppercase tracking-[0.16em] text-stone-300/56">
-                          Last confirmed action
-                        </div>
-                        <div className="mt-1 font-semibold text-[#f6ead7]">
-                          {formatReceiptPurpose(lastConfirmedReceipt.purpose)} • {truncateHash(lastConfirmedReceipt.txHash)}
-                        </div>
+                  {lastConfirmedReceipt ? (
+                    <div className="mt-4 rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
+                      <div className="font-semibold text-[#f6ead7]">
+                        {formatReceiptPurpose(lastConfirmedReceipt.purpose)}
                       </div>
-                      {lastConfirmedReceipt.explorerUrl && (
-                        <a
-                          href={lastConfirmedReceipt.explorerUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 text-[#7ed2b4] transition hover:text-[#c5f4e9]"
-                        >
-                          Open explorer
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                      )}
+                      <div className="mt-1 text-xs text-stone-300/58">
+                        {truncateHash(lastConfirmedReceipt.txHash)}
+                      </div>
                     </div>
-                  )}
-                </div>
-                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
-                  Onchain History
-                </p>
-                <div className="scrollbar-thin max-h-56 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
-                  {transactions.length === 0 && (
-                    <EmptyState
-                      label="No confirmed X Layer receipts yet."
-                      compact
-                    />
-                  )}
-                  {transactions.map((receipt) => (
-                    <a
-                      key={receipt.txHash}
-                      href={receipt.explorerUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block rounded-2xl border border-white/8 bg-white/4 px-3 py-3 transition hover:border-white/14"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-medium text-[#f6ead7]">
-                          {formatReceiptPurpose(receipt.purpose)}
-                        </span>
-                        <span
-                          className={`rounded-full px-2 py-1 text-[11px] uppercase ${receipt.status === "confirmed" ? "bg-emerald-200/12 text-emerald-200" : "bg-stone-200/10 text-stone-200/70"}`}
-                        >
-                          {receipt.status}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-xs text-stone-200/62">
-                        {truncateHash(receipt.txHash)}
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
-                        <span>{receipt.matchId ? `Match ${receipt.matchId.slice(-6)}` : "Agent action"}</span>
-                        <span className="inline-flex items-center gap-1 text-[#f0bf76]">
-                          Explorer
-                          <ExternalLink className="h-3 w-3" />
-                        </span>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-              )}
-
-              {activeConsoleTab === "autonomy" && (
-              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#f6ead7]">
-                    Autonomy Wire
-                  </p>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
-                    live directives
-                  </span>
-                </div>
-                <div className="space-y-2 text-sm text-stone-200/72">
-                  {autonomyEvents.length === 0 ? (
-                    <EmptyState
-                      label="Autonomous riders will post live directives here during matches."
-                      compact
-                    />
                   ) : (
-                    autonomyEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className="rounded-2xl border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-3 py-2"
-                      >
-                        {event.message}
-                      </div>
-                    ))
+                    <EmptyState label="No confirmed receipts yet." compact />
                   )}
                 </div>
-              </div>
-              )}
-
-              {activeConsoleTab === "autonomy" && (
-              <div className="rounded-[24px] border border-[#df6c39]/18 bg-[#df6c39]/6 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#ffd0ae]/68">
-                      Premium Autonomy
-                    </p>
-                    <h3 className="mt-1 text-base font-semibold text-[#f6ead7]">
-                      x402 control lane
-                    </h3>
-                  </div>
-                  <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan?.autonomyPassActive ? "border-emerald-200/30 bg-emerald-200/10 text-emerald-100" : "border-[#df6c39]/30 bg-[#df6c39]/10 text-[#ffd0ae]"}`}>
-                    {autonomyPlan?.autonomyPassActive ? "Active" : "Optional"}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm text-stone-200/72">
-                  Premium autonomy is the payment-gated lane for stronger planning, cleaner paid-run discipline, and future higher-trust agent economy flows on top of OnchainOS and x402.
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
-                      Pass status
-                    </div>
-                    <div className="mt-2 text-sm font-semibold text-[#f6ead7]">
-                      {autonomyPlan?.autonomyPassActive
-                        ? autonomyPassRemainingLabel ?? "Premium autonomy active"
-                        : "Locked until x402 payment is confirmed"}
-                    </div>
-                    <div className="mt-1 text-xs text-stone-300/62">
-                      {autonomyPlan?.autonomyPassActive
-                        ? "Planner now pushes tighter queue timing and cleaner economy routing."
-                        : "The payment challenge opens a 24-hour premium planning window for this agent."}
-                    </div>
-                  </div>
-                  <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
-                      Benefits
-                    </div>
-                    <div className="mt-2 space-y-1 text-xs text-stone-200/72">
-                      <div>Higher-trust queue discipline</div>
-                      <div>Premium planner posture and readiness routing</div>
-                      <div>Receipt-backed economy history in the same agent ledger</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-4 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
-                  <div className="mb-3 text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
-                    Premium lane checklist
+                <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                  <div className="mb-3 text-sm font-semibold text-[#f6ead7]">
+                    Recent Onchain History
                   </div>
                   <div className="grid gap-2">
-                    {premiumLaneSteps.map((step) => (
-                      <div
-                        key={step.label}
-                        className="flex items-start gap-3 rounded-[14px] border border-white/6 bg-white/[0.02] px-3 py-2"
-                      >
-                        <div
-                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${step.done ? "border-[#7ed2b4]/40 bg-[#7ed2b4]/12 text-[#c5f4e9]" : "border-white/10 bg-white/4 text-stone-300/56"}`}
+                    {transactions.length === 0 ? (
+                      <EmptyState label="No confirmed X Layer receipts yet." compact />
+                    ) : (
+                      transactions.slice(0, 6).map((receipt) => (
+                        <a
+                          key={receipt.txHash}
+                          href={receipt.explorerUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72 transition hover:border-white/18"
                         >
-                          {step.done ? "✓" : "•"}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium text-[#f6ead7]">
-                            {step.label}
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold text-[#f6ead7]">
+                              {formatReceiptPurpose(receipt.purpose)}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+                              {receipt.status}
+                            </span>
                           </div>
-                          <div className="text-xs text-stone-300/62">
-                            {step.detail}
+                          <div className="mt-1 text-xs text-stone-300/58">
+                            {truncateHash(receipt.txHash)}
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                        </a>
+                      ))
+                    )}
                   </div>
                 </div>
-                {autonomyQuote && (
-                  <div className="mt-3 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3 text-sm text-stone-200/72">
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
-                      Payment challenge ready
-                    </div>
-                    <div className="mt-2 text-xs text-stone-300/62">
-                      This is the structured x402 challenge returned by the payment lane. Once settled, the agent receives a 24-hour premium autonomy window and the receipt is written into Onchain History.
-                    </div>
-                    <div className="mt-2 grid gap-2 text-[11px] uppercase tracking-[0.16em] text-stone-300/58 sm:grid-cols-2">
-                      <div>
-                        Amount: <span className="text-[#f6ead7]">{autonomyQuote.amount ?? "—"} {autonomyQuote.asset ?? ""}</span>
-                      </div>
-                      <div>
-                        Chain: <span className="text-[#f6ead7]">#{autonomyQuote.chainId ?? "—"}</span>
-                      </div>
-                      <div className="sm:col-span-2">
-                        Pay to: <span className="text-[#f6ead7]">{autonomyQuote.payTo ? truncateAddress(autonomyQuote.payTo) : "—"}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {autonomyHint && (
-                  <div className="mt-3 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3 text-xs text-stone-200/68">
-                    Latest payment response captured. Open the raw payload if you need to inspect the gateway details.
-                    <details className="mt-3">
-                      <summary className="cursor-pointer text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
-                        Raw x402 payload
-                      </summary>
-                      <pre className="scrollbar-thin mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-[14px] border border-white/8 bg-black/20 p-3 text-[11px] text-stone-200/72">
-                        {autonomyHint}
-                      </pre>
-                    </details>
-                  </div>
-                )}
               </div>
-              )}
-              </div>
-            </div>
             )
-          ) : activeConsoleTab === "spectate" ? (
-            <EmptyState label="Spectate mode is active below. You do not need a selected rider to watch live public matches." />
           ) : (
-            <EmptyState label="Select or create an agent to inspect skills, queue matches, and review receipts." />
+            <EmptyState label="Select or create a rider to inspect upgrades, autonomy, and chain activity." />
           )}
         </section>
 
@@ -2716,11 +2382,7 @@ export function GameShell() {
           </section>
 
 
-      <section
-        className={`western-card order-3 rounded-[30px] border p-5 ${
-          activeConsoleTab === "spectate" ? "" : "hidden"
-        }`}
-      >
+      <section className="western-card order-3 rounded-[30px] border p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
