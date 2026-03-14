@@ -118,9 +118,11 @@ export function ArenaCanvas({
 
     function handleKeyChange(event: KeyboardEvent, isPressed: boolean) {
       const key = event.key.toLowerCase();
+      const isSpace = event.code === "Space" || key === " ";
       if (key === "w" || key === "a" || key === "s" || key === "d") {
         if (selectedPlayerIsControllable()) {
           event.preventDefault();
+          event.stopPropagation();
         }
         pressedKeysRef.current[key] = isPressed;
         emitMovement(true);
@@ -128,12 +130,13 @@ export function ArenaCanvas({
       }
 
       if (
-        key === " " &&
+        isSpace &&
         isPressed &&
         !event.repeat &&
         selectedPlayerIsControllable()
       ) {
         event.preventDefault();
+        event.stopPropagation();
         onCommandRef.current({
           type: "dodge",
           targetX: pointerPositionRef.current.x,

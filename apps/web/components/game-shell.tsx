@@ -49,6 +49,7 @@ import {
   registerAgentOnServer,
   registerSkillPurchase,
   requestAutonomyPass,
+  sendArenaCommand,
   updateAgentMode,
   verifySignature,
   type QueueUpdate,
@@ -58,6 +59,7 @@ import { xLayerTestnetChain } from "../lib/wagmi";
 import { ArenaCanvas } from "./arena-canvas";
 
 const authStorageKey = "rdr-auth-token";
+const authAddressStorageKey = "rdr-auth-address";
 
 export function GameShell() {
   const { address, isConnected, chainId } = useAccount();
@@ -85,9 +87,12 @@ export function GameShell() {
   const [autonomyHint, setAutonomyHint] = useState<string | null>(null);
   const [arenaReadyForControls, setArenaReadyForControls] = useState(false);
   const [arenaFullscreen, setArenaFullscreen] = useState(false);
+  const [matchCountdown, setMatchCountdown] = useState<number | null>(null);
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
   const arenaFrameRef = useRef<HTMLDivElement | null>(null);
+  const countdownTimeoutsRef = useRef<number[]>([]);
+  const startedMatchIdRef = useRef<string | null>(null);
 
   const selectedAgent = useMemo(
     () =>
@@ -121,6 +126,20 @@ export function GameShell() {
       setAuthToken(existing);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isConnected || !address || !authToken) {
+      return;
+    }
+
+    const storedAddress = window.localStorage.getItem(authAddressStorageKey);
+    if (
+      storedAddress &&
+      storedAddress.toLowerCase() !== address.toLowerCase()
+    ) {
+      clearSession("Wallet changed. Sign in again to continue.");
+    }
+  }, [address, authToken, isConnected]);
 
   useEffect(() => {
     if (isConnected && !authToken) {
@@ -217,11 +236,140 @@ export function GameShell() {
     };
   }, []);
 
+  useEffect(() => {
+    if (
+      !snapshot ||
+      snapshot.status !== "in_progress" ||
+      startedMatchIdRef.current === snapshot.matchId
+    ) {
+      return;
+    }
+
+    startedMatchIdRef.current = snapshot.matchId;
+    setMatchCountdown(3);
+    playStartTone(440, 0.12);
+
+    countdownTimeoutsRef.current.forEach((timeoutId) =>
+      window.clearTimeout(timeoutId),
+    );
+    countdownTimeoutsRef.current = [
+      window.setTimeout(() => {
+        setMatchCountdown(2);
+        playStartTone(520, 0.12);
+      }, 700),
+      window.setTimeout(() => {
+        setMatchCountdown(1);
+        playStartTone(620, 0.14);
+      }, 1400),
+      window.setTimeout(() => {
+        setMatchCountdown(0);
+        playStartTone(760, 0.18);
+      }, 2100),
+      window.setTimeout(() => {
+        setMatchCountdown(null);
+      }, 3000),
+    ];
+
+    return () => {
+      countdownTimeoutsRef.current.forEach((timeoutId) =>
+        window.clearTimeout(timeoutId),
+      );
+      countdownTimeoutsRef.current = [];
+    };
+  }, [snapshot]);
+
   async function ensureXLayer() {
     if (chainId === xLayerTestnetChain.id) {
       return;
     }
     await switchChainAsync({ chainId: xLayerTestnetChain.id });
+  }
+
+  function clearSession(nextStatus?: string) {
+    window.localStorage.removeItem(authStorageKey);
+    window.localStorage.removeItem(authAddressStorageKey);
+    setAuthToken(null);
+    setAgents([]);
+    setSelectedAgentId(undefined);
+    setTransactions([]);
+    setQueueState(null);
+    setSnapshot(null);
+    setRecentEvents([]);
+    if (nextStatus) {
+      setStatus(nextStatus);
+    }
+  }
+
+  function playStartTone(frequency: number, durationSeconds: number) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const AudioContextCtor =
+      window.AudioContext ||
+      (
+        window as Window & {
+          webkitAudioContext?: typeof AudioContext;
+        }
+      ).webkitAudioContext;
+    if (!AudioContextCtor) {
+      return;
+    }
+
+    try {
+      const audioContext = new AudioContextCtor();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.type = "triangle";
+      oscillator.frequency.value = frequency;
+      gainNode.gain.setValueAtTime(0.0001, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.05,
+        audioContext.currentTime + 0.01,
+      );
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.0001,
+        audioContext.currentTime + durationSeconds,
+      );
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + durationSeconds + 0.02);
+      window.setTimeout(() => {
+        void audioContext.close().catch(() => undefined);
+      }, Math.ceil((durationSeconds + 0.08) * 1000));
+    } catch {
+      // Ignore audio errors; countdown text still provides a start cue.
+    }
+  }
+
+  function normalizeUiError(error: unknown, fallback: string) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? fallback);
+    const lower = message.toLowerCase();
+
+    if (
+      lower.includes("user rejected") ||
+      lower.includes("user denied") ||
+      lower.includes("rejected request") ||
+      lower.includes("request rejected") ||
+      lower.includes("cancelled")
+    ) {
+      return "Request cancelled in wallet.";
+    }
+
+    if (lower.includes("invalid nonce")) {
+      return "Signature expired. Please sign in again.";
+    }
+
+    if (
+      lower.includes("insufficient funds") ||
+      lower.includes("exceeds balance")
+    ) {
+      return "Wallet balance is too low for this X Layer testnet action.";
+    }
+
+    return message || fallback;
   }
 
   async function handleArenaFullscreenToggle() {
@@ -235,6 +383,9 @@ export function GameShell() {
     }
 
     await arenaFrameRef.current.requestFullscreen();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
   }
 
   async function loadAgents() {
@@ -265,20 +416,29 @@ export function GameShell() {
     setBusyAction("sign-in");
     try {
       await ensureXLayer();
-      const noncePayload = await fetchNonce(address);
-      const signature = await signMessageAsync({
+      let noncePayload = await fetchNonce(address);
+      let signature = await signMessageAsync({
         message: noncePayload.message,
       });
-      const verified = await verifySignature(
-        address,
-        noncePayload.nonce,
-        signature,
-      );
+      let verified;
+      try {
+        verified = await verifySignature(address, noncePayload.nonce, signature);
+      } catch (error) {
+        if (!normalizeUiError(error, "").includes("Signature expired")) {
+          throw error;
+        }
+        noncePayload = await fetchNonce(address);
+        signature = await signMessageAsync({
+          message: noncePayload.message,
+        });
+        verified = await verifySignature(address, noncePayload.nonce, signature);
+      }
       window.localStorage.setItem(authStorageKey, verified.token);
+      window.localStorage.setItem(authAddressStorageKey, verified.address);
       setAuthToken(verified.token);
       setStatus("Signed in. Create or command your agents.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Sign in failed.");
+      setStatus(normalizeUiError(error, "Sign in failed."));
     } finally {
       setBusyAction(null);
     }
@@ -301,9 +461,7 @@ export function GameShell() {
       setBaseName("Gunslinger");
       setStatus(`${response.agent.displayName} is ready for the frontier.`);
     } catch (error) {
-      setStatus(
-        error instanceof Error ? error.message : "Agent creation failed.",
-      );
+      setStatus(normalizeUiError(error, "Agent creation failed."));
     } finally {
       setBusyAction(null);
     }
@@ -324,9 +482,7 @@ export function GameShell() {
       );
       setStatus(`${response.agent.displayName} is now ${mode}.`);
     } catch (error) {
-      setStatus(
-        error instanceof Error ? error.message : "Unable to switch mode.",
-      );
+      setStatus(normalizeUiError(error, "Unable to switch mode."));
     } finally {
       setBusyAction(null);
     }
@@ -373,9 +529,7 @@ export function GameShell() {
         `${skillLabels[skill]} improved for ${selectedAgent.displayName}.`,
       );
     } catch (error) {
-      setStatus(
-        error instanceof Error ? error.message : "Skill purchase failed.",
-      );
+      setStatus(normalizeUiError(error, "Skill purchase failed."));
     } finally {
       setBusyAction(null);
     }
@@ -438,7 +592,7 @@ export function GameShell() {
         setStatus("Practice queue started.");
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Queueing failed.");
+      setStatus(normalizeUiError(error, "Queueing failed."));
     } finally {
       setBusyAction(null);
     }
@@ -460,11 +614,7 @@ export function GameShell() {
         setStatus("Autonomy pass activated.");
       }
     } catch (error) {
-      setStatus(
-        error instanceof Error
-          ? error.message
-          : "Autonomy pass request failed.",
-      );
+      setStatus(normalizeUiError(error, "Autonomy pass request failed."));
     } finally {
       setBusyAction(null);
     }
@@ -503,14 +653,22 @@ export function GameShell() {
   }
 
   function handleArenaCommand(command: ArenaCommand) {
-    if (!snapshot || !selectedAgent || selectedAgent.mode !== "manual") {
+    if (
+      !snapshot ||
+      !authToken ||
+      !selectedAgent ||
+      selectedAgent.mode !== "manual"
+    ) {
       return;
     }
 
-    socketRef.current?.emit("match:command", {
-      matchId: snapshot.matchId,
-      agentId: selectedAgent.id,
+    void sendArenaCommand(
+      authToken,
+      snapshot.matchId,
+      selectedAgent.id,
       command,
+    ).catch((error) => {
+      setStatus(normalizeUiError(error, "Arena command failed."));
     });
   }
 
@@ -584,10 +742,7 @@ export function GameShell() {
                       type="button"
                       onClick={() => {
                         disconnect();
-                        window.localStorage.removeItem(authStorageKey);
-                        setAuthToken(null);
-                        setAgents([]);
-                        setSelectedAgentId(undefined);
+                        clearSession("Wallet disconnected.");
                       }}
                       className="rounded-full border border-white/15 px-5 py-3 text-sm text-white/80 transition hover:border-white/30 hover:text-white"
                     >
@@ -770,6 +925,18 @@ export function GameShell() {
                 arenaFullscreen ? "h-screen w-screen rounded-none border-0" : "aspect-[16/9]"
               }`}
             >
+              {matchCountdown !== null && (
+                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/18">
+                  <div className="rounded-[32px] border border-amber-200/20 bg-black/55 px-8 py-6 text-center shadow-[0_20px_80px_rgba(0,0,0,0.38)] backdrop-blur">
+                    <div className="text-xs uppercase tracking-[0.3em] text-amber-100/65">
+                      Showdown Start
+                    </div>
+                    <div className="mt-3 font-[var(--font-heading)] text-6xl text-[#f6dfb7]">
+                      {matchCountdown === 0 ? "DRAW" : matchCountdown}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
                 <div className="rounded-2xl border border-white/10 bg-black/45 px-4 py-3 text-xs text-stone-100/88 shadow-[0_10px_40px_rgba(0,0,0,0.28)] backdrop-blur">
                   <div className="font-semibold uppercase tracking-[0.18em] text-[#f0bf76]">

@@ -6,6 +6,7 @@ import { Server } from "socket.io";
 import {
   apiErrorSchema,
   applySkillUpgrade,
+  arenaCommandSchema,
   buySkillInputSchema,
   calculateSkillPurchasePrice,
   createAgentInputSchema,
@@ -444,6 +445,40 @@ app.post("/matches/queue", async (request, reply) => {
   await coordinator.enqueuePractice(address, agent);
   return {
     status: "queued",
+  };
+});
+
+app.post("/matches/:id/command", async (request, reply) => {
+  const address = await requireAddress(request);
+  if (!address) {
+    return reply.status(401).send(unauthorizedReply().body);
+  }
+
+  const matchId = (request.params as { id: string }).id;
+  const body = request.body as {
+    agentId?: string;
+    command?: unknown;
+  };
+
+  if (!body.agentId) {
+    return reply.status(400).send({ error: "agentId is required" });
+  }
+
+  const agent = await db.getAgentById(body.agentId);
+  if (!agent || agent.ownerAddress !== address) {
+    return reply.status(404).send({ error: "Agent not found" });
+  }
+
+  const parsedCommand = arenaCommandSchema.safeParse(body.command);
+  if (!parsedCommand.success) {
+    return reply
+      .status(400)
+      .send({ error: "Invalid command", details: parsedCommand.error.flatten() });
+  }
+
+  coordinator.applyCommand(matchId, body.agentId, parsedCommand.data);
+  return {
+    accepted: true,
   };
 });
 

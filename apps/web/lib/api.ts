@@ -1,5 +1,6 @@
 import type {
   AgentProfile,
+  ArenaCommand,
   MatchSnapshot,
   OnchainReceipt,
   SkillKey,
@@ -140,6 +141,19 @@ export async function queueForMatch(
     method: "POST",
     token,
     body: JSON.stringify({ agentId, paid, matchId, txHash }),
+  });
+}
+
+export async function sendArenaCommand(
+  token: string,
+  matchId: string,
+  agentId: string,
+  command: ArenaCommand,
+) {
+  return apiRequest<{ accepted: true }>(`/matches/${matchId}/command`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ agentId, command }),
   });
 }
 
