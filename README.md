@@ -2,7 +2,7 @@
 
 Public repo: [github.com/adidshaft/red-dead-redemption-agentic-era](https://github.com/adidshaft/red-dead-redemption-agentic-era)
 
-Lightweight western arena game built for X Layer and OnchainOS. Players create named agents, fund skill upgrades on X Layer, switch between manual and autonomous control, and settle match outcomes onchain. The current product focus is an agentic gameplay loop: autonomous riders fight, rotate for supplies, play the shrinking ring, propose their next upgrades, and route players toward x402-powered premium autonomy.
+Lightweight western arena game built for X Layer and OnchainOS. Players create named agents, fund skill upgrades on X Layer, switch between manual and autonomous control, and settle match outcomes onchain. The current product focus is an agentic gameplay loop: autonomous riders fight, rotate for supplies, play the shrinking ring, propose their next upgrades, and route players toward x402-powered premium autonomy. The live build now rotates between two real arenas, and map props are physically solid instead of decorative.
 
 ## What Is In The Repo
 
@@ -28,6 +28,8 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The arena now supports a rider-follow camera as well as a wide town camera, making the selected cyan `YOU` rider much easier to track during live fights.
 - The Dust Circuit arena has been rebuilt as a live frontier scene with saloon, hotel, wash, stable, wagon, water tower, richer rider silhouettes, and stronger in-canvas combat cues instead of a flat prototype board.
 - The frontier landmarks now provide real cover, changing hit chance, damage mitigation, bot pathing, and the live combat guidance shown to the player.
+- Dust Circuit props are now physically solid, so riders cannot phase through saloon fronts, wagons, fences, crates, towers, or corral structures.
+- A second arena, `Deadrock Gulch`, now rotates into live matches with its own landmark graph, caravan lanes, and collision layout.
 - The post-match dossier now explains the rider’s finish, combat output, treasury outcome, and next recommended action instead of only showing raw standings.
 - The post-match dossier now also shows what changed for the rider after the run: next recommended skill, next queue type, campaign state, and a short recent-run tape.
 - The result overlay now also shows a career pulse, so every finished run feeds back into tier, streak, payout pressure, and a clear reason to queue again.
@@ -53,6 +55,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Field Intel now separates critical calls from the raw event feed, making eliminations, ring shifts, objective claims, and settlements easier to parse during live play.
 - Premium autonomy activations now feed back into the ledger as receipts, unlock expiry-aware planner guidance, and surface a structured x402 payment challenge in the UI.
 - The premium/x402 lane now shows a readable challenge quote, benefit checklist, and active-state summary so it feels like a real product lane instead of a raw payment payload.
+- The premium lane is now wired through a real browser-side x402 payment client, with the server issuing a standards-shaped payment challenge and bridging the signed payload into OKX's signed x402 facilitator endpoints.
 - X Layer skill purchase and match-entry flows.
 - Onchain settlement receipts stored and surfaced in the UI.
 - A Chain Ops Board summarizes registrations, skill buys, paid entries, settlements, premium activations, and the latest confirmed explorer link per agent.
@@ -69,6 +72,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Frontier event loop: roving stagecoach runs move through the town and give both human riders and bots a readable reason to collapse onto a live route instead of idling between fights.
 - Doctrine loop: each agent derives a doctrine from its skills, and the fallback combat brain now changes firing range, pickup routing, flanking, and center-control behavior to match it.
 - Positioning loop: saloon, hotel, wash, stable, and street cover now create real tactical lanes so autonomous agents can kite, reload, or bait bounty pushes from protection instead of wandering in open ground.
+- Terrain loop: solid landmarks and map-specific obstacles now physically shape paths, dodge lines, pickup routes, and bot rotations.
 - Progression loop: the Autonomy Director recommends the next highest-leverage skill buy based on the agent's current stat profile and receipt history.
 - Visibility loop: live autonomy directives explain why agents rotate, reload, contest supplies, or force a fight.
 - Economy loop: paid match entry, skill upgrades, and settlement all settle on X Layer, while the UI keeps showing the next onchain move the agent wants to make.
@@ -80,7 +84,9 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 ## x402 Payment Structure
 
 - The premium autonomy lane is intentionally modeled as a staged x402 flow instead of a one-off toggle.
-- The server returns a `402 Payment Required` response from `POST /payments/x402/autonomy-pass` when the agent has not yet settled the premium lane.
+- The server returns a real `402 Payment Required` response from `POST /payments/x402/autonomy-pass` when the agent has not yet settled the premium lane.
+- The browser now uses an x402-capable fetch client to sign the premium quote and retry the request automatically.
+- The premium quote is intentionally on X Layer mainnet, while gameplay skill buys, paid entry, and settlement remain on X Layer testnet.
 - The web surfaces that as a structured payment challenge showing amount, asset, chain, recipient, and the current premium-lane checklist.
 - Once the payment settles through the configured OKX/OnchainOS flow, the app:
   - creates an `autonomy_pass` receipt,
@@ -88,6 +94,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
   - flips the planner into premium mode,
   - and shows the pass inside the same agent ledger as skill buys, match entries, and settlements.
 - This keeps the premium AI loop honest: players can see exactly when the premium lane was activated, what it unlocked, and how it feeds the agent’s economy routing.
+- The remaining gap is funding: the code path is live, but a public mainnet x402 proof hash still needs a funded USDC wallet to exercise the full lane end to end.
 
 ## Honest Autonomy Model
 
@@ -151,16 +158,18 @@ pnpm test
 
 - Agent wallets are generated locally and optionally bound to an OnchainOS wallet account through the Wallet API when the OKX API credentials are configured.
 - The x402 route is exposed at `POST /payments/x402/autonomy-pass`.
+- The x402 browser flow now expects X Layer mainnet wallet access plus a supported asset balance, while the game economy continues to use X Layer testnet.
 - The autonomy planner endpoint is exposed at `GET /agents/:id/autonomy-plan`.
 - The campaign ledger endpoint is exposed at `GET /agents/:id/campaign`.
 - Recent finished runs are exposed at `GET /agents/:id/matches`.
 - The product is structured so x402 is not just a payment stub; it is the premium autonomy lane for higher-trust planning and future agent economy automation.
-- The current implementation uses the OKX Payments `/supported`, `/verify`, and `/settle` endpoints when payment payloads are supplied.
+- The current implementation uses the OKX `/api/v6/x402/supported`, `/api/v6/x402/verify`, and `/api/v6/x402/settle` endpoints with signed headers when payment payloads are supplied.
 - `ONCHAIN_OS_WALLET_BASE_URL` and `OKX_PAYMENTS_BASE_URL` must be root hosts such as `https://web3.okx.com`, not full `/api/...` paths.
 
 ## X Layer Notes
 
 - The repo currently defaults to the recent X Layer testnet configuration: chain ID `1952`, RPC `https://testrpc.xlayer.tech/terigon`, explorer `https://www.okx.com/web3/explorer/xlayer-test`.
+- The premium x402 lane defaults to X Layer mainnet: chain ID `196`, RPC `https://rpc.xlayer.tech`, explorer `https://www.okx.com/web3/explorer/xlayer`.
 - OKX has published inconsistent testnet snippets on different pages. If your wallet or RPC provider expects a legacy config, override the env values instead of editing code.
 - The web wallet config now also reads `NEXT_PUBLIC_XLAYER_TESTNET_CHAIN_ID`, so the browser and server can be kept aligned if the live network uses a different testnet chain ID.
 

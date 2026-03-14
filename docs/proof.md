@@ -55,3 +55,4 @@ Use this file as the submission artifact for the required X Layer proof.
 
 - If X Layer testnet config changes, record the exact chain ID and RPC that were used for the successful transactions.
 - If judges require a mainnet proof later, repeat the same flow with a funded mainnet wallet and replace the hashes above.
+- Premium autonomy now has a real x402 browser-to-server path, but this file does not yet include a public mainnet x402 proof hash because the premium lane still needs a funded X Layer mainnet USDC wallet for a final live run.

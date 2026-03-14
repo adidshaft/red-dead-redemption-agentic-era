@@ -95,8 +95,8 @@ describe("game helpers", () => {
 
   it("grants cover near frontier landmarks", () => {
     const cover = getFrontierCover({
-      x: 520,
-      y: 250,
+      x: 210,
+      y: 198,
       skills: {
         quickdraw: 24,
         grit: 34,
