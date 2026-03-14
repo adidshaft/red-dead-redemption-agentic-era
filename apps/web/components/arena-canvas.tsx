@@ -375,6 +375,28 @@ export function ArenaCanvas({
                 selectedPlayer &&
                 nextSnapshot.status === "in_progress"
               ) {
+                const selectedPulseRadius =
+                  58 + Math.sin(this.time.now / 140) * 6;
+                this.guidanceGraphics.lineStyle(3, 0x9ce9ff, 0.34);
+                this.guidanceGraphics.strokeCircle(
+                  selectedPlayer.x,
+                  selectedPlayer.y,
+                  selectedPulseRadius,
+                );
+                this.guidanceGraphics.lineStyle(1, 0x9ce9ff, 0.2);
+                this.guidanceGraphics.lineBetween(
+                  selectedPlayer.x,
+                  Math.max(42, selectedPlayer.y - 92),
+                  selectedPlayer.x,
+                  selectedPlayer.y - selectedPulseRadius + 8,
+                );
+                this.guidanceGraphics.fillStyle(0x9ce9ff, 0.82);
+                this.guidanceGraphics.fillCircle(
+                  selectedPlayer.x,
+                  Math.max(42, selectedPlayer.y - 96),
+                  4,
+                );
+
                 const nearestThreat = nextSnapshot.players
                   .filter(
                     (player) =>
@@ -769,6 +791,8 @@ export function ArenaCanvas({
 
             if (nextSnapshot.objective) {
               if (!this.objectiveSprite) {
+                const halo = this.add.circle(0, 0, 56, 0xdf6c39, 0);
+                halo.setStrokeStyle(2, 0xdf6c39, 0.22);
                 const ring = this.add.circle(0, 0, 38, 0xdf6c39, 0.12);
                 ring.setStrokeStyle(3, 0xffd0ae, 0.55);
                 const core = this.add.circle(0, 0, 14, 0xdf6c39, 0.96);
@@ -785,6 +809,7 @@ export function ArenaCanvas({
                   align: "center",
                 }).setOrigin(0.5);
                 this.objectiveSprite = this.add.container(0, 0, [
+                  halo,
                   ring,
                   core,
                   icon,
@@ -796,7 +821,9 @@ export function ArenaCanvas({
                 nextSnapshot.objective.x,
                 nextSnapshot.objective.y,
               );
-              const [ring] = this.objectiveSprite.list as any[];
+              const [halo, ring] = this.objectiveSprite.list as any[];
+              halo.scale = 1.08 + Math.sin(this.time.now / 180) * 0.08;
+              halo.alpha = 0.18 + Math.sin(this.time.now / 180) * 0.05;
               ring.rotation += 0.04;
             } else if (this.objectiveSprite) {
               this.objectiveSprite.destroy(true);
@@ -834,6 +861,13 @@ export function ArenaCanvas({
                 nextSnapshot.caravan.x,
                 nextSnapshot.caravan.y,
               );
+              const [trail, body, roof, wheelLeft, wheelRight, lamp] =
+                this.caravanSprite.list as any[];
+              trail.scaleX = 1 + Math.sin(this.time.now / 120) * 0.08;
+              trail.alpha = 0.14 + Math.sin(this.time.now / 120) * 0.04;
+              lamp.alpha = 0.78 + Math.sin(this.time.now / 80) * 0.12;
+              wheelLeft.rotation += 0.12;
+              wheelRight.rotation += 0.12;
               const movingRight =
                 nextSnapshot.caravan.destinationX >= nextSnapshot.caravan.x;
               this.caravanSprite.setScale(movingRight ? 1 : -1, 1);
@@ -921,6 +955,10 @@ export function ArenaCanvas({
           this.drawPropStack(640, 610);
           this.drawPropStack(955, 610);
           this.drawPropStack(720, 360);
+          this.addLandmarkPlaque(800, 322, "WAGON STREET");
+          this.addLandmarkPlaque(610, 500, "WEST STREET");
+          this.addLandmarkPlaque(990, 500, "EAST STREET");
+          this.addLandmarkPlaque(800, 712, "MAIN CORRAL");
         }
 
         private drawBuilding(
@@ -1041,6 +1079,22 @@ export function ArenaCanvas({
           const lid = this.add.rectangle(14, -12, 18, 4, 0x7b563d, 0.9);
           stack.add([crate, barrel, lid]);
           stack.setAlpha(0.72);
+        }
+
+        private addLandmarkPlaque(x: number, y: number, label: string) {
+          const plaque = this.add.container(x, y);
+          const bg = this.add.rectangle(0, 0, 124, 22, 0x0f0907, 0.34);
+          bg.setStrokeStyle(1, 0xf0bf76, 0.16);
+          const text = this.add
+            .text(0, 0, label, {
+              fontFamily: "var(--font-heading)",
+              fontSize: "11px",
+              color: "#f2dec2",
+              letterSpacing: 1,
+            })
+            .setOrigin(0.5);
+          plaque.add([bg, text]);
+          plaque.setAlpha(0.66);
         }
 
         private buildAmbientDust() {

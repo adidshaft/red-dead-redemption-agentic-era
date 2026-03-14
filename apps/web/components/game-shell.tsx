@@ -513,6 +513,10 @@ export function GameShell() {
     const radius = Math.round(snapshot.safeZone.radius);
     return `${radius}px safe zone`;
   }, [snapshot]);
+  const aliveCount = useMemo(
+    () => snapshot?.players.filter((player) => player.alive).length ?? 0,
+    [snapshot],
+  );
   const objectiveTimerLabel = useMemo(() => {
     if (!snapshot?.objective?.expiresAt) {
       return null;
@@ -596,6 +600,70 @@ export function GameShell() {
         ) ?? null
     );
   }, [recentEvents, selectedAgent?.id]);
+  const townPulseCards = useMemo(() => {
+    if (snapshot?.status === "in_progress") {
+      return [
+        {
+          label: "Remaining",
+          value: `${aliveCount} riders`,
+          detail: aliveCount === 1 ? "Final duel" : "Still in the dust",
+        },
+        {
+          label: "Ring",
+          value: safeZoneLabel,
+          detail: selectedRingState?.outside ? "You are outside" : "Inside safe zone",
+        },
+        {
+          label: "Prize",
+          value: snapshot.objective
+            ? "Supply drop live"
+            : snapshot.caravan
+              ? "Stagecoach live"
+              : snapshot.bounty
+                ? "Bounty posted"
+                : "No live prize",
+          detail: snapshot.objective
+            ? snapshot.objective.label
+            : snapshot.caravan
+              ? snapshot.caravan.label
+              : snapshot.bounty
+                ? snapshot.bounty.displayName
+                : "Hold position",
+        },
+      ];
+    }
+
+    if (queueState?.status === "queued") {
+      return [
+        {
+          label: "Field fill",
+          value: queueWaitLabel ?? "Arming",
+          detail: "Bots and rivals are being seated",
+        },
+        {
+          label: "Mode",
+          value:
+            selectedAgent?.mode === "autonomous" ? "Autopilot" : "Manual",
+          detail: selectedAgent?.displayName ?? "No rider",
+        },
+        {
+          label: "Next",
+          value: "Opening bell",
+          detail: "Stay on screen for the draw",
+        },
+      ];
+    }
+
+    return [];
+  }, [
+    aliveCount,
+    queueState?.status,
+    queueWaitLabel,
+    safeZoneLabel,
+    selectedAgent,
+    selectedRingState?.outside,
+    snapshot,
+  ]);
   const battleDirective = useMemo<BattleDirective>(() => {
     if (!authToken) {
       return {
@@ -3162,6 +3230,38 @@ export function GameShell() {
                         ))}
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+              {townPulseCards.length > 0 && (
+                <div className="pointer-events-none absolute right-4 top-4 z-10 hidden w-[300px] xl:block">
+                  <div className="rounded-[24px] border border-white/10 bg-black/45 px-4 py-4 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-md">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#f0bf76]/70">
+                        Town Pulse
+                      </div>
+                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                        Live
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                      {townPulseCards.map((card) => (
+                        <div
+                          key={card.label}
+                          className="rounded-[18px] border border-white/8 bg-white/[0.04] px-3 py-3"
+                        >
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                            {card.label}
+                          </div>
+                          <div className="mt-1 font-semibold text-[#f6ead7]">
+                            {card.value}
+                          </div>
+                          <div className="mt-1 text-xs text-stone-200/68">
+                            {card.detail}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
