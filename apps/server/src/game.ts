@@ -131,6 +131,13 @@ export function createCombatDigest(snapshot: MatchSnapshot): Hex {
   return keccak256(stringToHex(JSON.stringify(snapshot)));
 }
 
+function calculateScore(player: Pick<RuntimePlayer, "kills" | "damageDealt" | "health" | "alive">) {
+  return Math.max(
+    0,
+    player.kills * 120 + player.damageDealt + (player.alive ? Math.round(player.health * 0.5) : 0),
+  );
+}
+
 function createEvent(event: Omit<MatchEvent, "id" | "createdAt">): MatchEvent {
   return {
     id: crypto.randomUUID(),
@@ -545,6 +552,11 @@ export class ArenaCoordinator {
         displayName: entry.agent.displayName,
         health: gameConfig.spawnHealth,
         ammo: gameConfig.spawnAmmo,
+        kills: 0,
+        shotsFired: 0,
+        shotsHit: 0,
+        damageDealt: 0,
+        score: 0,
         mode: entry.agent.mode,
         x: spawn.x,
         y: spawn.y,
@@ -755,13 +767,6 @@ export class ArenaCoordinator {
 
     if (command.type === "move") {
       actor.moveVector = { dx: command.dx, dy: command.dy };
-      events.push(
-        createEvent({
-          type: "move",
-          actorAgentId: actor.agentId,
-          message: `${actor.displayName} changes course.`,
-        }),
-      );
     }
 
     if (command.type === "idle") {
@@ -800,6 +805,7 @@ export class ArenaCoordinator {
     ) {
       actor.fireCooldownUntil = now + gameConfig.fireCooldownMs;
       actor.ammo -= 1;
+      actor.shotsFired += 1;
 
       const target = this.pickTarget(
         runtime,
@@ -819,6 +825,8 @@ export class ArenaCoordinator {
         const resolution = resolveShot(actor, target);
         if (resolution.hit) {
           target.health = Math.max(0, target.health - resolution.damage);
+          actor.shotsHit += 1;
+          actor.damageDealt += resolution.damage;
           events.push(
             createEvent({
               type: "hit",
@@ -831,6 +839,7 @@ export class ArenaCoordinator {
           if (target.health <= 0) {
             target.alive = false;
             target.moveVector = { dx: 0, dy: 0 };
+            actor.kills += 1;
             events.push(
               createEvent({
                 type: "elimination",
@@ -951,6 +960,11 @@ function toSnapshotPlayer(player: RuntimePlayer): MatchPlayerState {
     displayName: player.displayName,
     health: player.health,
     ammo: player.ammo,
+    kills: player.kills,
+    shotsFired: player.shotsFired,
+    shotsHit: player.shotsHit,
+    damageDealt: player.damageDealt,
+    score: calculateScore(player),
     mode: player.mode,
     x: player.x,
     y: player.y,

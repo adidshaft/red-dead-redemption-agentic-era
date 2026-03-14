@@ -120,6 +120,44 @@ export function GameShell() {
         ?.displayName ?? snapshot.winnerAgentId
     );
   }, [snapshot]);
+  const scoreboardPlayers = useMemo(() => {
+    if (!snapshot) {
+      return [];
+    }
+
+    return [...snapshot.players].sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.kills - left.kills ||
+        right.damageDealt - left.damageDealt ||
+        right.health - left.health,
+    );
+  }, [snapshot]);
+  const arenaPhaseLabel = useMemo(() => {
+    if (snapshot?.status === "queued") {
+      return "Waiting for showdown";
+    }
+    if (snapshot?.status === "in_progress") {
+      return "Live firefight";
+    }
+    if (snapshot?.status === "settling") {
+      return "Settling rewards";
+    }
+    if (snapshot?.status === "finished") {
+      return "Round complete";
+    }
+    if (queueState?.status === "queued") {
+      return "Waiting for other agents";
+    }
+    return "Idle";
+  }, [queueState?.status, snapshot?.status]);
+  const queueLocked =
+    busyAction !== null ||
+    queueState?.status === "queued" ||
+    queueState?.status === "ready" ||
+    snapshot?.status === "queued" ||
+    snapshot?.status === "in_progress" ||
+    snapshot?.status === "settling";
   const roundClockLabel = useMemo(() => {
     if (!snapshot?.endsAt) {
       return "03:00";
@@ -230,6 +268,7 @@ export function GameShell() {
     });
     socket.on("match:result", (result: MatchSnapshot) => {
       setSnapshot(result);
+      setQueueState(null);
       const winnerName =
         result.players.find((player) => player.agentId === result.winnerAgentId)
           ?.displayName ?? result.winnerAgentId;
@@ -1006,23 +1045,25 @@ export function GameShell() {
                 <button
                   type="button"
                   onClick={() => handleQueue(true)}
-                  disabled={!selectedAgent || busyAction !== null}
+                  disabled={!selectedAgent || queueLocked}
                   className="inline-flex items-center gap-2 rounded-full bg-[#d5752d] px-4 py-2 text-sm font-medium text-black transition hover:bg-[#eb9150] disabled:opacity-50"
                 >
                   {busyAction === "paid-queue" ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : queueLocked ? (
+                    <RadioTower className="h-4 w-4" />
                   ) : (
                     <Sword className="h-4 w-4" />
                   )}
-                  Paid Queue
+                  {queueLocked ? "Queued / In Match" : "Paid Queue"}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleQueue(false)}
-                  disabled={!selectedAgent || busyAction !== null}
+                  disabled={!selectedAgent || queueLocked}
                   className="rounded-full border border-white/14 px-4 py-2 text-sm text-white/80 transition hover:border-white/28 disabled:opacity-50"
                 >
-                  Practice Queue
+                  {queueLocked ? "Queue Locked" : "Practice Queue"}
                 </button>
               </div>
             </div>
@@ -1097,6 +1138,7 @@ export function GameShell() {
                   </span>
                 </div>
                 <div className="space-y-2 text-sm text-stone-200/72">
+                  <div>Phase: {arenaPhaseLabel}</div>
                   <div>Queue: {queueState?.status ?? "idle"}</div>
                   <div>
                     Current match: {snapshot?.matchId ?? "No active showdown"}
@@ -1128,6 +1170,15 @@ export function GameShell() {
                     {selectedSnapshotPlayer?.lastCommand
                       ? selectedSnapshotPlayer.lastCommand.type
                       : "none"}
+                  </div>
+                </div>
+                <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-100/6 px-3 py-3 text-xs text-stone-200/72">
+                  <div className="font-semibold uppercase tracking-[0.18em] text-[#f0bf76]">
+                    Objective
+                  </div>
+                  <div className="mt-2">
+                    Land shots, finish rivals, and survive the timer. Score is
+                    driven by eliminations, damage dealt, and staying alive.
                   </div>
                 </div>
                 <div className="mt-4">
@@ -1203,6 +1254,63 @@ export function GameShell() {
                       {event.message}
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[#f6ead7]">
+                    Frontier Map
+                  </p>
+                  <span className="text-[11px] uppercase tracking-[0.18em] text-stone-300/55">
+                    Whole arena
+                  </span>
+                </div>
+                <div className="mt-3">
+                  <ArenaMinimap
+                    snapshot={snapshot}
+                    selectedAgentId={selectedAgent?.id}
+                  />
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <LegendCard
+                    title="What To Do"
+                    items={[
+                      "Close distance until enemies are within your firing lane.",
+                      "Click a rival dot or silhouette to fire at them.",
+                      "Use dodge to break line-of-sight when focused.",
+                    ]}
+                  />
+                  <LegendCard
+                    title="Skill Impact"
+                    items={[
+                      "Quickdraw boosts damage and shot pressure.",
+                      "Grit lowers incoming damage and helps you survive.",
+                      "Trailcraft strengthens dodges and escapes.",
+                      "Tactics sharpens accuracy and decision quality.",
+                      "Fortune raises crit chances and swing moments.",
+                    ]}
+                  />
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[#f6ead7]">
+                    {snapshot?.status === "finished"
+                      ? "Final Standings"
+                      : "Live Scoreboard"}
+                  </p>
+                  <span className="text-[11px] uppercase tracking-[0.18em] text-stone-300/55">
+                    Kills • damage • accuracy
+                  </span>
+                </div>
+                <div className="mt-3">
+                  <ScoreboardTable
+                    players={scoreboardPlayers}
+                    selectedAgentId={selectedAgent?.id}
+                    winnerAgentId={snapshot?.winnerAgentId ?? null}
+                  />
                 </div>
               </div>
             </div>
@@ -1422,6 +1530,130 @@ function StatCard({
         {label}
       </div>
       <div className="text-sm text-[#f6ead7]">{value}</div>
+    </div>
+  );
+}
+
+function ArenaMinimap({
+  snapshot,
+  selectedAgentId,
+}: {
+  snapshot: MatchSnapshot | null;
+  selectedAgentId?: string;
+}) {
+  if (!snapshot) {
+    return <EmptyState label="Queue a match to view the live arena map." compact />;
+  }
+
+  return (
+    <div className="rounded-[22px] border border-white/8 bg-[#170f0b] p-3">
+      <div className="relative aspect-[16/9] overflow-hidden rounded-[18px] border border-amber-300/10 bg-[radial-gradient(circle_at_top,_rgba(236,183,102,0.12),_transparent_48%),linear-gradient(180deg,_rgba(52,32,22,0.95),_rgba(19,11,8,0.98))]">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(244,227,199,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(244,227,199,0.06)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        {snapshot.players.map((player) => {
+          const left = `${(player.x / 1600) * 100}%`;
+          const top = `${(player.y / 900) * 100}%`;
+          const isSelected = player.agentId === selectedAgentId;
+          return (
+            <div
+              key={player.agentId}
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left, top }}
+            >
+              <div
+                className={`rounded-full border ${
+                  isSelected
+                    ? "h-4 w-4 border-[#f8e3b4] bg-[#f0bf76] shadow-[0_0_18px_rgba(240,191,118,0.45)]"
+                    : player.alive
+                      ? "h-3 w-3 border-white/30 bg-[#7ed2b4]"
+                      : "h-3 w-3 border-white/10 bg-white/20"
+                }`}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function LegendCard({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <div className="rounded-[20px] border border-white/8 bg-black/14 p-3">
+      <div className="text-xs uppercase tracking-[0.18em] text-[#f0bf76]">
+        {title}
+      </div>
+      <div className="mt-2 space-y-2 text-sm text-stone-200/70">
+        {items.map((item) => (
+          <div key={item}>{item}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ScoreboardTable({
+  players,
+  selectedAgentId,
+  winnerAgentId,
+}: {
+  players: MatchSnapshot["players"];
+  selectedAgentId?: string;
+  winnerAgentId: string | null;
+}) {
+  if (players.length === 0) {
+    return <EmptyState label="No riders in the current scoreboard yet." compact />;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-[20px] border border-white/8">
+      <div className="grid grid-cols-[44px_minmax(0,1.3fr)_72px_72px_72px_88px] gap-2 bg-white/6 px-3 py-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
+        <span>#</span>
+        <span>Rider</span>
+        <span>HP</span>
+        <span>Kills</span>
+        <span>Hits</span>
+        <span>Score</span>
+      </div>
+      <div className="divide-y divide-white/6">
+        {players.map((player, index) => (
+          <div
+            key={player.agentId}
+            className={`grid grid-cols-[44px_minmax(0,1.3fr)_72px_72px_72px_88px] gap-2 px-3 py-3 text-sm ${
+              player.agentId === winnerAgentId
+                ? "bg-amber-100/8"
+                : player.agentId === selectedAgentId
+                  ? "bg-[#7ed2b4]/8"
+                  : "bg-black/10"
+            }`}
+          >
+            <span className="text-stone-300/65">{index + 1}</span>
+            <div className="min-w-0">
+              <div className="truncate font-medium text-[#f6ead7]">
+                {player.displayName}
+              </div>
+              <div className="mt-1 text-xs text-stone-300/55">
+                {player.agentId === winnerAgentId
+                  ? "Winner"
+                  : player.alive
+                    ? "Still standing"
+                    : "Eliminated"}
+              </div>
+            </div>
+            <span className="text-stone-200/75">{player.health}</span>
+            <span className="text-stone-200/75">{player.kills}</span>
+            <span className="text-stone-200/75">
+              {player.shotsHit}/{player.shotsFired}
+            </span>
+            <span className="font-semibold text-[#f0bf76]">{player.score}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

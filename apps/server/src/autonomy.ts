@@ -15,10 +15,20 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     return { type: "idle" };
   }
 
-  const weakestEnemy = enemies.reduce((lowest, current) => (current.health < lowest.health ? current : lowest));
-  const dx = weakestEnemy.x - self.x;
-  const dy = weakestEnemy.y - self.y;
+  const nearestEnemy = enemies.reduce((closest, current) => {
+    const currentDistance = Math.hypot(current.x - self.x, current.y - self.y);
+    const closestDistance = Math.hypot(closest.x - self.x, closest.y - self.y);
+    return currentDistance < closestDistance ? current : closest;
+  });
+  const dx = nearestEnemy.x - self.x;
+  const dy = nearestEnemy.y - self.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
+  const centerX = 800;
+  const centerY = 450;
+  const centerDx = centerX - self.x;
+  const centerDy = centerY - self.y;
+  const atEdge =
+    self.x < 180 || self.x > 1420 || self.y < 180 || self.y > 720;
 
   if (self.health < 30 && distance < 240) {
     return {
@@ -28,11 +38,27 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     };
   }
 
-  if (distance < 420 && self.ammo > 0) {
+  if (distance < 620 && self.ammo > 0) {
     return {
       type: "fire",
-      targetX: weakestEnemy.x,
-      targetY: weakestEnemy.y,
+      targetX: nearestEnemy.x,
+      targetY: nearestEnemy.y,
+    };
+  }
+
+  if (atEdge && distance > 220) {
+    return {
+      type: "move",
+      dx: Math.max(-1, Math.min(1, centerDx / Math.max(Math.abs(centerDx), 1))),
+      dy: Math.max(-1, Math.min(1, centerDy / Math.max(Math.abs(centerDy), 1))),
+    };
+  }
+
+  if (distance < 220 && self.health > 45) {
+    return {
+      type: "dodge",
+      targetX: self.x - dy,
+      targetY: self.y + dx,
     };
   }
 
