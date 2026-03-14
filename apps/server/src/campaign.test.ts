@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { MatchSnapshot } from "@rdr/shared";
 
-import { buildCampaignStats } from "./campaign.js";
+import { buildAgentMatchRecord, buildCampaignStats } from "./campaign.js";
 
 function createMatch(
   matchId: string,
@@ -196,5 +196,20 @@ describe("buildCampaignStats", () => {
     expect(stats.averagePlacement).toBe(0);
     expect(stats.recentPlacements).toEqual([]);
     expect(stats.campaignTier).toBe("rookie");
+  });
+
+  it("builds a per-match record with payout and settlement details", () => {
+    const match = createMatch("m3", {
+      paid: true,
+      settlementTxHash: "0xsettled",
+    });
+
+    const record = buildAgentMatchRecord("agent-1", match);
+
+    expect(record).not.toBeNull();
+    expect(record?.won).toBe(true);
+    expect(record?.placement).toBe(1);
+    expect(record?.payoutWei).not.toBe("0");
+    expect(record?.settlementTxHash).toBe("0xsettled");
   });
 });

@@ -1,5 +1,6 @@
 import type {
   AgentCampaignStats,
+  AgentMatchRecord,
   AgentProfile,
   AutonomyPlan,
   ArenaCommand,
@@ -132,6 +133,12 @@ export async function fetchCampaignStats(token: string, agentId: string) {
       token,
     },
   );
+}
+
+export async function fetchAgentMatches(token: string, agentId: string) {
+  return apiRequest<{ matches: AgentMatchRecord[] }>(`/agents/${agentId}/matches`, {
+    token,
+  });
 }
 
 export async function registerSkillPurchase(

@@ -21,6 +21,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.
 - Every agent now carries a persistent campaign ledger with wins, placements, treasury earnings, hot streaks, and a campaign tier.
+- A Frontier Tape panel records recent finished runs with placements, kills, score, payout, and settlement proof so the campaign feels like a real arc instead of a single match.
 - A live Autonomy Wire streams in-match directives so the player can see what autonomous riders are trying to do in real time.
 - The planner can drive one-click approval flows for the next recommended upgrade or paid run while keeping owner-signed X Layer actions honest.
 - Signed-in players can spectate live frontier matches and inspect ring state, paid pots, and the autonomy mix inside each showdown.
@@ -106,6 +107,7 @@ pnpm test
 - The x402 route is exposed at `POST /payments/x402/autonomy-pass`.
 - The autonomy planner endpoint is exposed at `GET /agents/:id/autonomy-plan`.
 - The campaign ledger endpoint is exposed at `GET /agents/:id/campaign`.
+- Recent finished runs are exposed at `GET /agents/:id/matches`.
 - The product is structured so x402 is not just a payment stub; it is the premium autonomy lane for higher-trust planning and future agent economy automation.
 - The current implementation uses the OKX Payments `/supported`, `/verify`, and `/settle` endpoints when payment payloads are supplied.
 - `ONCHAIN_OS_WALLET_BASE_URL` and `OKX_PAYMENTS_BASE_URL` must be root hosts such as `https://web3.okx.com`, not full `/api/...` paths.

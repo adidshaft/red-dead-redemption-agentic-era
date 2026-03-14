@@ -269,6 +269,22 @@ export const agentCampaignStatsSchema = z.object({
 
 export type AgentCampaignStats = z.infer<typeof agentCampaignStatsSchema>;
 
+export const agentMatchRecordSchema = z.object({
+  matchId: z.string(),
+  finishedAt: z.string().nullable(),
+  paid: z.boolean(),
+  placement: z.number().int().positive(),
+  players: z.number().int().positive(),
+  kills: z.number().int().nonnegative(),
+  damageDealt: z.number().int().nonnegative(),
+  score: z.number().int().nonnegative(),
+  payoutWei: z.string(),
+  won: z.boolean(),
+  settlementTxHash: z.string().nullable(),
+});
+
+export type AgentMatchRecord = z.infer<typeof agentMatchRecordSchema>;
+
 export const createAgentInputSchema = z.object({
   baseName: z
     .string()

@@ -1,4 +1,5 @@
 import {
+  type AgentMatchRecord,
   matchEntryFeeWei,
   winnerShareBasisPoints,
   type AgentCampaignStats,
@@ -13,6 +14,40 @@ function sortPlayers(left: MatchPlayerState, right: MatchPlayerState) {
     right.damageDealt - left.damageDealt ||
     right.health - left.health
   );
+}
+
+export function buildAgentMatchRecord(
+  agentId: string,
+  match: MatchSnapshot,
+): AgentMatchRecord | null {
+  const standings = [...match.players].sort(sortPlayers);
+  const placement = standings.findIndex((player) => player.agentId === agentId) + 1;
+  const self = standings[placement - 1];
+  if (!self || placement === 0) {
+    return null;
+  }
+
+  const payoutWei =
+    match.paid && match.winnerAgentId === agentId
+      ? (
+          (matchEntryFeeWei * BigInt(match.players.length) * winnerShareBasisPoints) /
+          10_000n
+        ).toString()
+      : "0";
+
+  return {
+    matchId: match.matchId,
+    finishedAt: match.endsAt,
+    paid: match.paid,
+    placement,
+    players: match.players.length,
+    kills: self.kills,
+    damageDealt: self.damageDealt,
+    score: self.score,
+    payoutWei,
+    won: match.winnerAgentId === agentId,
+    settlementTxHash: match.settlementTxHash,
+  };
 }
 
 function deriveCampaignTier(stats: Omit<AgentCampaignStats, "campaignTier">) {

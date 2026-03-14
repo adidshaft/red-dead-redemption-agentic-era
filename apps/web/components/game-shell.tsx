@@ -36,6 +36,7 @@ import {
   toExplorerTxUrl,
   winnerShareBasisPoints,
   type AgentCampaignStats,
+  type AgentMatchRecord,
   type AgentProfile,
   type AutonomyPlan,
   type ArenaCommand,
@@ -48,6 +49,7 @@ import {
 import {
   createAgent,
   fetchAgents,
+  fetchAgentMatches,
   fetchAutonomyPlan,
   fetchCampaignStats,
   fetchTransactions,
@@ -104,6 +106,7 @@ export function GameShell() {
   const [liveMatches, setLiveMatches] = useState<MatchSnapshot[]>([]);
   const [autonomyPlan, setAutonomyPlan] = useState<AutonomyPlan | null>(null);
   const [campaignStats, setCampaignStats] = useState<AgentCampaignStats | null>(null);
+  const [matchHistory, setMatchHistory] = useState<AgentMatchRecord[]>([]);
   const [baseName, setBaseName] = useState("Marshal");
   const [status, setStatus] = useState<string>(
     "Connect a wallet on X Layer testnet to enter the frontier.",
@@ -363,6 +366,7 @@ export function GameShell() {
         void loadTransactions(selectedAgentRef.current.id, { revealNew: true });
         void loadAutonomyPlan(selectedAgentRef.current.id);
         void loadCampaignStats(selectedAgentRef.current.id);
+        void loadMatchHistory(selectedAgentRef.current.id);
       }
     });
 
@@ -377,11 +381,13 @@ export function GameShell() {
     if (!authToken || !selectedAgent) {
       setAutonomyPlan(null);
       setCampaignStats(null);
+      setMatchHistory([]);
       return;
     }
     void loadTransactions(selectedAgent.id);
     void loadAutonomyPlan(selectedAgent.id);
     void loadCampaignStats(selectedAgent.id);
+    void loadMatchHistory(selectedAgent.id);
   }, [authToken, selectedAgent?.id]);
 
   useEffect(() => {
@@ -492,6 +498,7 @@ export function GameShell() {
     setRecentEvents([]);
     setAutonomyPlan(null);
     setCampaignStats(null);
+    setMatchHistory([]);
     setAutonomyQuote(null);
     setTxReveals([]);
     seenTxHashesRef.current = new Set();
@@ -720,6 +727,14 @@ export function GameShell() {
     setCampaignStats(response.campaign);
   }
 
+  async function loadMatchHistory(agentId: string) {
+    if (!authToken) {
+      return;
+    }
+    const response = await fetchAgentMatches(authToken, agentId);
+    setMatchHistory(response.matches);
+  }
+
   async function handleSignIn() {
     if (!address) {
       return;
@@ -778,6 +793,7 @@ export function GameShell() {
       setSelectedAgentId(response.agent.id);
       await loadTransactions(response.agent.id);
       await loadCampaignStats(response.agent.id);
+      await loadMatchHistory(response.agent.id);
       setBaseName("Gunslinger");
       setStatus(`${response.agent.displayName} is ready for the frontier.`);
     } catch (error) {
@@ -1576,6 +1592,79 @@ export function GameShell() {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[#f6ead7]">
+                      Frontier Tape
+                    </p>
+                    <p className="mt-1 text-xs text-stone-300/58">
+                      Recent finished runs for this agent.
+                    </p>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
+                    {matchHistory.length} logged
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {matchHistory.length === 0 ? (
+                    <EmptyState
+                      label="No finished matches yet. Run a frontier cycle to start the tape."
+                      compact
+                    />
+                  ) : (
+                    matchHistory.map((record) => (
+                      <div
+                        key={record.matchId}
+                        className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <div className="text-sm font-semibold text-[#f6ead7]">
+                              {record.paid ? "Paid Showdown" : "Practice Run"} • Finish #{record.placement}
+                            </div>
+                            <div className="mt-1 text-xs text-stone-300/58">
+                              {record.finishedAt ? formatShortDateTime(record.finishedAt) : "Pending archive"} • {record.players} riders
+                            </div>
+                          </div>
+                          <div className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] ${record.won ? "border-amber-300/30 bg-amber-100/10 text-[#f6ead7]" : "border-white/10 bg-white/5 text-stone-200/70"}`}>
+                            {record.won ? "Winner" : "Logged"}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                          <span className="rounded-full border border-white/8 px-2.5 py-1">
+                            Score {record.score}
+                          </span>
+                          <span className="rounded-full border border-white/8 px-2.5 py-1">
+                            Kills {record.kills}
+                          </span>
+                          <span className="rounded-full border border-white/8 px-2.5 py-1">
+                            Damage {record.damageDealt}
+                          </span>
+                          <span className="rounded-full border border-white/8 px-2.5 py-1">
+                            Payout {formatWeiToOkb(BigInt(record.payoutWei))}
+                          </span>
+                        </div>
+                        {record.settlementTxHash && (
+                          <a
+                            href={toExplorerTxUrl(
+                              record.settlementTxHash,
+                              process.env.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 inline-flex items-center gap-2 text-xs text-[#7ed2b4] transition hover:text-[#c5f4e9]"
+                          >
+                            View settlement
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
 
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
