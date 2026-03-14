@@ -8,6 +8,17 @@ export type AutonomyContext = {
   snapshot: MatchSnapshot;
 };
 
+const frontierAnchors = [
+  { x: 520, y: 265, label: "saloon lane" },
+  { x: 1080, y: 255, label: "hotel lane" },
+  { x: 800, y: 280, label: "wagon street" },
+  { x: 610, y: 455, label: "west street" },
+  { x: 990, y: 455, label: "east street" },
+  { x: 520, y: 640, label: "wash row" },
+  { x: 1080, y: 640, label: "stable row" },
+  { x: 800, y: 620, label: "main corral" },
+] as const;
+
 function clampUnit(value: number) {
   return Math.max(-1, Math.min(1, value));
 }
@@ -20,6 +31,64 @@ function moveToward(fromX: number, fromY: number, toX: number, toY: number): Are
     dx: clampUnit(dx / Math.max(Math.abs(dx), 1)),
     dy: clampUnit(dy / Math.max(Math.abs(dy), 1)),
   };
+}
+
+function distanceBetween(
+  leftX: number,
+  leftY: number,
+  rightX: number,
+  rightY: number,
+) {
+  return Math.hypot(rightX - leftX, rightY - leftY);
+}
+
+function pickFrontierAnchor(context: AutonomyContext, self: MatchSnapshot["players"][number], nearestEnemy: MatchSnapshot["players"][number]) {
+  const doctrine = deriveDoctrineProfile(context.agent);
+  const objective = context.snapshot.objective;
+  const safeZone = context.snapshot.safeZone;
+  const preferredPoint = (() => {
+    if (objective) {
+      if (doctrine.objectivePosture === "flank") {
+        const dx = nearestEnemy.x - objective.x;
+        const dy = nearestEnemy.y - objective.y;
+        const length = Math.max(Math.hypot(dx, dy), 1);
+        return {
+          x: objective.x - (dy / length) * 180,
+          y: objective.y + (dx / length) * 180,
+        };
+      }
+
+      if (doctrine.objectivePosture === "hold") {
+        return {
+          x: (objective.x + safeZone.centerX) / 2,
+          y: (objective.y + safeZone.centerY) / 2,
+        };
+      }
+
+      return { x: objective.x, y: objective.y };
+    }
+
+    return {
+      x: safeZone.centerX + (nearestEnemy.x - safeZone.centerX) * 0.35,
+      y: safeZone.centerY + (nearestEnemy.y - safeZone.centerY) * 0.35,
+    };
+  })();
+
+  return frontierAnchors
+    .filter(
+      (anchor) =>
+        distanceBetween(anchor.x, anchor.y, safeZone.centerX, safeZone.centerY) <
+        safeZone.radius - 40,
+    )
+    .map((anchor) => ({
+      anchor,
+      score:
+        distanceBetween(anchor.x, anchor.y, preferredPoint.x, preferredPoint.y) * 1.15 +
+        distanceBetween(anchor.x, anchor.y, self.x, self.y) * 0.45 +
+        distanceBetween(anchor.x, anchor.y, nearestEnemy.x, nearestEnemy.y) *
+          (doctrine.objectivePosture === "hold" ? 0.1 : 0.25),
+    }))
+    .sort((left, right) => left.score - right.score)[0]?.anchor ?? null;
 }
 
 export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
@@ -65,6 +134,7 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
   const outsideSafeZone =
     zoneDistance > Math.max(0, context.snapshot.safeZone.radius - 36);
   const activeObjective = context.snapshot.objective;
+  const frontierAnchor = pickFrontierAnchor(context, self, nearestEnemy);
 
   if (outsideSafeZone) {
     return moveToward(self.x, self.y, context.snapshot.safeZone.centerX, context.snapshot.safeZone.centerY);
@@ -90,6 +160,13 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     return {
       type: "reload",
     };
+  }
+
+  if (
+    frontierAnchor &&
+    (atEdge || distance > doctrine.preferredFireRange * 1.28)
+  ) {
+    return moveToward(self.x, self.y, frontierAnchor.x, frontierAnchor.y);
   }
 
   if (activeObjective) {
@@ -195,8 +272,10 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
   }
 
   if (doctrine.doctrine === "Ghost Circuit Scout" && distance > doctrine.preferredFireRange) {
-    const orbitX = nearestEnemy.x - dy * doctrine.flankWeight;
-    const orbitY = nearestEnemy.y + dx * doctrine.flankWeight;
+    const orbitX =
+      frontierAnchor?.x ?? nearestEnemy.x - dy * doctrine.flankWeight;
+    const orbitY =
+      frontierAnchor?.y ?? nearestEnemy.y + dx * doctrine.flankWeight;
     return moveToward(self.x, self.y, orbitX, orbitY);
   }
 
