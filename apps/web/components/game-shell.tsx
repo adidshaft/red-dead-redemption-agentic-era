@@ -1072,7 +1072,7 @@ export function GameShell() {
               </div>
             </div>
             {showPreMatchBrief && (
-              <div className="mb-4 grid gap-4 xl:grid-cols-3">
+              <div className="mb-4 grid gap-4 md:grid-cols-3">
                 <BriefingCard
                   eyebrow="Phase"
                   title={arenaPhaseLabel}
@@ -1112,23 +1112,115 @@ export function GameShell() {
                   </div>
                 </div>
               )}
+              {snapshot?.status === "finished" && (
+                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/55 backdrop-blur-sm">
+                  <div className="rounded-[32px] border border-amber-200/22 bg-black/75 px-8 py-8 text-center shadow-[0_20px_80px_rgba(0,0,0,0.55)]">
+                    <div className="text-xs uppercase tracking-[0.3em] text-amber-100/60">Showdown Over</div>
+                    {winnerDisplayName ? (
+                      <>
+                        <div className="mt-3 font-[var(--font-heading)] text-5xl text-[#f6dfb7]">
+                          {winnerDisplayName}
+                        </div>
+                        <div className="mt-1 text-sm text-stone-300/65">wins the frontier</div>
+                      </>
+                    ) : (
+                      <div className="mt-3 font-[var(--font-heading)] text-4xl text-[#f6dfb7]">DRAW</div>
+                    )}
+                    <div className="mt-6 space-y-2 text-left min-w-[260px]">
+                      {scoreboardPlayers.map((player, i) => (
+                        <div
+                          key={player.agentId}
+                          className={`flex items-center gap-4 rounded-2xl px-4 py-2.5 ${
+                            player.agentId === snapshot.winnerAgentId
+                              ? "bg-amber-100/12 border border-amber-300/18"
+                              : player.agentId === selectedAgent?.id
+                                ? "bg-[#7ed2b4]/10"
+                                : "bg-white/5"
+                          }`}
+                        >
+                          <span className="w-5 text-center text-xs text-stone-400/70">{i + 1}</span>
+                          <span className="flex-1 truncate text-sm font-medium text-[#f6ead7]">{player.displayName}</span>
+                          <span className="text-xs text-stone-300/55">{player.kills}K</span>
+                          <span className="text-xs text-stone-300/55">{player.damageDealt}dmg</span>
+                          <span className="text-xs font-semibold text-[#f0bf76]">{player.score}pts</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {snapshot?.status === "in_progress" && scoreboardPlayers.length > 0 && (
+                <div className="pointer-events-none absolute bottom-3 right-3 z-10 w-48">
+                  <div className="rounded-2xl border border-white/10 bg-black/55 p-3 backdrop-blur">
+                    <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.22em] text-amber-100/55">
+                      <span>Standings</span>
+                      <span className="text-stone-300/50">{roundClockLabel}</span>
+                    </div>
+                    {scoreboardPlayers.map((player, i) => (
+                      <div key={player.agentId} className="flex items-center gap-2 py-[3px]">
+                        <span className="w-4 shrink-0 text-[10px] text-stone-400/50">{i + 1}</span>
+                        <div
+                          className={`h-2 w-2 shrink-0 rounded-full ${
+                            player.agentId === selectedAgent?.id
+                              ? "bg-[#f0bf76]"
+                              : player.alive
+                                ? "bg-[#7ed2b4]"
+                                : "bg-white/18"
+                          }`}
+                        />
+                        <span className="flex-1 truncate text-[11px] text-[#f6ead7]">{player.displayName}</span>
+                        <span className="shrink-0 text-[10px] text-stone-300/55">{player.health}hp</span>
+                        <span className="shrink-0 text-[10px] font-semibold text-[#f0bf76]">{player.score}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
-                <div className="rounded-2xl border border-white/10 bg-black/45 px-4 py-3 text-xs text-stone-100/88 shadow-[0_10px_40px_rgba(0,0,0,0.28)] backdrop-blur">
-                  <div className="font-semibold uppercase tracking-[0.18em] text-[#f0bf76]">
-                    Arena Controls
-                  </div>
-                  <div className="mt-1">
-                    {selectedAgent?.mode === "manual"
-                      ? "WASD move • Click fire • Space dodge"
-                      : "Switch the selected agent to manual mode to take control."}
-                  </div>
-                  <div className="mt-1 text-stone-300/75">
-                    {selectedSnapshotPlayer?.alive
-                      ? `${selectedSnapshotPlayer.displayName} is live in the arena.`
-                      : snapshot?.status === "in_progress"
-                        ? "Your selected rider is not active in this showdown."
-                        : "Queue a match to take control."}
-                  </div>
+                <div className="rounded-2xl border border-white/10 bg-black/50 px-3 py-2.5 text-xs text-stone-100/88 shadow-[0_10px_40px_rgba(0,0,0,0.28)] backdrop-blur">
+                  {selectedSnapshotPlayer?.alive ? (
+                    <>
+                      <div className="mb-1.5 font-semibold text-[#f0bf76]">
+                        {selectedSnapshotPlayer.displayName}
+                      </div>
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="w-6 text-stone-300/55">HP</span>
+                        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-[#7ed2b4] transition-all"
+                            style={{ width: `${Math.max(0, selectedSnapshotPlayer.health)}%` }}
+                          />
+                        </div>
+                        <span className="text-stone-300/65">{selectedSnapshotPlayer.health}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 text-stone-300/55">AMO</span>
+                        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-[#f0bf76] transition-all"
+                            style={{ width: `${Math.min(100, (selectedSnapshotPlayer.ammo / 6) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-stone-300/65">{selectedSnapshotPlayer.ammo}</span>
+                      </div>
+                      <div className="mt-1.5 text-[10px] text-stone-300/50">
+                        WASD move · Click fire · Space dodge
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-semibold uppercase tracking-[0.18em] text-[#f0bf76]">
+                        {snapshot?.status === "in_progress" ? "Spectating" : "Arena Controls"}
+                      </div>
+                      <div className="mt-0.5 text-stone-300/70">
+                        {selectedAgent?.mode === "manual"
+                          ? snapshot?.status === "in_progress"
+                            ? "Your rider is not in this showdown."
+                            : "WASD · Click · Space"
+                          : "Set agent to manual to take control."}
+                      </div>
+                    </>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -1157,99 +1249,96 @@ export function GameShell() {
             </div>
             <div className="mt-4 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm text-stone-200/72">
-                  <Crosshair className="h-4 w-4 text-[#f0bf76]" />
-                  <span>
-                    Manual controls: WASD move, mouse to aim, click to fire,
-                    space to dodge.
-                  </span>
-                </div>
-                <div className="space-y-2 text-sm text-stone-200/72">
-                  <div>Phase: {arenaPhaseLabel}</div>
-                  <div>Queue: {queueState?.status ?? "idle"}</div>
-                  <div>
-                    Current match: {snapshot?.matchId ?? "No active showdown"}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-2 text-sm text-stone-200/72">
+                    <div className="flex items-center gap-2 text-stone-200/80">
+                      <Crosshair className="h-4 w-4 shrink-0 text-[#f0bf76]" />
+                      <span className="font-medium">
+                        {selectedAgent?.mode === "manual"
+                          ? "WASD move · Click fire · Space dodge"
+                          : "Set agent to manual to take direct control"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-stone-300/60">
+                      <div>Phase: <span className="text-[#f6ead7]">{arenaPhaseLabel}</span></div>
+                      <div>Clock: <span className="text-[#f6ead7]">{roundClockLabel}</span></div>
+                      <div>
+                        Rider:{" "}
+                        <span className="text-[#f6ead7]">
+                          {selectedSnapshotPlayer
+                            ? selectedSnapshotPlayer.alive
+                              ? `${selectedSnapshotPlayer.displayName} alive`
+                              : `${selectedSnapshotPlayer.displayName} out`
+                            : "not in showdown"}
+                        </span>
+                      </div>
+                      <div>
+                        Combat:{" "}
+                        <span className="text-[#f6ead7]">
+                          {selectedSnapshotPlayer
+                            ? `${selectedSnapshotPlayer.health}HP · ${selectedSnapshotPlayer.ammo}rnd`
+                            : "—"}
+                        </span>
+                      </div>
+                      {snapshot?.status === "finished" && winnerDisplayName && (
+                        <div className="col-span-2 mt-1 font-semibold text-[#f0bf76]">
+                          Winner: {winnerDisplayName}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>Round clock: {roundClockLabel}</div>
-                  <div>Winner: {winnerDisplayName ?? "TBD"}</div>
-                  <div>
-                    Arena input:{" "}
-                    {arenaReadyForControls
-                      ? "armed"
-                      : "loading renderer"}
-                  </div>
-                  <div>
-                    Selected rider:{" "}
-                    {selectedSnapshotPlayer
-                      ? selectedSnapshotPlayer.alive
-                        ? `${selectedSnapshotPlayer.displayName} in the fight`
-                        : `${selectedSnapshotPlayer.displayName} was eliminated`
-                      : "Not in the current showdown"}
-                  </div>
-                  <div>
-                    Combat readout:{" "}
-                    {selectedSnapshotPlayer
-                      ? `${selectedSnapshotPlayer.health} HP • ${selectedSnapshotPlayer.ammo} rounds`
-                      : "No rider selected"}
-                  </div>
-                  <div>
-                    Last order:{" "}
-                    {selectedSnapshotPlayer?.lastCommand
-                      ? selectedSnapshotPlayer.lastCommand.type
-                      : "none"}
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="mb-2 text-xs uppercase tracking-[0.18em] text-stone-300/55">
-                    Backup controls
-                  </div>
-                  <div className="grid w-[144px] grid-cols-3 gap-2">
-                    <span />
-                    <button
-                      type="button"
-                      onMouseDown={() => startDirectionalMove(0, -1)}
-                      onMouseUp={stopDirectionalMove}
-                      onMouseLeave={stopDirectionalMove}
-                      onTouchStart={() => startDirectionalMove(0, -1)}
-                      onTouchEnd={stopDirectionalMove}
-                      className="rounded-2xl border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/80 transition hover:border-white/25 hover:bg-white/10"
-                    >
-                      W
-                    </button>
-                    <span />
-                    <button
-                      type="button"
-                      onMouseDown={() => startDirectionalMove(-1, 0)}
-                      onMouseUp={stopDirectionalMove}
-                      onMouseLeave={stopDirectionalMove}
-                      onTouchStart={() => startDirectionalMove(-1, 0)}
-                      onTouchEnd={stopDirectionalMove}
-                      className="rounded-2xl border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/80 transition hover:border-white/25 hover:bg-white/10"
-                    >
-                      A
-                    </button>
-                    <button
-                      type="button"
-                      onMouseDown={() => startDirectionalMove(0, 1)}
-                      onMouseUp={stopDirectionalMove}
-                      onMouseLeave={stopDirectionalMove}
-                      onTouchStart={() => startDirectionalMove(0, 1)}
-                      onTouchEnd={stopDirectionalMove}
-                      className="rounded-2xl border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/80 transition hover:border-white/25 hover:bg-white/10"
-                    >
-                      S
-                    </button>
-                    <button
-                      type="button"
-                      onMouseDown={() => startDirectionalMove(1, 0)}
-                      onMouseUp={stopDirectionalMove}
-                      onMouseLeave={stopDirectionalMove}
-                      onTouchStart={() => startDirectionalMove(1, 0)}
-                      onTouchEnd={stopDirectionalMove}
-                      className="rounded-2xl border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/80 transition hover:border-white/25 hover:bg-white/10"
-                    >
-                      D
-                    </button>
+                  <div className="shrink-0">
+                    <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
+                      D-Pad
+                    </div>
+                    <div className="grid w-[108px] grid-cols-3 gap-1.5">
+                      <span />
+                      <button
+                        type="button"
+                        onMouseDown={() => startDirectionalMove(0, -1)}
+                        onMouseUp={stopDirectionalMove}
+                        onMouseLeave={stopDirectionalMove}
+                        onTouchStart={() => startDirectionalMove(0, -1)}
+                        onTouchEnd={stopDirectionalMove}
+                        className="rounded-xl border border-white/10 bg-white/6 px-2 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
+                      >
+                        W
+                      </button>
+                      <span />
+                      <button
+                        type="button"
+                        onMouseDown={() => startDirectionalMove(-1, 0)}
+                        onMouseUp={stopDirectionalMove}
+                        onMouseLeave={stopDirectionalMove}
+                        onTouchStart={() => startDirectionalMove(-1, 0)}
+                        onTouchEnd={stopDirectionalMove}
+                        className="rounded-xl border border-white/10 bg-white/6 px-2 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
+                      >
+                        A
+                      </button>
+                      <button
+                        type="button"
+                        onMouseDown={() => startDirectionalMove(0, 1)}
+                        onMouseUp={stopDirectionalMove}
+                        onMouseLeave={stopDirectionalMove}
+                        onTouchStart={() => startDirectionalMove(0, 1)}
+                        onTouchEnd={stopDirectionalMove}
+                        className="rounded-xl border border-white/10 bg-white/6 px-2 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
+                      >
+                        S
+                      </button>
+                      <button
+                        type="button"
+                        onMouseDown={() => startDirectionalMove(1, 0)}
+                        onMouseUp={stopDirectionalMove}
+                        onMouseLeave={stopDirectionalMove}
+                        onTouchStart={() => startDirectionalMove(1, 0)}
+                        onTouchEnd={stopDirectionalMove}
+                        className="rounded-xl border border-white/10 bg-white/6 px-2 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 active:bg-white/15"
+                      >
+                        D
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1275,7 +1364,7 @@ export function GameShell() {
                 </div>
               </div>
             </div>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-[#f6ead7]">
@@ -1303,7 +1392,7 @@ export function GameShell() {
                       : "Live Scoreboard"}
                   </p>
                   <span className="text-[11px] uppercase tracking-[0.18em] text-stone-300/55">
-                    Kills • damage • accuracy
+                    Kills • HP • score
                   </span>
                 </div>
                 <div className="mt-3">
@@ -1530,7 +1619,7 @@ function StatCard({
         {icon}
         {label}
       </div>
-      <div className="text-sm text-[#f6ead7]">{value}</div>
+      <div className="line-clamp-2 text-xs leading-relaxed text-[#f6ead7]">{value}</div>
     </div>
   );
 }
@@ -1616,19 +1705,18 @@ function ScoreboardTable({
 
   return (
     <div className="overflow-hidden rounded-[20px] border border-white/8">
-      <div className="grid grid-cols-[44px_minmax(0,1.3fr)_72px_72px_72px_88px] gap-2 bg-white/6 px-3 py-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
+      <div className="grid grid-cols-[28px_minmax(0,1fr)_44px_40px_56px] gap-x-2 bg-white/6 px-3 py-2.5 text-[10px] uppercase tracking-[0.16em] text-stone-300/55">
         <span>#</span>
         <span>Rider</span>
         <span>HP</span>
-        <span>Kills</span>
-        <span>Hits</span>
+        <span>K</span>
         <span>Score</span>
       </div>
       <div className="divide-y divide-white/6">
         {players.map((player, index) => (
           <div
             key={player.agentId}
-            className={`grid grid-cols-[44px_minmax(0,1.3fr)_72px_72px_72px_88px] gap-2 px-3 py-3 text-sm ${
+            className={`grid grid-cols-[28px_minmax(0,1fr)_44px_40px_56px] gap-x-2 px-3 py-2.5 text-sm ${
               player.agentId === winnerAgentId
                 ? "bg-amber-100/8"
                 : player.agentId === selectedAgentId
@@ -1636,25 +1724,22 @@ function ScoreboardTable({
                   : "bg-black/10"
             }`}
           >
-            <span className="text-stone-300/65">{index + 1}</span>
+            <span className="text-xs text-stone-300/60">{index + 1}</span>
             <div className="min-w-0">
-              <div className="truncate font-medium text-[#f6ead7]">
+              <div className="truncate text-sm font-medium text-[#f6ead7]">
                 {player.displayName}
               </div>
-              <div className="mt-1 text-xs text-stone-300/55">
+              <div className="text-[10px] text-stone-300/50">
                 {player.agentId === winnerAgentId
                   ? "Winner"
                   : player.alive
-                    ? "Still standing"
-                    : "Eliminated"}
+                    ? "alive"
+                    : "out"}
               </div>
             </div>
-            <span className="text-stone-200/75">{player.health}</span>
-            <span className="text-stone-200/75">{player.kills}</span>
-            <span className="text-stone-200/75">
-              {player.shotsHit}/{player.shotsFired}
-            </span>
-            <span className="font-semibold text-[#f0bf76]">{player.score}</span>
+            <span className="self-center text-xs text-stone-200/70">{player.health}</span>
+            <span className="self-center text-xs text-stone-200/70">{player.kills}</span>
+            <span className="self-center text-sm font-semibold text-[#f0bf76]">{player.score}</span>
           </div>
         ))}
       </div>

@@ -199,21 +199,46 @@ export function ArenaCanvas({
         }
 
         create() {
-          this.cameras.main.setBackgroundColor("#3b2418");
-          this.add.rectangle(800, 450, 1600, 900, 0x5d3c20, 0.25).setStrokeStyle(4, 0xe9c58d, 0.22);
+          this.cameras.main.setBackgroundColor("#2a1710");
           onControlReadyChangeRef.current?.(true);
 
+          // Dusty ground — subtle radial gradient approximated with overlaid rects
+          this.add.rectangle(800, 450, 1600, 900, 0x3a2214, 1);
+          this.add.rectangle(800, 450, 1400, 750, 0x422616, 1);
+          this.add.rectangle(800, 450, 1100, 560, 0x4a2c1a, 0.6);
+
+          // Arena border
+          this.add.rectangle(800, 450, 1560, 860, 0x000000, 0).setStrokeStyle(6, 0xe9c58d, 0.28);
+          this.add.rectangle(800, 450, 1540, 840, 0x000000, 0).setStrokeStyle(1, 0xe9c58d, 0.08);
+
+          // Faint grid
           const graphics = this.add.graphics();
-          graphics.lineStyle(1, 0xf3dbb0, 0.06);
-          for (let x = 0; x <= 1600; x += 80) {
+          graphics.lineStyle(1, 0xf3dbb0, 0.04);
+          for (let x = 0; x <= 1600; x += 100) {
             graphics.moveTo(x, 0);
             graphics.lineTo(x, 900);
           }
-          for (let y = 0; y <= 900; y += 80) {
+          for (let y = 0; y <= 900; y += 100) {
             graphics.moveTo(0, y);
             graphics.lineTo(1600, y);
           }
           graphics.strokePath();
+
+          // Corner decorations
+          const cornerSize = 22;
+          for (const [cx, cy] of [[60, 60], [1540, 60], [60, 840], [1540, 840]] as [number,number][]) {
+            const cg = this.add.graphics();
+            cg.lineStyle(2, 0xe9c58d, 0.3);
+            cg.moveTo(cx - cornerSize, cy); cg.lineTo(cx, cy); cg.lineTo(cx, cy - cornerSize);
+            cg.moveTo(cx + cornerSize, cy); cg.lineTo(cx, cy); cg.lineTo(cx, cy + cornerSize);
+            cg.strokePath();
+          }
+
+          // Center mark
+          const cg = this.add.graphics();
+          cg.lineStyle(1, 0xe9c58d, 0.15);
+          cg.strokeCircle(800, 450, 80);
+          cg.strokeCircle(800, 450, 8);
 
           this.input.on("pointermove", (pointer: any) => {
             pointerPositionRef.current = { x: pointer.worldX, y: pointer.worldY };
@@ -247,14 +272,18 @@ export function ArenaCanvas({
                 const glow = this.add.circle(player.x, player.y, isSelected ? 38 : 30, color, isSelected ? 0.18 : 0.08);
                 const body = this.add.circle(player.x, player.y, isSelected ? 22 : 18, color, player.alive ? 1 : 0.35);
                 const ring = this.add.circle(player.x, player.y, isSelected ? 30 : 26, 0x000000, 0).setStrokeStyle(isSelected ? 3 : 2, 0xf4e3c7, isSelected ? 0.55 : 0.25);
-                const hp = this.add.rectangle(player.x, player.y - 34, Math.max(isSelected ? 38 : 24, player.health * (isSelected ? 0.95 : 0.8)), 7, 0x0f1012, 0.9);
+                const maxBar = isSelected ? 42 : 30;
+                const hpFrac = Math.max(0, Math.min(1, player.health / 100));
+                const hpColor = hpFrac > 0.5 ? 0x7ed2b4 : hpFrac > 0.25 ? 0xf0bf76 : 0xf25555;
+                const hpBg = this.add.rectangle(player.x, player.y - 34, maxBar, 6, 0x0a0806, 0.75);
+                const hp = this.add.rectangle(player.x, player.y - 34, Math.max(2, hpFrac * maxBar), 6, hpColor, 0.92);
                 const label = this.add.text(player.x, player.y + 28, player.displayName, {
                   fontFamily: "var(--font-body)",
                   fontSize: isSelected ? "14px" : "12px",
                   color: "#f8f2e8",
                   align: "center",
                 }).setOrigin(0.5);
-                const container = this.add.container(player.x, player.y, [glow, ring, body, hp]);
+                const container = this.add.container(player.x, player.y, [glow, ring, body, hpBg, hp]);
                 this.sprites.set(player.agentId, container);
                 this.labels.set(player.agentId, label);
               }
@@ -263,7 +292,7 @@ export function ArenaCanvas({
               const label = this.labels.get(player.agentId);
               if (sprite && label) {
                 sprite.setPosition(player.x, player.y);
-                const [glow, ring, body, hp] = sprite.list as any[];
+                const [glow, ring, body, hpBg, hp] = sprite.list as any[];
                 const isSelected = player.agentId === selectedAgentIdRef.current;
                 body.setFillStyle(
                   isSelected ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4,
@@ -272,7 +301,12 @@ export function ArenaCanvas({
                 glow.setRadius(isSelected ? 38 : 30);
                 glow.setFillStyle(isSelected ? 0xf3bf7b : player.mode === "autonomous" ? 0xdf6c39 : 0x7ed2b4, isSelected ? 0.18 : 0.08);
                 ring.setStrokeStyle(isSelected ? 3 : 2, 0xf4e3c7, isSelected ? 0.55 : 0.25);
-                hp.setSize(Math.max(isSelected ? 38 : 24, player.health * (isSelected ? 0.95 : 0.8)), 7);
+                const maxBar2 = isSelected ? 42 : 30;
+                const hpFrac2 = Math.max(0, Math.min(1, player.health / 100));
+                const hpColor2 = hpFrac2 > 0.5 ? 0x7ed2b4 : hpFrac2 > 0.25 ? 0xf0bf76 : 0xf25555;
+                hpBg.setSize(maxBar2, 6);
+                hp.setSize(Math.max(2, hpFrac2 * maxBar2), 6);
+                hp.setFillStyle(hpColor2, 0.92);
                 label.setPosition(player.x, player.y + 28);
                 label.setAlpha(player.alive ? 1 : 0.45);
                 label.setFontSize(isSelected ? "14px" : "12px");
