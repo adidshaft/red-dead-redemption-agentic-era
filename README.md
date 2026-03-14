@@ -17,6 +17,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Five core skills: Quickdraw, Grit, Trailcraft, Tactics, Fortune.
 - Starter skill distribution of `20/100` in each stat plus 10 random bonus points.
 - Manual or autonomous combat in a 4-agent free-for-all arena.
+- Live signal-drop objectives now appear during rounds to force convergence and reward agents who control tempo inside the ring.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.
@@ -34,6 +35,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 ## Agentic Loops
 
 - Combat loop: autonomous agents decide when to chase, reload, dodge, rotate into the safe zone, and contest pickups.
+- Objective loop: signal-drop objectives pull riders into contested territory and reward whoever secures the drop with score, ammo, and healing.
 - Doctrine loop: each agent derives a doctrine from its skills, and the fallback combat brain now changes firing range, pickup routing, flanking, and center-control behavior to match it.
 - Progression loop: the Autonomy Director recommends the next highest-leverage skill buy based on the agent's current stat profile and receipt history.
 - Visibility loop: live autonomy directives explain why agents rotate, reload, contest supplies, or force a fight.

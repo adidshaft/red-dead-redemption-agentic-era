@@ -225,6 +225,22 @@ export function GameShell() {
     const radius = Math.round(snapshot.safeZone.radius);
     return `${radius}px safe zone`;
   }, [snapshot]);
+  const objectiveTimerLabel = useMemo(() => {
+    if (!snapshot?.objective?.expiresAt) {
+      return null;
+    }
+
+    const remainingMs = Math.max(
+      0,
+      new Date(snapshot.objective.expiresAt).getTime() - clockNow,
+    );
+    const totalSeconds = Math.ceil(remainingMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }, [clockNow, snapshot?.objective?.expiresAt]);
   const matchEconomy = useMemo(() => {
     if (!snapshot?.paid) {
       return null;
@@ -2021,6 +2037,14 @@ export function GameShell() {
                           {safeZoneLabel}
                         </span>
                       </div>
+                      {snapshot?.objective && (
+                        <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[#df6c39]/78">
+                          {snapshot.objective.label}
+                          <span className="rounded-full border border-[#df6c39]/25 px-2 py-1 text-[9px] text-[#ffd0ae]">
+                            {objectiveTimerLabel ?? "Live"}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-3">
                         <span className="w-10 text-[10px] font-bold uppercase tracking-widest text-[#7ed2b4]/70">Health</span>
                         <div className="relative h-3 w-48 overflow-hidden rounded bg-black/60 shadow-inner">
@@ -2103,6 +2127,7 @@ export function GameShell() {
                       <div>Phase: <span className="text-[#f6ead7]">{arenaPhaseLabel}</span></div>
                       <div>Clock: <span className="text-[#f6ead7]">{roundClockLabel}</span></div>
                       <div>Zone: <span className="text-[#f6ead7]">{safeZoneLabel}</span></div>
+                      <div>Objective: <span className="text-[#f6ead7]">{snapshot?.objective ? `${snapshot.objective.label} • ${objectiveTimerLabel ?? "Live"}` : "No live objective"}</span></div>
                       <div>Pot: <span className="text-[#f6ead7]">{matchEconomy ? formatWeiToOkb(matchEconomy.totalPot) : "Practice round"}</span></div>
                       <div>Rider: <span className="text-[#f6ead7]">{selectedSnapshotPlayer ? selectedSnapshotPlayer.alive ? `${selectedSnapshotPlayer.displayName} alive` : `${selectedSnapshotPlayer.displayName} out` : "not in showdown"}</span></div>
                       <div>Combat: <span className="text-[#f6ead7]">{selectedSnapshotPlayer ? `${selectedSnapshotPlayer.health}HP · ${selectedSnapshotPlayer.ammo}rnd${selectedSnapshotPlayer.isReloading ? " · reloading" : ""}` : "—"}</span></div>
@@ -2448,6 +2473,19 @@ function ArenaMinimap({
             </div>
           );
         })}
+        {snapshot.objective && (
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: `${(snapshot.objective.x / 1600) * 100}%`,
+              top: `${(snapshot.objective.y / 900) * 100}%`,
+            }}
+          >
+            <div className="flex h-5 w-5 items-center justify-center rounded-full border border-[#ffd0ae]/80 bg-[#df6c39]/85 text-[9px] font-black text-[#1b0f0a] shadow-[0_0_18px_rgba(223,108,57,0.45)]">
+              !
+            </div>
+          </div>
+        )}
         {snapshot.players.map((player) => {
           const left = `${(player.x / 1600) * 100}%`;
           const top = `${(player.y / 900) * 100}%`;

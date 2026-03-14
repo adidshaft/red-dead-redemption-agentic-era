@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import {
   gameConfig,
+  type ArenaObjective,
   baseSkillValue,
   formatDisplayName,
   sanitizeBaseName,
@@ -55,12 +56,15 @@ type RuntimePlayer = MatchPlayerState & {
   lastAutonomyBroadcastAt: number;
   lastAutonomySignature: string | null;
   isBot: boolean;
+  objectiveBonus: number;
 };
 
 type MatchRuntime = {
   snapshot: MatchSnapshot;
   players: Map<string, RuntimePlayer>;
   pickups: Map<string, ArenaPickup>;
+  objective: ArenaObjective | null;
+  nextObjectiveAt: number;
   lastPickupSpawnAt: number;
   lastSafeZoneStage: number;
   timer: NodeJS.Timeout;
@@ -185,11 +189,46 @@ function getSafeZoneStage(elapsedMs: number) {
   return 1;
 }
 
-function calculateScore(player: Pick<RuntimePlayer, "kills" | "damageDealt" | "health" | "alive">) {
+function calculateScore(
+  player: Pick<
+    RuntimePlayer,
+    "kills" | "damageDealt" | "health" | "alive" | "objectiveBonus"
+  >,
+) {
   return Math.max(
     0,
-    player.kills * 120 + player.damageDealt + (player.alive ? Math.round(player.health * 0.5) : 0),
+    player.kills * 120 +
+      player.damageDealt +
+      player.objectiveBonus +
+      (player.alive ? Math.round(player.health * 0.5) : 0),
   );
+}
+
+export function createArenaObjective(
+  safeZone: SafeZone,
+  now = Date.now(),
+  random = Math.random,
+): ArenaObjective {
+  const horizontalSpan = Math.min(220, Math.max(120, safeZone.radius * 0.4));
+  const verticalSpan = Math.min(180, Math.max(100, safeZone.radius * 0.3));
+
+  return {
+    id: crypto.randomUUID(),
+    type: "supply_drop",
+    label: "Signal Supply Drop",
+    rewardLabel: `+${gameConfig.objectiveHealthValue} HP • +${gameConfig.objectiveAmmoValue} ammo • +${gameConfig.objectiveScoreValue} score`,
+    x: clamp(
+      safeZone.centerX + (random() - 0.5) * horizontalSpan,
+      140,
+      gameConfig.arenaSize.width - 140,
+    ),
+    y: clamp(
+      safeZone.centerY + (random() - 0.5) * verticalSpan,
+      140,
+      gameConfig.arenaSize.height - 140,
+    ),
+    expiresAt: new Date(now + gameConfig.objectiveDurationMs).toISOString(),
+  };
 }
 
 function createEvent(event: Omit<MatchEvent, "id" | "createdAt">): MatchEvent {
@@ -627,6 +666,7 @@ export class ArenaCoordinator {
         lastAutonomyBroadcastAt: 0,
         lastAutonomySignature: null,
         isBot: entry.userAddress.startsWith("house-bot-"),
+        objectiveBonus: 0,
       };
       players.set(entry.agent.id, player);
       events.push(
@@ -647,6 +687,7 @@ export class ArenaCoordinator {
       paid,
       players: Array.from(players.values()).map(toSnapshotPlayer),
       pickups: [],
+      objective: null,
       safeZone: computeSafeZone(0),
       events,
       winnerAgentId: null,
@@ -661,6 +702,8 @@ export class ArenaCoordinator {
       snapshot,
       players,
       pickups,
+      objective: null,
+      nextObjectiveAt: gameConfig.objectiveFirstSpawnMs,
       lastPickupSpawnAt: Date.now(),
       lastSafeZoneStage: 0,
       timer,
@@ -708,6 +751,36 @@ export class ArenaCoordinator {
       : now;
     const elapsedMs = Math.max(0, now - startedAtMs);
     runtime.snapshot.safeZone = computeSafeZone(elapsedMs);
+    if (
+      !runtime.objective &&
+      elapsedMs >= runtime.nextObjectiveAt &&
+      runtime.snapshot.status === "in_progress"
+    ) {
+      runtime.objective = createArenaObjective(runtime.snapshot.safeZone, now);
+      runtime.nextObjectiveAt = elapsedMs + gameConfig.objectiveRespawnMs;
+      runtime.snapshot.objective = runtime.objective;
+      events.push(
+        createEvent({
+          type: "objective",
+          message: `${runtime.objective.label} drops into the ring. Claim it for tempo and score.`,
+        }),
+      );
+    }
+
+    if (
+      runtime.objective &&
+      new Date(runtime.objective.expiresAt).getTime() <= now
+    ) {
+      runtime.objective = null;
+      runtime.snapshot.objective = null;
+      events.push(
+        createEvent({
+          type: "objective",
+          message: "The signal supply drop burns out before anyone can claim it.",
+        }),
+      );
+    }
+
     const safeZoneStage = getSafeZoneStage(elapsedMs);
     if (safeZoneStage > runtime.lastSafeZoneStage) {
       runtime.lastSafeZoneStage = safeZoneStage;
@@ -831,6 +904,33 @@ export class ArenaCoordinator {
           );
         }
       }
+
+      if (runtime.objective) {
+        const distance = Math.hypot(
+          player.x - runtime.objective.x,
+          player.y - runtime.objective.y,
+        );
+        if (distance <= gameConfig.objectiveCollectRadius) {
+          player.health = Math.min(
+            gameConfig.spawnHealth,
+            player.health + gameConfig.objectiveHealthValue,
+          );
+          player.ammo = Math.min(
+            gameConfig.maxAmmo,
+            player.ammo + gameConfig.objectiveAmmoValue,
+          );
+          player.objectiveBonus += gameConfig.objectiveScoreValue;
+          runtime.objective = null;
+          runtime.snapshot.objective = null;
+          events.push(
+            createEvent({
+              type: "objective",
+              actorAgentId: player.agentId,
+              message: `${player.displayName} secures the signal drop for tempo, cartridges, and score.`,
+            }),
+          );
+        }
+      }
     }
 
     if (
@@ -845,6 +945,7 @@ export class ArenaCoordinator {
       toSnapshotPlayer,
     );
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
+    runtime.snapshot.objective = runtime.objective;
     const alivePlayers = runtime.snapshot.players.filter(
       (player) => player.alive,
     );
@@ -1080,6 +1181,7 @@ export class ArenaCoordinator {
       toSnapshotPlayer,
     );
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
+    runtime.snapshot.objective = runtime.objective;
     return events;
   }
 
@@ -1149,6 +1251,7 @@ export class ArenaCoordinator {
       toSnapshotPlayer,
     );
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
+    runtime.snapshot.objective = runtime.objective;
     void this.db.appendMatchEvents(runtime.snapshot.matchId, events);
     void this.db.createOrUpdateMatch(runtime.snapshot);
     this.broadcasts.emitEvents(runtime.snapshot.matchId, events);

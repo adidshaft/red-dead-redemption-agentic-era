@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { applySkillUpgrade } from "@rdr/shared";
 
-import { computeDamage, computeSafeZone, createStarterSkills, generateAgentIdentity, resolveShot } from "./game.js";
+import { computeDamage, computeSafeZone, createArenaObjective, createStarterSkills, generateAgentIdentity, resolveShot } from "./game.js";
 
 describe("game helpers", () => {
   it("creates starter skills with a 10-point bonus budget and a 30-point cap", () => {
@@ -88,5 +88,18 @@ describe("game helpers", () => {
     expect(openingZone.radius).toBeGreaterThan(lateZone.radius);
     expect(openingZone.centerX).toBe(800);
     expect(openingZone.centerY).toBe(450);
+  });
+
+  it("spawns live objectives inside the arena and sets an expiry", () => {
+    const objective = createArenaObjective(
+      { centerX: 800, centerY: 450, radius: 320 },
+      1_000,
+      () => 0.5,
+    );
+
+    expect(objective.type).toBe("supply_drop");
+    expect(objective.x).toBeGreaterThanOrEqual(140);
+    expect(objective.y).toBeGreaterThanOrEqual(140);
+    expect(new Date(objective.expiresAt).getTime()).toBeGreaterThan(1_000);
   });
 });

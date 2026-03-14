@@ -26,6 +26,13 @@ export const gameConfig = {
   maxArenaPickups: 3,
   healthPickupValue: 25,
   ammoPickupValue: 3,
+  objectiveFirstSpawnMs: 35_000,
+  objectiveRespawnMs: 40_000,
+  objectiveDurationMs: 18_000,
+  objectiveCollectRadius: 72,
+  objectiveAmmoValue: 2,
+  objectiveHealthValue: 12,
+  objectiveScoreValue: 60,
   safeZoneStartRadius: 520,
   safeZoneEndRadius: 150,
   safeZoneShrinkDelayMs: 20 * 1000,
@@ -161,6 +168,18 @@ export const safeZoneSchema = z.object({
 
 export type SafeZone = z.infer<typeof safeZoneSchema>;
 
+export const arenaObjectiveSchema = z.object({
+  id: z.string(),
+  type: z.literal("supply_drop"),
+  label: z.string(),
+  rewardLabel: z.string(),
+  x: z.number(),
+  y: z.number(),
+  expiresAt: z.string(),
+});
+
+export type ArenaObjective = z.infer<typeof arenaObjectiveSchema>;
+
 export const matchPlayerStateSchema = z.object({
   agentId: z.string(),
   displayName: z.string(),
@@ -185,6 +204,7 @@ export const matchEventSchema = z.object({
     "spawn",
     "announcement",
     "autonomy",
+    "objective",
     "move",
     "fire",
     "reload",
@@ -210,6 +230,7 @@ export const matchSnapshotSchema = z.object({
   paid: z.boolean(),
   players: z.array(matchPlayerStateSchema),
   pickups: z.array(arenaPickupSchema),
+  objective: arenaObjectiveSchema.nullable(),
   safeZone: safeZoneSchema,
   events: z.array(matchEventSchema),
   winnerAgentId: z.string().nullable(),

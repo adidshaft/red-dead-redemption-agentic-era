@@ -18,6 +18,7 @@ function createMatch(
     winnerAgentId: "agent-1",
     settlementTxHash: null,
     pickups: [],
+    objective: null,
     safeZone: {
       centerX: 800,
       centerY: 450,

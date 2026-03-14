@@ -204,6 +204,7 @@ export function ArenaCanvas({
         private sprites = new Map<string, any>();
         private labels = new Map<string, any>();
         private pickupSprites = new Map<string, any>();
+        private objectiveSprite?: any;
         private safeZoneGraphics?: any;
         private processedEventIds = new Set<string>();
         private activeMatchId: string | null = null;
@@ -409,6 +410,42 @@ export function ArenaCanvas({
               }
             }
 
+            if (nextSnapshot.objective) {
+              if (!this.objectiveSprite) {
+                const ring = this.add.circle(0, 0, 38, 0xdf6c39, 0.12);
+                ring.setStrokeStyle(3, 0xffd0ae, 0.55);
+                const core = this.add.circle(0, 0, 14, 0xdf6c39, 0.96);
+                const icon = this.add.text(0, 0, "!", {
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "22px",
+                  color: "#1b0f0a",
+                  fontStyle: "bold",
+                }).setOrigin(0.5);
+                const label = this.add.text(0, -46, nextSnapshot.objective.label, {
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "14px",
+                  color: "#ffd0ae",
+                  align: "center",
+                }).setOrigin(0.5);
+                this.objectiveSprite = this.add.container(0, 0, [
+                  ring,
+                  core,
+                  icon,
+                  label,
+                ]);
+              }
+
+              this.objectiveSprite.setPosition(
+                nextSnapshot.objective.x,
+                nextSnapshot.objective.y,
+              );
+              const [ring] = this.objectiveSprite.list as any[];
+              ring.rotation += 0.04;
+            } else if (this.objectiveSprite) {
+              this.objectiveSprite.destroy(true);
+              this.objectiveSprite = undefined;
+            }
+
             for (const event of nextSnapshot.events) {
               if (this.processedEventIds.has(event.id)) {
                 continue;
@@ -452,6 +489,13 @@ export function ArenaCanvas({
                 this.pulseAt(actorPosition.x, actorPosition.y, 0x7ed2b4, 0.22, 20);
               } else {
                 this.flashBanner("DIRECTIVE");
+              }
+              break;
+            case "objective":
+              if (actorPosition) {
+                this.pulseAt(actorPosition.x, actorPosition.y, 0xdf6c39, 0.28, 30);
+              } else {
+                this.flashBanner("SUPPLY DROP");
               }
               break;
             case "spawn":
