@@ -34,6 +34,7 @@ import {
   arenaEconomyAbi,
   calculateSkillPurchasePrice,
   gameConfig,
+  getFrontierMap,
   mapSkillToId,
   matchEntryFeeWei,
   skillKeys,
@@ -316,6 +317,10 @@ export function GameShell() {
         ? scoreboardPlayers.find((player) => player.agentId === selectedAgent.id) ?? null
         : null,
     [scoreboardPlayers, selectedAgent],
+  );
+  const activeArenaMap = useMemo(
+    () => getFrontierMap(snapshot?.mapId ?? "dust_circuit"),
+    [snapshot?.mapId],
   );
   const selectedResultAccuracy = useMemo(() => {
     if (!selectedResultPlayer || selectedResultPlayer.shotsFired === 0) {
@@ -3756,13 +3761,13 @@ export function GameShell() {
           <section className="western-card order-1 rounded-[30px] border p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
-                  Arena
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
-                  The Dust Circuit
-                </h2>
-              </div>
+	                <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
+	                  Arena
+	                </p>
+	                <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
+	                  {activeArenaMap.name}
+	                </h2>
+	              </div>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -4779,13 +4784,19 @@ export function GameShell() {
                       {index === 0 ? "spotlight" : match.status}
                     </span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
-                    <span>
-                      Riders{" "}
-                      <span className="text-[#f6ead7]">{match.players.length}</span>
-                    </span>
-                    <span>
-                      Auto{" "}
+	                  <div className="mt-2 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
+	                    <span>
+	                      Riders{" "}
+	                      <span className="text-[#f6ead7]">{match.players.length}</span>
+	                    </span>
+	                    <span>
+	                      Map{" "}
+	                      <span className="text-[#f6ead7]">
+	                        {getFrontierMap(match.mapId ?? "dust_circuit").name}
+	                      </span>
+	                    </span>
+	                    <span>
+	                      Auto{" "}
                       <span className="text-[#f6ead7]">
                         {match.players.filter((player) => player.mode === "autonomous").length}
                       </span>
@@ -4965,21 +4976,20 @@ function ArenaMinimap({
     return <EmptyState label="Queue a match to view the live arena map." compact />;
   }
 
+  const map = getFrontierMap(snapshot.mapId ?? "dust_circuit");
+
   return (
     <div className="rounded-[22px] border border-white/8 bg-[#170f0b] p-3">
       <div className="relative aspect-[16/9] overflow-hidden rounded-[18px] border border-amber-300/10 bg-[radial-gradient(circle_at_top,_rgba(236,183,102,0.12),_transparent_48%),linear-gradient(180deg,_rgba(52,32,22,0.95),_rgba(19,11,8,0.98))]">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(244,227,199,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(244,227,199,0.06)_1px,transparent_1px)] bg-[size:32px_32px]" />
-        {[
-          { left: "17%", top: "18%", label: "Saloon" },
-          { left: "81%", top: "18%", label: "Hotel" },
-          { left: "16%", top: "81%", label: "Wash" },
-          { left: "82%", top: "80%", label: "Stable" },
-          { left: "65%", top: "25%", label: "Water" },
-        ].map((landmark) => (
+        {map.landmarks.slice(0, 6).map((landmark) => (
           <div
-            key={landmark.label}
+            key={landmark.id}
             className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/8 bg-black/18 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-stone-200/58"
-            style={{ left: landmark.left, top: landmark.top }}
+            style={{
+              left: `${(landmark.x / 1600) * 100}%`,
+              top: `${(landmark.y / 900) * 100}%`,
+            }}
           >
             {landmark.label}
           </div>

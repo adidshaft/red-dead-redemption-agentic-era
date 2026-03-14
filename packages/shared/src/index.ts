@@ -50,7 +50,7 @@ export const gameConfig = {
   houseBotPrefix: "HouseBot",
 } as const;
 
-export const frontierMapIds = ["dust_circuit"] as const;
+export const frontierMapIds = ["dust_circuit", "deadrock_gulch"] as const;
 export type FrontierMapId = (typeof frontierMapIds)[number];
 
 export type FrontierSolid =
@@ -277,6 +277,164 @@ export const frontierMaps: Record<FrontierMapId, FrontierMap> = {
       {
         id: "south-road",
         y: 640,
+        startX: -140,
+        endX: gameConfig.arenaSize.width + 140,
+      },
+    ],
+  },
+  deadrock_gulch: {
+    id: "deadrock_gulch",
+    name: "Deadrock Gulch",
+    landmarks: [
+      {
+        id: "sheriff",
+        label: "Sheriff House",
+        x: 240,
+        y: 188,
+        coverRadius: 122,
+        obstacleId: "sheriff",
+      },
+      {
+        id: "dry-store",
+        label: "Dry Store",
+        x: 1270,
+        y: 194,
+        coverRadius: 124,
+        obstacleId: "dry-store",
+      },
+      {
+        id: "mine-cart",
+        label: "Mine Cart Pass",
+        x: 790,
+        y: 245,
+        coverRadius: 100,
+        obstacleId: "mine-cart",
+      },
+      {
+        id: "telegraph",
+        label: "Telegraph Rise",
+        x: 560,
+        y: 340,
+        coverRadius: 92,
+        obstacleId: "telegraph",
+      },
+      {
+        id: "west-rocks",
+        label: "West Rocks",
+        x: 420,
+        y: 585,
+        coverRadius: 104,
+        obstacleId: "west-rocks",
+      },
+      {
+        id: "east-rocks",
+        label: "East Rocks",
+        x: 1110,
+        y: 560,
+        coverRadius: 108,
+        obstacleId: "east-rocks",
+      },
+      {
+        id: "chapel",
+        label: "Chapel Bluff",
+        x: 760,
+        y: 680,
+        coverRadius: 118,
+        obstacleId: "chapel",
+      },
+      {
+        id: "gulch-wreck",
+        label: "Gulch Wreck",
+        x: 620,
+        y: 480,
+        coverRadius: 94,
+        obstacleId: "gulch-wreck",
+      },
+    ],
+    obstacles: [
+      {
+        id: "sheriff",
+        label: "Sheriff House",
+        x: 210,
+        y: 158,
+        solid: { shape: "rect", width: 220, height: 116 },
+      },
+      {
+        id: "dry-store",
+        label: "Dry Store",
+        x: 1260,
+        y: 170,
+        solid: { shape: "rect", width: 230, height: 122 },
+      },
+      {
+        id: "mine-cart",
+        label: "Mine Cart Pass",
+        x: 790,
+        y: 245,
+        solid: { shape: "rect", width: 140, height: 66 },
+      },
+      {
+        id: "telegraph",
+        label: "Telegraph Rise",
+        x: 560,
+        y: 340,
+        solid: { shape: "circle", radius: 38 },
+      },
+      {
+        id: "west-rocks",
+        label: "West Rocks",
+        x: 420,
+        y: 585,
+        solid: { shape: "circle", radius: 58 },
+      },
+      {
+        id: "east-rocks",
+        label: "East Rocks",
+        x: 1110,
+        y: 560,
+        solid: { shape: "circle", radius: 62 },
+      },
+      {
+        id: "chapel",
+        label: "Chapel Bluff",
+        x: 760,
+        y: 675,
+        solid: { shape: "rect", width: 220, height: 120 },
+      },
+      {
+        id: "rail-fence",
+        label: "Rail Fence",
+        x: 960,
+        y: 340,
+        solid: { shape: "rect", width: 140, height: 24 },
+      },
+      {
+        id: "gulch-wreck",
+        label: "Gulch Wreck",
+        x: 620,
+        y: 480,
+        solid: { shape: "rect", width: 120, height: 56 },
+      },
+    ],
+    spawnPoints: [
+      { x: 300, y: 300 },
+      { x: gameConfig.arenaSize.width - 300, y: 300 },
+      { x: 320, y: gameConfig.arenaSize.height - 230 },
+      {
+        x: gameConfig.arenaSize.width - 320,
+        y: gameConfig.arenaSize.height - 230,
+      },
+    ],
+    caravanLanes: [
+      {
+        id: "north-gulch",
+        y: 300,
+        startX: -140,
+        endX: gameConfig.arenaSize.width + 140,
+      },
+      {
+        id: "south-gulch",
+        y: 570,
         startX: -140,
         endX: gameConfig.arenaSize.width + 140,
       },
@@ -631,6 +789,7 @@ export const matchEventSchema = z.object({
 
 export const matchSnapshotSchema = z.object({
   matchId: z.string(),
+  mapId: z.enum(frontierMapIds).optional().default("dust_circuit"),
   status: z.enum(["queued", "in_progress", "settling", "finished"]),
   startedAt: z.string().nullable(),
   endsAt: z.string().nullable(),

@@ -8,6 +8,7 @@ import {
   baseSkillValue,
   findOpenFrontierPosition,
   formatDisplayName,
+  frontierMapIds,
   getFrontierMap,
   resolveFrontierPosition,
   sanitizeBaseName,
@@ -182,6 +183,15 @@ export function computeSafeZone(elapsedMs: number): SafeZone {
     centerY,
     radius,
   };
+}
+
+function selectFrontierMapId(seedSource: string): FrontierMapId {
+  const accumulator = Array.from(seedSource).reduce(
+    (total, char, index) => total + char.charCodeAt(0) * (index + 3),
+    0,
+  );
+
+  return frontierMapIds[accumulator % frontierMapIds.length] ?? "dust_circuit";
 }
 
 function getSafeZoneStage(elapsedMs: number) {
@@ -880,7 +890,7 @@ export class ArenaCoordinator {
       Date.now() + gameConfig.matchCountdownMs + gameConfig.matchDurationMs,
     ).toISOString();
     const seed = Math.floor(Math.random() * 1_000_000);
-    const mapId: FrontierMapId = "dust_circuit";
+    const mapId = selectFrontierMapId(matchId);
     const players = new Map<string, RuntimePlayer>();
     const pickups = new Map<string, ArenaPickup>();
     const spawnPoints = getFrontierMap(mapId).spawnPoints;
@@ -937,6 +947,7 @@ export class ArenaCoordinator {
 
     const snapshot: MatchSnapshot = {
       matchId,
+      mapId,
       status: "queued",
       startedAt,
       endsAt,

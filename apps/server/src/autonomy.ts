@@ -1,9 +1,9 @@
 import {
   autonomyActionSchema,
-  frontierLandmarks,
   type AgentProfile,
   type ArenaCommand,
   type AutonomyAction,
+  getFrontierMap,
   type MatchSnapshot,
 } from "@rdr/shared";
 
@@ -42,6 +42,7 @@ function pickFrontierAnchor(context: AutonomyContext, self: MatchSnapshot["playe
   const doctrine = deriveDoctrineProfile(context.agent);
   const objective = context.snapshot.objective;
   const safeZone = context.snapshot.safeZone;
+  const frontierLandmarks = getFrontierMap(context.snapshot.mapId ?? "dust_circuit").landmarks;
   const preferredPoint = (() => {
     if (objective) {
       if (doctrine.objectivePosture === "flank") {
@@ -93,6 +94,7 @@ function pickNearestCover(
   nearestEnemy: MatchSnapshot["players"][number],
 ) {
   const safeZone = context.snapshot.safeZone;
+  const frontierLandmarks = getFrontierMap(context.snapshot.mapId ?? "dust_circuit").landmarks;
 
   return frontierLandmarks
     .filter(

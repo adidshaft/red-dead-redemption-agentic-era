@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import {
-  frontierLandmarks,
+  getFrontierMap,
   type ArenaCommand,
   type MatchSnapshot,
 } from "@rdr/shared";
@@ -25,6 +25,7 @@ export function ArenaCanvas({
   onCommand,
   onControlReadyChange,
 }: ArenaCanvasProps) {
+  const activeMap = getFrontierMap(snapshot?.mapId ?? "dust_circuit");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const snapshotRef = useRef<MatchSnapshot | null>(snapshot);
   const onCommandRef = useRef(onCommand);
@@ -301,8 +302,9 @@ export function ArenaCanvas({
           this.cameras.main.setBounds(0, 0, 1600, 900);
           onControlReadyChangeRef.current?.(true);
 
-          this.buildFrontierBackdrop();
-          this.buildFrontierLandmarks();
+          const mapId = snapshotRef.current?.mapId ?? "dust_circuit";
+          this.buildFrontierBackdrop(mapId);
+          this.buildFrontierLandmarks(mapId);
           this.buildAmbientDust();
           this.safeZoneGraphics = this.add.graphics();
           this.guidanceGraphics = this.add.graphics();
@@ -509,7 +511,9 @@ export function ArenaCanvas({
                 }
 
                 if (selectedPlayer.coverLabel) {
-                  const coverLandmark = frontierLandmarks.find(
+                  const coverLandmark = getFrontierMap(
+                    nextSnapshot.mapId ?? "dust_circuit",
+                  ).landmarks.find(
                     (landmark) => landmark.label === selectedPlayer.coverLabel,
                   );
                   if (coverLandmark) {
@@ -935,7 +939,61 @@ export function ArenaCanvas({
           });
         }
 
-        private buildFrontierBackdrop() {
+        private buildFrontierBackdrop(mapId: "dust_circuit" | "deadrock_gulch") {
+          if (mapId === "deadrock_gulch") {
+            this.add.rectangle(800, 140, 1600, 280, 0x3f2419, 1);
+            this.add.rectangle(800, 250, 1600, 220, 0x72482e, 0.38);
+            this.add.ellipse(410, 160, 520, 180, 0xd38a4a, 0.18);
+            this.add.ellipse(1210, 180, 420, 160, 0xc36f3f, 0.14);
+
+            const canyon = this.add.graphics();
+            canyon.fillStyle(0x24140e, 0.92);
+            canyon.fillPoints(
+              [
+                { x: 0, y: 265 },
+                { x: 120, y: 228 },
+                { x: 250, y: 250 },
+                { x: 380, y: 212 },
+                { x: 520, y: 252 },
+                { x: 690, y: 205 },
+                { x: 910, y: 248 },
+                { x: 1110, y: 202 },
+                { x: 1320, y: 244 },
+                { x: 1490, y: 214 },
+                { x: 1600, y: 245 },
+                { x: 1600, y: 340 },
+                { x: 0, y: 340 },
+              ],
+              true,
+            );
+
+            this.add.rectangle(800, 640, 1600, 520, 0x221510, 1);
+            this.add.rectangle(800, 610, 1460, 540, 0x2f1b13, 0.96);
+            this.add.rectangle(800, 455, 1120, 520, 0x6a4129, 0.72);
+            this.add.rectangle(800, 455, 1040, 430, 0x8a5534, 0.12);
+
+            const gulchMarks = this.add.graphics();
+            gulchMarks.lineStyle(2, 0xc08a53, 0.22);
+            gulchMarks.strokeRoundedRect(230, 170, 1140, 570, 42);
+            gulchMarks.lineStyle(1, 0xf6d9af, 0.05);
+            for (let x = 250; x <= 1350; x += 110) {
+              gulchMarks.moveTo(x, 170);
+              gulchMarks.lineTo(x, 740);
+            }
+            for (let y = 210; y <= 700; y += 88) {
+              gulchMarks.moveTo(230, y);
+              gulchMarks.lineTo(1370, y);
+            }
+            gulchMarks.strokePath();
+
+            const centerMark = this.add.graphics();
+            centerMark.lineStyle(3, 0xeac897, 0.1);
+            centerMark.strokeCircle(800, 455, 118);
+            centerMark.lineStyle(1, 0xf4c885, 0.2);
+            centerMark.strokeCircle(800, 455, 42);
+            return;
+          }
+
           this.add.rectangle(800, 120, 1600, 240, 0x5b392b, 1);
           this.add.rectangle(800, 215, 1600, 160, 0x8d5637, 0.42);
           this.add.ellipse(1180, 150, 440, 170, 0xd17d47, 0.18);
@@ -989,7 +1047,24 @@ export function ArenaCanvas({
           centerMark.strokeCircle(800, 455, 36);
         }
 
-        private buildFrontierLandmarks() {
+        private buildFrontierLandmarks(mapId: "dust_circuit" | "deadrock_gulch") {
+          if (mapId === "deadrock_gulch") {
+            this.drawBuilding(210, 158, 220, 116, "SHERIFF");
+            this.drawBuilding(1260, 170, 230, 122, "DRY STORE");
+            this.drawMineCart(790, 245);
+            this.drawTelegraphPost(560, 340);
+            this.drawBoulder(420, 585, 62);
+            this.drawBoulder(1110, 560, 68);
+            this.drawBuilding(760, 675, 220, 120, "CHAPEL");
+            this.drawFence(890, 340, 140);
+            this.drawWagon(620, 480);
+            this.addLandmarkPlaque(790, 312, "MINE CART PASS");
+            this.addLandmarkPlaque(560, 395, "TELEGRAPH RISE");
+            this.addLandmarkPlaque(1110, 632, "EAST ROCKS");
+            this.addLandmarkPlaque(760, 748, "CHAPEL BLUFF");
+            return;
+          }
+
           this.drawBuilding(150, 150, 250, 122, "SALOON");
           this.drawBuilding(1210, 140, 250, 128, "HOTEL");
           this.drawBuilding(145, 652, 260, 124, "WASH");
@@ -1007,6 +1082,45 @@ export function ArenaCanvas({
           this.addLandmarkPlaque(610, 500, "WEST STREET");
           this.addLandmarkPlaque(990, 500, "EAST STREET");
           this.addLandmarkPlaque(800, 712, "MAIN CORRAL");
+        }
+
+        private drawMineCart(x: number, y: number) {
+          const group = this.add.container(x, y);
+          const body = this.add.rectangle(0, 0, 132, 44, 0x594032, 0.92);
+          body.setStrokeStyle(2, 0x1d110a, 0.82);
+          const bed = this.add.rectangle(0, -18, 110, 18, 0x2f1d16, 0.92);
+          const wheelA = this.add
+            .circle(-44, 20, 16, 0x21120b, 0)
+            .setStrokeStyle(4, 0xa67851, 0.72);
+          const wheelB = this.add
+            .circle(44, 20, 16, 0x21120b, 0)
+            .setStrokeStyle(4, 0xa67851, 0.72);
+          group.add([body, bed, wheelA, wheelB]);
+          group.setAlpha(0.84);
+        }
+
+        private drawTelegraphPost(x: number, y: number) {
+          const post = this.add.container(x, y);
+          const pole = this.add.rectangle(0, 0, 12, 92, 0x553423, 0.95);
+          const brace = this.add.rectangle(0, -30, 70, 6, 0x3f2619, 0.95);
+          const lines = this.add.graphics();
+          lines.lineStyle(2, 0xe8d2af, 0.36);
+          lines.lineBetween(-34, -40, 34, -40);
+          lines.lineBetween(-34, -30, 34, -30);
+          const crate = this.add.rectangle(-18, 28, 26, 24, 0x6a4732, 0.84);
+          crate.setStrokeStyle(2, 0x20120b, 0.8);
+          post.add([pole, brace, lines, crate]);
+          post.setAlpha(0.8);
+        }
+
+        private drawBoulder(x: number, y: number, radius: number) {
+          const rock = this.add.graphics();
+          rock.fillStyle(0x463126, 0.9);
+          rock.fillEllipse(x, y, radius * 1.7, radius * 1.15);
+          rock.lineStyle(2, 0x2a1a13, 0.7);
+          rock.strokeEllipse(x, y, radius * 1.7, radius * 1.15);
+          rock.fillStyle(0x886348, 0.16);
+          rock.fillEllipse(x - 10, y - 10, radius * 0.95, radius * 0.45);
         }
 
         private drawBuilding(
@@ -1396,7 +1510,7 @@ export function ArenaCanvas({
       onControlReadyChangeRef.current?.(false);
       game?.destroy(true);
     };
-  }, []);
+  }, [snapshot?.mapId]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-[28px] border border-white/10 bg-[#0d0a08] outline-none group">
@@ -1408,7 +1522,7 @@ export function ArenaCanvas({
       <div className="pointer-events-none absolute inset-0 rounded-[28px] border border-amber-200/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),inset_0_0_90px_rgba(0,0,0,0.24)]" />
       <div className="pointer-events-none absolute inset-[14px] rounded-[20px] border border-white/6" />
       <div className="pointer-events-none absolute left-5 top-4 rounded-full border border-amber-200/15 bg-black/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
-        Dust Circuit
+        {activeMap.name}
       </div>
       <div className="pointer-events-none absolute right-5 top-4 rounded-full border border-[#7ed2b4]/18 bg-black/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c5f4e9]">
         Live Arena Feed

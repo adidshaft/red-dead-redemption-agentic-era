@@ -10,6 +10,7 @@ function createMatch(
 ): MatchSnapshot {
   return {
     matchId,
+    mapId: "dust_circuit",
     status: "finished",
     startedAt: "2026-03-14T10:00:00.000Z",
     endsAt: "2026-03-14T10:03:00.000Z",

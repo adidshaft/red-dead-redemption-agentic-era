@@ -27,6 +27,7 @@ function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Pa
 
   const snapshot: MatchSnapshot = {
     matchId: "m1",
+    mapId: "dust_circuit",
     status: "in_progress",
     startedAt: new Date().toISOString(),
     endsAt: new Date(Date.now() + 60_000).toISOString(),
