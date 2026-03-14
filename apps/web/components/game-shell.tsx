@@ -2178,13 +2178,13 @@ export function GameShell() {
           <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--accent-soft)]/60">
-                Operations Console
+                Agent Ops
               </p>
               <h2 className="mt-1 font-[var(--font-heading)] text-3xl font-bold text-[var(--foreground)]">
-                Short answers only
+                Plan the next move
               </h2>
               <p className="mt-2 max-w-2xl text-sm text-stone-200/68">
-                This panel is now just support. Use it when you need the next upgrade, autonomy call, or onchain proof.
+                Check the rider loop, autonomy posture, and X Layer receipts when you want the next actionable step.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
