@@ -1203,6 +1203,91 @@ export function GameShell() {
     selectedThreat,
     snapshot,
   ]);
+  const townObjectiveBanner = useMemo(() => {
+    if (queueState?.status === "queued" && !snapshot) {
+      return {
+        eyebrow: "Field Fill",
+        title: queueCompositionLabel ?? "House bots are arming",
+        detail: queueWaitLabel ?? "Stay on this screen for the opening bell.",
+        tone: "accent" as const,
+      };
+    }
+
+    if (!snapshot) {
+      return null;
+    }
+
+    if (snapshot.status === "queued") {
+      return {
+        eyebrow: "Opening Bell",
+        title:
+          matchCountdown !== null && matchCountdown > 0
+            ? `Draw in ${matchCountdown}`
+            : "Stand by for DRAW",
+        detail:
+          "Find your cyan rider, note the ring, and pick the first line before control unlocks.",
+        tone: "accent" as const,
+      };
+    }
+
+    if (snapshot.status !== "in_progress") {
+      return null;
+    }
+
+    if (snapshot.objective) {
+      return {
+        eyebrow: "Signal Drop",
+        title: snapshot.objective.label,
+        detail: `${snapshot.objective.rewardLabel}${objectiveTimerLabel ? ` • ${objectiveTimerLabel} left` : ""}`,
+        tone: "accent" as const,
+      };
+    }
+
+    if (snapshot.caravan) {
+      return {
+        eyebrow: "Stagecoach Run",
+        title: snapshot.caravan.label,
+        detail: `${snapshot.caravan.rewardLabel}. Intercept the route instead of chasing behind it.`,
+        tone: "warning" as const,
+      };
+    }
+
+    if (snapshot.bounty) {
+      return snapshot.bounty.targetAgentId === selectedAgent?.id
+        ? {
+            eyebrow: "Bounty",
+            title: "You are marked",
+            detail: `Survive the pressure. The field gets +${snapshot.bounty.bonusScore} score for dropping you.`,
+            tone: "danger" as const,
+          }
+        : {
+            eyebrow: "Bounty",
+            title: `Drop ${snapshot.bounty.displayName}`,
+            detail: `Clean elimination is worth +${snapshot.bounty.bonusScore} score.`,
+            tone: "accent" as const,
+          };
+    }
+
+    return {
+      eyebrow: "Town Pressure",
+      title: selectedThreat
+        ? `${selectedThreat.player.displayName} is nearest`
+        : "Hold the center lane",
+      detail: selectedThreat
+        ? `Threat at ${Math.round(selectedThreat.distance)}px. Use cover and keep the ring on your terms.`
+        : "Stay inside the ring and be ready for the next drop or bounty call.",
+      tone: "neutral" as const,
+    };
+  }, [
+    matchCountdown,
+    objectiveTimerLabel,
+    queueCompositionLabel,
+    queueState?.status,
+    queueWaitLabel,
+    selectedAgent?.id,
+    selectedThreat,
+    snapshot,
+  ]);
   const agentIntentCards = useMemo(() => {
     if (!selectedAgent) {
       return [];
@@ -1725,6 +1810,30 @@ export function GameShell() {
 
     return () => {
       cancelled = true;
+    };
+  }, [authToken]);
+
+  useEffect(() => {
+    if (!authToken) {
+      return;
+    }
+
+    let cancelled = false;
+    const syncLiveMatches = async () => {
+      try {
+        const response = await fetchLiveMatches();
+        if (!cancelled) {
+          setLiveMatches(response.matches);
+        }
+      } catch {
+        // Live frontier remains best-effort in the background.
+      }
+    };
+
+    const intervalId = window.setInterval(syncLiveMatches, 8_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
     };
   }, [authToken]);
 
@@ -3643,6 +3752,25 @@ export function GameShell() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {townObjectiveBanner && (
+                <div className="pointer-events-none absolute left-1/2 top-4 z-10 w-[min(520px,calc(100%-10rem))] -translate-x-1/2">
+                  <div
+                    className={`rounded-[22px] border px-4 py-3 text-center shadow-[0_18px_60px_rgba(0,0,0,0.36)] backdrop-blur-md ${getDirectiveToneClasses(
+                      townObjectiveBanner.tone,
+                    )}`}
+                  >
+                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-70">
+                      {townObjectiveBanner.eyebrow}
+                    </div>
+                    <div className="mt-1 font-semibold text-[#f6ead7]">
+                      {townObjectiveBanner.title}
+                    </div>
+                    <div className="mt-1 text-xs text-stone-100/76">
+                      {townObjectiveBanner.detail}
                     </div>
                   </div>
                 </div>
