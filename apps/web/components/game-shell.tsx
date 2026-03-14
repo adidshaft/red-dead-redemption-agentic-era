@@ -28,6 +28,7 @@ import {
   useSwitchChain,
   useWalletClient,
 } from "wagmi";
+import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
 import { formatEther, keccak256, stringToHex, type Address } from "viem";
 import {
   arenaEconomyAbi,
@@ -71,7 +72,8 @@ import {
   type QueueUpdate,
 } from "../lib/api";
 import { connectGameSocket } from "../lib/socket";
-import { xLayerTestnetChain } from "../lib/wagmi";
+import { xLayerMainnetChain, xLayerTestnetChain } from "../lib/wagmi";
+import { XLayerExactSchemeV1 } from "../lib/x402";
 import { ArenaCanvas } from "./arena-canvas";
 
 const authStorageKey = "rdr-auth-token";
@@ -205,6 +207,24 @@ export function GameShell() {
   const [recentSkillUpgrade, setRecentSkillUpgrade] = useState<RecentSkillUpgrade | null>(
     null,
   );
+  const x402Fetch = useMemo(() => {
+    if (!walletClient?.account) {
+      return null;
+    }
+
+    return wrapFetchWithPaymentFromConfig(fetch, {
+      schemes: [
+        {
+          network: `eip155:${xLayerMainnetChain.id}`,
+          client: new XLayerExactSchemeV1({
+            address: walletClient.account.address,
+            signTypedData: walletClient.signTypedData.bind(walletClient),
+          }),
+          x402Version: 1,
+        },
+      ],
+    });
+  }, [walletClient]);
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
   const arenaFrameRef = useRef<HTMLDivElement | null>(null);
@@ -2197,6 +2217,13 @@ export function GameShell() {
     await switchChainAsync({ chainId: xLayerTestnetChain.id });
   }
 
+  async function ensureXLayerMainnet() {
+    if (chainId === xLayerMainnetChain.id) {
+      return;
+    }
+    await switchChainAsync({ chainId: xLayerMainnetChain.id });
+  }
+
   function clearSession(nextStatus?: string) {
     window.localStorage.removeItem(authStorageKey);
     window.localStorage.removeItem(authAddressStorageKey);
@@ -2788,7 +2815,18 @@ export function GameShell() {
 
     setBusyAction("autonomy-pass");
     try {
-      const response = await requestAutonomyPass(authToken, selectedAgent.id);
+      if (!walletClient?.account || !x402Fetch) {
+        throw new Error(
+          "Connect a wallet before unlocking premium autonomy.",
+        );
+      }
+
+      await ensureXLayerMainnet();
+      const response = await requestAutonomyPass(
+        authToken,
+        selectedAgent.id,
+        x402Fetch,
+      );
       if (response.status === 402) {
         setAutonomyQuote({
           amount: response.payload?.amount,
@@ -2798,13 +2836,15 @@ export function GameShell() {
           scheme: response.payload?.scheme,
         });
         setAutonomyHint(
-          "Premium autonomy is waiting on an x402 payment challenge. Review the quote below and complete the payment through your configured flow.",
+          "Premium autonomy uses an x402 payment on X Layer mainnet. Review the quote below, approve the signature, and the facilitator will settle the USDC payment onchain.",
         );
-        setStatus("x402 payment is required for the autonomy pass.");
+        setStatus(
+          "x402 payment challenge is ready on X Layer mainnet for the autonomy pass.",
+        );
       } else {
         setAutonomyQuote(null);
         setAutonomyHint(
-          "Premium autonomy is active. The planner can now route upgrades and paid queue timing with tighter discipline.",
+          "Premium autonomy is active. The planner can now route upgrades and paid queue timing with tighter discipline while the game economy stays on X Layer testnet.",
         );
         if (response.payload?.receipt) {
           pushTxReveal(
@@ -2815,7 +2855,7 @@ export function GameShell() {
         }
         await loadTransactions(selectedAgent.id, { revealNew: true });
         await loadAutonomyPlan(selectedAgent.id);
-        setStatus("Autonomy pass activated.");
+        setStatus("Autonomy pass activated over x402.");
       }
     } catch (error) {
       setStatus(normalizeUiError(error, "Autonomy pass request failed."));

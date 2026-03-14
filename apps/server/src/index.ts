@@ -1,8 +1,19 @@
 import crypto from "node:crypto";
 
 import cors from "@fastify/cors";
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
 import { Server } from "socket.io";
+import {
+  decodePaymentSignatureHeader,
+  encodePaymentRequiredHeader,
+  encodePaymentResponseHeader,
+} from "@x402/core/http";
+import type {
+  PaymentPayloadV1,
+  PaymentRequiredV1,
+  PaymentRequirementsV1,
+  SettleResponseV1,
+} from "@x402/core/types/v1";
 import {
   apiErrorSchema,
   applySkillUpgrade,
@@ -54,6 +65,60 @@ const db = new Database(config.DATABASE_URL);
 const onchainOsClient = new OnchainOsClient();
 const walletFactory = new AgentWalletFactory(onchainOsClient);
 const chainService = new XLayerChainService();
+
+function buildAutonomyPassRequirements(payTo: string): PaymentRequirementsV1 {
+  return {
+    scheme: "exact",
+    network: `eip155:${config.XLAYER_MAINNET_CHAIN_ID}`,
+    maxAmountRequired: config.X402_AUTONOMY_AMOUNT,
+    resource: `${config.NEXT_PUBLIC_SERVER_URL}/payments/x402/autonomy-pass`,
+    description: "Unlock premium autonomy routing for 24 hours.",
+    mimeType: "application/json",
+    outputSchema: {
+      type: "object",
+      properties: {
+        status: { type: "string" },
+        validUntil: { type: "string" },
+      },
+      required: ["status", "validUntil"],
+    },
+    payTo,
+    maxTimeoutSeconds: config.X402_AUTONOMY_TIMEOUT_SECONDS,
+    asset: config.X402_AUTONOMY_ASSET,
+    extra: {
+      name: config.X402_AUTONOMY_ASSET_NAME,
+      version: config.X402_AUTONOMY_ASSET_VERSION,
+    },
+  };
+}
+
+function buildAutonomyPassChallenge(
+  paymentRequirements: PaymentRequirementsV1,
+): PaymentRequiredV1 {
+  return {
+    x402Version: 1,
+    error: "Premium autonomy requires an x402 payment.",
+    accepts: [paymentRequirements],
+  };
+}
+
+function extractPaymentPayload(request: FastifyRequest) {
+  const signatureHeader =
+    typeof request.headers["payment-signature"] === "string"
+      ? request.headers["payment-signature"]
+      : typeof request.headers["x-payment"] === "string"
+        ? request.headers["x-payment"]
+        : null;
+  if (!signatureHeader) {
+    return null;
+  }
+
+  try {
+    return decodePaymentSignatureHeader(signatureHeader) as unknown as PaymentPayloadV1;
+  } catch {
+    return null;
+  }
+}
 
 const coordinator = new ArenaCoordinator(db, chainService, {
   emitSnapshot(matchId, snapshot) {
@@ -614,24 +679,48 @@ app.post("/payments/x402/autonomy-pass", async (request, reply) => {
     return reply.status(404).send({ error: "Agent not found" });
   }
 
-  if (!parsed.data.paymentPayload) {
+  const paymentRequirements = buildAutonomyPassRequirements(
+    config.APP_TREASURY_ADDRESS ?? agent.walletAddress,
+  );
+  const paymentRequired = buildAutonomyPassChallenge(paymentRequirements);
+  const paymentPayload =
+    extractPaymentPayload(request) ??
+    (parsed.data.paymentPayload as PaymentPayloadV1 | undefined) ??
+    null;
+
+  if (!paymentPayload) {
     const supported = await onchainOsClient.getSupportedPayments();
+    reply.header(
+      "PAYMENT-REQUIRED",
+      encodePaymentRequiredHeader(paymentRequired as unknown as Parameters<
+        typeof encodePaymentRequiredHeader
+      >[0]),
+    );
     return reply.status(402).send({
       error: "Payment required",
+      mainnet: true,
       scheme: "exact",
-      chainId: config.XLAYER_TESTNET_CHAIN_ID,
-      amount: "1000000",
-      asset: "USDC",
-      payTo: config.APP_TREASURY_ADDRESS ?? agent.walletAddress,
+      chainId: config.XLAYER_MAINNET_CHAIN_ID,
+      amount: config.X402_AUTONOMY_AMOUNT,
+      asset: config.X402_AUTONOMY_ASSET,
+      payTo: paymentRequirements.payTo,
+      paymentRequired,
       supported,
     });
   }
 
   const verification = await onchainOsClient.verifyPayment(
-    String(config.XLAYER_TESTNET_CHAIN_ID),
-    parsed.data.paymentPayload,
+    paymentPayload,
+    paymentRequirements,
   );
-  const verified = verification?.code === "0" || verification?.success === true;
+  const verificationRecord = verification as
+    | (Record<string, unknown> & { data?: Array<{ valid?: boolean }> })
+    | null;
+  const verified =
+    verificationRecord?.code === "0" ||
+    verificationRecord?.success === true ||
+    verificationRecord?.isValid === true ||
+    verificationRecord?.data?.[0]?.valid === true;
   if (!verified) {
     return reply
       .status(400)
@@ -639,11 +728,17 @@ app.post("/payments/x402/autonomy-pass", async (request, reply) => {
   }
 
   const settlement = await onchainOsClient.settlePayment(
-    String(config.XLAYER_TESTNET_CHAIN_ID),
-    parsed.data.paymentPayload,
+    paymentPayload,
+    paymentRequirements,
   );
+  const settlementRecord = settlement as
+    | (SettleResponseV1 & { data?: Array<{ txHash?: string }> })
+    | null;
   const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  const paymentTxHash = settlement?.data?.[0]?.txHash ?? null;
+  const paymentTxHash =
+    settlementRecord?.data?.[0]?.txHash ??
+    settlementRecord?.transaction ??
+    null;
   await db.createAutonomyPass(
     agent.id,
     validUntil,
@@ -654,19 +749,31 @@ app.post("/payments/x402/autonomy-pass", async (request, reply) => {
     paymentTxHash
       ? {
           txHash: paymentTxHash,
-          chainId: config.XLAYER_TESTNET_CHAIN_ID,
+          chainId: config.XLAYER_MAINNET_CHAIN_ID,
           status: "confirmed" as const,
           purpose: "autonomy_pass" as const,
           agentId: agent.id,
           explorerUrl: toExplorerTxUrl(
             paymentTxHash,
-            config.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+            config.NEXT_PUBLIC_XLAYER_MAINNET_EXPLORER_URL,
           ),
           createdAt: new Date().toISOString(),
         }
       : null;
   if (receipt) {
     await db.createOrUpdateTransaction(receipt);
+  }
+
+  if (paymentTxHash) {
+    const paymentResponse: SettleResponseV1 = {
+      success: true,
+      transaction: paymentTxHash,
+      network: paymentRequirements.network,
+    };
+    reply.header(
+      "PAYMENT-RESPONSE",
+      encodePaymentResponseHeader(paymentResponse),
+    );
   }
 
   return {

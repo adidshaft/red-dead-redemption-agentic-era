@@ -204,8 +204,12 @@ export async function fetchLiveMatches() {
   return apiRequest<{ matches: MatchSnapshot[] }>("/matches/live");
 }
 
-export async function requestAutonomyPass(token: string, agentId: string) {
-  const response = await fetch(`${serverUrl}/payments/x402/autonomy-pass`, {
+export async function requestAutonomyPass(
+  token: string,
+  agentId: string,
+  fetchImpl: typeof fetch = fetch,
+) {
+  const response = await fetchImpl(`${serverUrl}/payments/x402/autonomy-pass`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -218,5 +222,9 @@ export async function requestAutonomyPass(token: string, agentId: string) {
   return {
     status: response.status,
     payload,
+    headers: {
+      paymentRequired: response.headers.get("PAYMENT-REQUIRED"),
+      paymentResponse: response.headers.get("PAYMENT-RESPONSE"),
+    },
   };
 }

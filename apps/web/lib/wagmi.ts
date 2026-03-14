@@ -10,6 +10,11 @@ const chainId = Number(
 const rpcUrl =
   process.env.NEXT_PUBLIC_XLAYER_TESTNET_RPC_URL ??
   "https://testrpc.xlayer.tech/terigon";
+const mainnetChainId = Number(
+  process.env.NEXT_PUBLIC_XLAYER_MAINNET_CHAIN_ID ?? "196",
+);
+const mainnetRpcUrl =
+  process.env.NEXT_PUBLIC_XLAYER_MAINNET_RPC_URL ?? "https://rpc.xlayer.tech";
 
 export const xLayerTestnetChain = defineChain({
   id: chainId,
@@ -35,8 +40,32 @@ export const xLayerTestnetChain = defineChain({
   testnet: true,
 });
 
+export const xLayerMainnetChain = defineChain({
+  id: mainnetChainId,
+  name: "X Layer Mainnet",
+  nativeCurrency: {
+    name: "OKB",
+    symbol: "OKB",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: [mainnetRpcUrl],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "OKX Explorer",
+      url:
+        process.env.NEXT_PUBLIC_XLAYER_MAINNET_EXPLORER_URL ??
+        "https://www.okx.com/web3/explorer/xlayer",
+    },
+  },
+  testnet: false,
+});
+
 export const wagmiConfig = createConfig({
-  chains: [xLayerTestnetChain],
+  chains: [xLayerTestnetChain, xLayerMainnetChain],
   connectors: [
     injected({
       shimDisconnect: true,
@@ -62,6 +91,7 @@ export const wagmiConfig = createConfig({
   ],
   transports: {
     [xLayerTestnetChain.id]: http(rpcUrl),
+    [xLayerMainnetChain.id]: http(mainnetRpcUrl),
   },
   ssr: true,
 });

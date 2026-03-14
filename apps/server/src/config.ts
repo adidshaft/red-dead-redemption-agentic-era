@@ -40,6 +40,10 @@ const envSchema = z.object({
     .string()
     .url()
     .default("https://www.okx.com/web3/explorer/xlayer-test"),
+  NEXT_PUBLIC_XLAYER_MAINNET_EXPLORER_URL: z
+    .string()
+    .url()
+    .default("https://www.okx.com/web3/explorer/xlayer"),
   NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
@@ -55,6 +59,18 @@ const envSchema = z.object({
     .url()
     .default("https://testrpc.xlayer.tech/terigon"),
   XLAYER_TESTNET_CHAIN_ID: z.coerce.number().int().positive().default(1952),
+  XLAYER_MAINNET_RPC_URL: z
+    .string()
+    .url()
+    .default("https://rpc.xlayer.tech"),
+  XLAYER_MAINNET_CHAIN_ID: z.coerce.number().int().positive().default(196),
+  X402_AUTONOMY_ASSET: z
+    .string()
+    .default("0x74b7f16337b8972027f6196a17a631ac6de26d22"),
+  X402_AUTONOMY_ASSET_NAME: z.string().default("USD Coin"),
+  X402_AUTONOMY_ASSET_VERSION: z.string().default("2"),
+  X402_AUTONOMY_AMOUNT: z.string().default("1000000"),
+  X402_AUTONOMY_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(300),
   APP_TREASURY_ADDRESS: z.string().optional(),
   SESSION_SECRET: z.string().default("rdr-agentic-era-dev-secret"),
   WALLET_ENCRYPTION_SECRET: z

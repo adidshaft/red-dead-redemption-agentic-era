@@ -1,4 +1,10 @@
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import type {
+  PaymentPayloadV1,
+  PaymentRequirementsV1,
+  SettleResponseV1,
+  SupportedResponseV1,
+} from "@x402/core/types/v1";
 import {
   type Address,
   createPublicClient,
@@ -34,6 +40,15 @@ export function matchIdToBytes32(matchId: string) {
   return keccak256(stringToHex(matchId)) as Hex;
 }
 
+function networkToChainIndex(network: string) {
+  const [namespace, reference] = network.split(":");
+  if (namespace !== "eip155" || !reference) {
+    throw new Error(`Unsupported payment network: ${network}`);
+  }
+
+  return reference;
+}
+
 function normalizePrivateKey(privateKey?: string | null): Hex | null {
   if (!privateKey) {
     return null;
@@ -48,6 +63,76 @@ function normalizePrivateKey(privateKey?: string | null): Hex | null {
 }
 
 export class OnchainOsClient {
+  private async requestSignedJson(
+    requestPath: string,
+    method: "GET" | "POST",
+    body?: Record<string, unknown>,
+  ) {
+    if (
+      !config.ONCHAIN_OS_API_KEY ||
+      !config.ONCHAIN_OS_API_SECRET ||
+      !config.ONCHAIN_OS_API_PASSPHRASE ||
+      !config.ONCHAIN_OS_PROJECT_ID
+    ) {
+      throw new Error("OnchainOS credentials are not configured.");
+    }
+
+    const serializedBody = body ? JSON.stringify(body) : "";
+    const timestamp = new Date().toISOString();
+    const signature = createOkxSignature({
+      secret: config.ONCHAIN_OS_API_SECRET,
+      timestamp,
+      method,
+      requestPath,
+      body: serializedBody || undefined,
+    });
+
+    const response = await fetch(`${config.OKX_PAYMENTS_BASE_URL}${requestPath}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "OK-ACCESS-KEY": config.ONCHAIN_OS_API_KEY,
+        "OK-ACCESS-PASSPHRASE": config.ONCHAIN_OS_API_PASSPHRASE,
+        "OK-ACCESS-PROJECT": config.ONCHAIN_OS_PROJECT_ID,
+        "OK-ACCESS-SIGN": signature,
+        "OK-ACCESS-TIMESTAMP": timestamp,
+      },
+      body: serializedBody || undefined,
+    });
+
+    const payload = await response.json().catch(() => null);
+    return {
+      ok: response.ok,
+      status: response.status,
+      payload,
+    };
+  }
+
+  private toOkxPaymentPayload(paymentPayload: PaymentPayloadV1) {
+    return {
+      x402Version: String(paymentPayload.x402Version ?? 1),
+      scheme: paymentPayload.scheme,
+      chainIndex: networkToChainIndex(paymentPayload.network),
+      payload: paymentPayload.payload,
+    };
+  }
+
+  private toOkxPaymentRequirements(paymentRequirements: PaymentRequirementsV1) {
+    return {
+      scheme: paymentRequirements.scheme,
+      chainIndex: networkToChainIndex(paymentRequirements.network),
+      maxAmountRequired: paymentRequirements.maxAmountRequired,
+      resource: paymentRequirements.resource,
+      description: paymentRequirements.description,
+      mimeType: paymentRequirements.mimeType,
+      outputSchema: paymentRequirements.outputSchema,
+      payTo: paymentRequirements.payTo,
+      maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
+      asset: paymentRequirements.asset,
+      extra: paymentRequirements.extra,
+    };
+  }
+
   async createTrackedWalletAccount(address: Address) {
     if (
       !config.ONCHAIN_OS_API_KEY ||
@@ -104,57 +189,32 @@ export class OnchainOsClient {
   }
 
   async getSupportedPayments() {
-    const response = await fetch(
-      `${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/supported`,
-    );
-    if (!response.ok) {
-      return null;
-    }
-    return response.json();
+    const response = await this.requestSignedJson("/api/v6/x402/supported", "GET");
+    return (response.payload ?? null) as SupportedResponseV1 | null;
   }
 
   async verifyPayment(
-    chainIndex: string,
-    paymentPayload: Record<string, unknown>,
+    paymentPayload: PaymentPayloadV1,
+    paymentRequirements: PaymentRequirementsV1,
   ) {
-    const response = await fetch(
-      `${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/verify`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          x402Version: "1",
-          chainIndex,
-          paymentPayload,
-        }),
-      },
-    );
+    const response = await this.requestSignedJson("/api/v6/x402/verify", "POST", {
+      paymentPayload: this.toOkxPaymentPayload(paymentPayload),
+      paymentRequirements: this.toOkxPaymentRequirements(paymentRequirements),
+    });
 
-    return response.json();
+    return (response.payload ?? null) as Record<string, unknown> | null;
   }
 
   async settlePayment(
-    chainIndex: string,
-    paymentPayload: Record<string, unknown>,
+    paymentPayload: PaymentPayloadV1,
+    paymentRequirements: PaymentRequirementsV1,
   ) {
-    const response = await fetch(
-      `${config.OKX_PAYMENTS_BASE_URL}/api/v6/payments/settle`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          x402Version: "1",
-          chainIndex,
-          paymentPayload,
-        }),
-      },
-    );
+    const response = await this.requestSignedJson("/api/v6/x402/settle", "POST", {
+      paymentPayload: this.toOkxPaymentPayload(paymentPayload),
+      paymentRequirements: this.toOkxPaymentRequirements(paymentRequirements),
+    });
 
-    return response.json();
+    return (response.payload ?? null) as SettleResponseV1 | null;
   }
 }
 
