@@ -50,18 +50,378 @@ export const gameConfig = {
   houseBotPrefix: "HouseBot",
 } as const;
 
-export const frontierLandmarks = [
-  { id: "saloon", label: "Saloon", x: 520, y: 250, coverRadius: 108 },
-  { id: "hotel", label: "Hotel", x: 1080, y: 250, coverRadius: 108 },
-  { id: "wagon-street", label: "Wagon Street", x: 800, y: 280, coverRadius: 94 },
-  { id: "west-street", label: "West Street", x: 610, y: 455, coverRadius: 88 },
-  { id: "east-street", label: "East Street", x: 990, y: 455, coverRadius: 88 },
-  { id: "wash", label: "Wash", x: 520, y: 640, coverRadius: 104 },
-  { id: "stable", label: "Stable", x: 1080, y: 640, coverRadius: 104 },
-  { id: "corral", label: "Main Corral", x: 800, y: 620, coverRadius: 96 },
-] as const;
+export const frontierMapIds = ["dust_circuit"] as const;
+export type FrontierMapId = (typeof frontierMapIds)[number];
 
-export type FrontierLandmark = (typeof frontierLandmarks)[number];
+export type FrontierSolid =
+  | {
+      shape: "rect";
+      width: number;
+      height: number;
+    }
+  | {
+      shape: "circle";
+      radius: number;
+    };
+
+export type FrontierObstacle = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  solid: FrontierSolid;
+};
+
+export type FrontierLandmark = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  coverRadius: number;
+  obstacleId?: string;
+};
+
+export type FrontierMap = {
+  id: FrontierMapId;
+  name: string;
+  landmarks: FrontierLandmark[];
+  obstacles: FrontierObstacle[];
+  spawnPoints: Array<{ x: number; y: number }>;
+  caravanLanes: Array<{
+    id: string;
+    y: number;
+    startX: number;
+    endX: number;
+  }>;
+};
+
+export const frontierMaps: Record<FrontierMapId, FrontierMap> = {
+  dust_circuit: {
+    id: "dust_circuit",
+    name: "The Dust Circuit",
+    landmarks: [
+      {
+        id: "saloon",
+        label: "Saloon",
+        x: 210,
+        y: 198,
+        coverRadius: 124,
+        obstacleId: "saloon",
+      },
+      {
+        id: "hotel",
+        label: "Hotel",
+        x: 1270,
+        y: 190,
+        coverRadius: 124,
+        obstacleId: "hotel",
+      },
+      {
+        id: "wagon-street",
+        label: "Wagon Street",
+        x: 810,
+        y: 275,
+        coverRadius: 96,
+        obstacleId: "wagon-street",
+      },
+      {
+        id: "west-street",
+        label: "West Street",
+        x: 555,
+        y: 270,
+        coverRadius: 92,
+        obstacleId: "west-street",
+      },
+      {
+        id: "east-street",
+        label: "East Street",
+        x: 1035,
+        y: 220,
+        coverRadius: 94,
+        obstacleId: "east-street",
+      },
+      {
+        id: "wash",
+        label: "Wash",
+        x: 208,
+        y: 650,
+        coverRadius: 122,
+        obstacleId: "wash",
+      },
+      {
+        id: "stable",
+        label: "Stable",
+        x: 1265,
+        y: 650,
+        coverRadius: 122,
+        obstacleId: "stable",
+      },
+      {
+        id: "corral",
+        label: "Main Corral",
+        x: 1140,
+        y: 510,
+        coverRadius: 104,
+        obstacleId: "corral",
+      },
+    ],
+    obstacles: [
+      {
+        id: "saloon",
+        label: "Saloon",
+        x: 150,
+        y: 150,
+        solid: { shape: "rect", width: 250, height: 122 },
+      },
+      {
+        id: "hotel",
+        label: "Hotel",
+        x: 1210,
+        y: 140,
+        solid: { shape: "rect", width: 250, height: 128 },
+      },
+      {
+        id: "wash",
+        label: "Wash",
+        x: 145,
+        y: 652,
+        solid: { shape: "rect", width: 260, height: 124 },
+      },
+      {
+        id: "stable",
+        label: "Stable",
+        x: 1205,
+        y: 648,
+        solid: { shape: "rect", width: 260, height: 128 },
+      },
+      {
+        id: "east-street",
+        label: "Water Tower",
+        x: 1035,
+        y: 220,
+        solid: { shape: "circle", radius: 52 },
+      },
+      {
+        id: "wagon-street",
+        label: "Stage Wagon",
+        x: 810,
+        y: 275,
+        solid: { shape: "rect", width: 132, height: 64 },
+      },
+      {
+        id: "corral",
+        label: "Main Corral",
+        x: 1140,
+        y: 510,
+        solid: { shape: "rect", width: 170, height: 96 },
+      },
+      {
+        id: "west-street",
+        label: "West Street Crates",
+        x: 555,
+        y: 270,
+        solid: { shape: "circle", radius: 38 },
+      },
+      {
+        id: "center-crates",
+        label: "Center Crates",
+        x: 720,
+        y: 360,
+        solid: { shape: "circle", radius: 42 },
+      },
+      {
+        id: "wash-fence",
+        label: "Wash Fence",
+        x: 420,
+        y: 625,
+        solid: { shape: "rect", width: 140, height: 24 },
+      },
+      {
+        id: "stable-fence",
+        label: "Stable Fence",
+        x: 1010,
+        y: 615,
+        solid: { shape: "rect", width: 120, height: 24 },
+      },
+      {
+        id: "south-crates-west",
+        label: "South Crates West",
+        x: 640,
+        y: 610,
+        solid: { shape: "circle", radius: 36 },
+      },
+      {
+        id: "south-crates-east",
+        label: "South Crates East",
+        x: 955,
+        y: 610,
+        solid: { shape: "circle", radius: 36 },
+      },
+    ],
+    spawnPoints: [
+      { x: 340, y: 320 },
+      { x: gameConfig.arenaSize.width - 340, y: 320 },
+      { x: 340, y: gameConfig.arenaSize.height - 240 },
+      {
+        x: gameConfig.arenaSize.width - 340,
+        y: gameConfig.arenaSize.height - 240,
+      },
+    ],
+    caravanLanes: [
+      {
+        id: "north-road",
+        y: 282,
+        startX: -140,
+        endX: gameConfig.arenaSize.width + 140,
+      },
+      {
+        id: "south-road",
+        y: 640,
+        startX: -140,
+        endX: gameConfig.arenaSize.width + 140,
+      },
+    ],
+  },
+};
+
+export const frontierLandmarks = frontierMaps.dust_circuit.landmarks;
+export const frontierObstacles = frontierMaps.dust_circuit.obstacles;
+
+export function getFrontierMap(mapId: FrontierMapId = "dust_circuit") {
+  return frontierMaps[mapId];
+}
+
+export function isPointInsideFrontierObstacle(
+  x: number,
+  y: number,
+  obstacle: FrontierObstacle,
+  padding = 0,
+) {
+  if (obstacle.solid.shape === "circle") {
+    return Math.hypot(x - obstacle.x, y - obstacle.y) <= obstacle.solid.radius + padding;
+  }
+
+  const halfWidth = obstacle.solid.width / 2 + padding;
+  const halfHeight = obstacle.solid.height / 2 + padding;
+  return (
+    x >= obstacle.x - halfWidth &&
+    x <= obstacle.x + halfWidth &&
+    y >= obstacle.y - halfHeight &&
+    y <= obstacle.y + halfHeight
+  );
+}
+
+export function isFrontierPositionBlocked(
+  mapId: FrontierMapId,
+  x: number,
+  y: number,
+  padding = 0,
+) {
+  return getFrontierMap(mapId).obstacles.some((obstacle) =>
+    isPointInsideFrontierObstacle(x, y, obstacle, padding),
+  );
+}
+
+export function resolveFrontierPosition(
+  mapId: FrontierMapId,
+  x: number,
+  y: number,
+  padding = 0,
+) {
+  let resolvedX = x;
+  let resolvedY = y;
+  const obstacles = getFrontierMap(mapId).obstacles;
+
+  for (let iteration = 0; iteration < 3; iteration += 1) {
+    let collided = false;
+
+    for (const obstacle of obstacles) {
+      if (!isPointInsideFrontierObstacle(resolvedX, resolvedY, obstacle, padding)) {
+        continue;
+      }
+
+      collided = true;
+      if (obstacle.solid.shape === "circle") {
+        const dx = resolvedX - obstacle.x;
+        const dy = resolvedY - obstacle.y;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const pushRadius = obstacle.solid.radius + padding;
+        resolvedX = obstacle.x + (dx / distance) * pushRadius;
+        resolvedY = obstacle.y + (dy / distance) * pushRadius;
+        continue;
+      }
+
+      const halfWidth = obstacle.solid.width / 2 + padding;
+      const halfHeight = obstacle.solid.height / 2 + padding;
+      const distanceToLeft = Math.abs(resolvedX - (obstacle.x - halfWidth));
+      const distanceToRight = Math.abs(obstacle.x + halfWidth - resolvedX);
+      const distanceToTop = Math.abs(resolvedY - (obstacle.y - halfHeight));
+      const distanceToBottom = Math.abs(obstacle.y + halfHeight - resolvedY);
+      const smallest = Math.min(
+        distanceToLeft,
+        distanceToRight,
+        distanceToTop,
+        distanceToBottom,
+      );
+
+      if (smallest === distanceToLeft) {
+        resolvedX = obstacle.x - halfWidth;
+      } else if (smallest === distanceToRight) {
+        resolvedX = obstacle.x + halfWidth;
+      } else if (smallest === distanceToTop) {
+        resolvedY = obstacle.y - halfHeight;
+      } else {
+        resolvedY = obstacle.y + halfHeight;
+      }
+    }
+
+    if (!collided) {
+      break;
+    }
+  }
+
+  return {
+    x: resolvedX,
+    y: resolvedY,
+  };
+}
+
+export function findNearestFrontierLandmark(
+  mapId: FrontierMapId,
+  x: number,
+  y: number,
+) {
+  return getFrontierMap(mapId).landmarks
+    .map((landmark) => ({
+      landmark,
+      distance: Math.hypot(landmark.x - x, landmark.y - y),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0] ?? null;
+}
+
+export function findOpenFrontierPosition(
+  mapId: FrontierMapId,
+  x: number,
+  y: number,
+  padding = 0,
+) {
+  if (!isFrontierPositionBlocked(mapId, x, y, padding)) {
+    return { x, y };
+  }
+
+  for (let radius = 18; radius <= 220; radius += 18) {
+    for (let step = 0; step < 16; step += 1) {
+      const angle = (Math.PI * 2 * step) / 16;
+      const candidateX = x + Math.cos(angle) * radius;
+      const candidateY = y + Math.sin(angle) * radius;
+      if (!isFrontierPositionBlocked(mapId, candidateX, candidateY, padding)) {
+        return { x: candidateX, y: candidateY };
+      }
+    }
+  }
+
+  return resolveFrontierPosition(mapId, x, y, padding);
+}
 
 export const skillKeys = [
   "quickdraw",

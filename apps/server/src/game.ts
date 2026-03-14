@@ -6,13 +6,16 @@ import {
   gameConfig,
   type ArenaObjective,
   baseSkillValue,
-  frontierLandmarks,
+  findOpenFrontierPosition,
   formatDisplayName,
+  getFrontierMap,
+  resolveFrontierPosition,
   sanitizeBaseName,
   type ArenaPickup,
   type ArenaPickupType,
   type AgentProfile,
   type ArenaCommand,
+  type FrontierMapId,
   type MatchEvent,
   type MatchPlayerState,
   type MatchSnapshot,
@@ -65,6 +68,7 @@ type RuntimePlayer = MatchPlayerState & {
 };
 
 type MatchRuntime = {
+  mapId: FrontierMapId;
   snapshot: MatchSnapshot;
   players: Map<string, RuntimePlayer>;
   pickups: Map<string, ArenaPickup>;
@@ -222,25 +226,33 @@ export function createArenaObjective(
   safeZone: SafeZone,
   now = Date.now(),
   random = Math.random,
+  mapId: FrontierMapId = "dust_circuit",
 ): ArenaObjective {
   const horizontalSpan = Math.min(220, Math.max(120, safeZone.radius * 0.4));
   const verticalSpan = Math.min(180, Math.max(100, safeZone.radius * 0.3));
+
+  const position = findOpenFrontierPosition(
+    mapId,
+    clamp(
+      safeZone.centerX + (random() - 0.5) * horizontalSpan,
+      140,
+      gameConfig.arenaSize.width - 140,
+    ),
+    clamp(
+      safeZone.centerY + (random() - 0.5) * verticalSpan,
+      140,
+      gameConfig.arenaSize.height - 140,
+    ),
+    52,
+  );
 
   return {
     id: crypto.randomUUID(),
     type: "supply_drop",
     label: "Signal Supply Drop",
     rewardLabel: `+${gameConfig.objectiveHealthValue} HP • +${gameConfig.objectiveAmmoValue} ammo • +${gameConfig.objectiveScoreValue} score`,
-    x: clamp(
-      safeZone.centerX + (random() - 0.5) * horizontalSpan,
-      140,
-      gameConfig.arenaSize.width - 140,
-    ),
-    y: clamp(
-      safeZone.centerY + (random() - 0.5) * verticalSpan,
-      140,
-      gameConfig.arenaSize.height - 140,
-    ),
+    x: position.x,
+    y: position.y,
     expiresAt: new Date(now + gameConfig.objectiveDurationMs).toISOString(),
   };
 }
@@ -271,26 +283,37 @@ export function createArenaBounty(
 export function createArenaCaravan(
   now = Date.now(),
   random = Math.random,
+  mapId: FrontierMapId = "dust_circuit",
 ): ArenaCaravan {
-  const southLane = random() > 0.5;
+  const lanes = getFrontierMap(mapId).caravanLanes;
+  const lane =
+    lanes[Math.floor(random() * lanes.length)] ??
+    lanes[0] ?? {
+      id: "fallback-road",
+      y: gameConfig.arenaSize.height / 2,
+      startX: -140,
+      endX: gameConfig.arenaSize.width + 140,
+    };
   const leftToRight = random() > 0.5;
 
   return {
     id: crypto.randomUUID(),
     label: "Stagecoach Run",
     rewardLabel: `+${gameConfig.caravanAmmoValue} ammo • +${gameConfig.caravanScoreValue} score`,
-    x: leftToRight ? -140 : gameConfig.arenaSize.width + 140,
-    y: southLane ? 640 : 282,
-    destinationX: leftToRight ? gameConfig.arenaSize.width + 140 : -140,
-    destinationY: southLane ? 640 : 282,
+    x: leftToRight ? lane.startX : lane.endX,
+    y: lane.y,
+    destinationX: leftToRight ? lane.endX : lane.startX,
+    destinationY: lane.y,
     expiresAt: new Date(now + gameConfig.caravanDurationMs).toISOString(),
   };
 }
 
 export function getFrontierCover(
   player: Pick<RuntimePlayer, "x" | "y" | "skills">,
+  mapId: FrontierMapId = "dust_circuit",
 ) {
-  const nearest = frontierLandmarks
+  const nearest = getFrontierMap(mapId)
+    .landmarks
     .map((landmark) => ({
       landmark,
       distance: Math.hypot(landmark.x - player.x, landmark.y - player.y),
@@ -323,8 +346,11 @@ export function getFrontierCover(
   };
 }
 
-function applyCoverState(player: RuntimePlayer) {
-  const cover = getFrontierCover(player);
+function applyCoverState(
+  player: RuntimePlayer,
+  mapId: FrontierMapId = "dust_circuit",
+) {
+  const cover = getFrontierCover(player, mapId);
   player.coverLabel = cover?.label ?? null;
   player.coverBonus = cover?.bonus ?? 0;
 }
@@ -854,22 +880,21 @@ export class ArenaCoordinator {
       Date.now() + gameConfig.matchCountdownMs + gameConfig.matchDurationMs,
     ).toISOString();
     const seed = Math.floor(Math.random() * 1_000_000);
+    const mapId: FrontierMapId = "dust_circuit";
     const players = new Map<string, RuntimePlayer>();
     const pickups = new Map<string, ArenaPickup>();
-    const spawnPoints = [
-      { x: 320, y: 280 },
-      { x: gameConfig.arenaSize.width - 320, y: 280 },
-      { x: 320, y: gameConfig.arenaSize.height - 240 },
-      {
-        x: gameConfig.arenaSize.width - 320,
-        y: gameConfig.arenaSize.height - 240,
-      },
-    ];
+    const spawnPoints = getFrontierMap(mapId).spawnPoints;
 
     const events: MatchEvent[] = [];
 
     entries.forEach((entry, index) => {
-      const spawn = spawnPoints[index] ?? { x: 200, y: 200 };
+      const candidateSpawn = spawnPoints[index] ?? { x: 200, y: 200 };
+      const spawn = findOpenFrontierPosition(
+        mapId,
+        candidateSpawn.x,
+        candidateSpawn.y,
+        54,
+      );
       const player: RuntimePlayer = {
         agentId: entry.agent.id,
         displayName: entry.agent.displayName,
@@ -899,7 +924,7 @@ export class ArenaCoordinator {
         isBot: entry.userAddress.startsWith("house-bot-"),
         objectiveBonus: 0,
       };
-      applyCoverState(player);
+      applyCoverState(player, mapId);
       players.set(entry.agent.id, player);
       events.push(
         createEvent({
@@ -933,6 +958,7 @@ export class ArenaCoordinator {
     }, 1000 / gameConfig.ticksPerSecond);
 
     return {
+      mapId,
       snapshot,
       players,
       pickups,
@@ -988,7 +1014,7 @@ export class ArenaCoordinator {
       ? new Date(runtime.snapshot.startedAt).getTime()
       : now;
     const elapsedMs = Math.max(0, now - startedAtMs);
-    runtime.snapshot.safeZone = computeSafeZone(elapsedMs);
+      runtime.snapshot.safeZone = computeSafeZone(elapsedMs);
     if (
       !runtime.bounty &&
       elapsedMs >= runtime.nextBountyAt &&
@@ -1012,7 +1038,12 @@ export class ArenaCoordinator {
       elapsedMs >= runtime.nextObjectiveAt &&
       runtime.snapshot.status === "in_progress"
     ) {
-      runtime.objective = createArenaObjective(runtime.snapshot.safeZone, now);
+      runtime.objective = createArenaObjective(
+        runtime.snapshot.safeZone,
+        now,
+        Math.random,
+        runtime.mapId,
+      );
       runtime.nextObjectiveAt = elapsedMs + gameConfig.objectiveRespawnMs;
       runtime.snapshot.objective = runtime.objective;
       events.push(
@@ -1028,7 +1059,7 @@ export class ArenaCoordinator {
       elapsedMs >= runtime.nextCaravanAt &&
       runtime.snapshot.status === "in_progress"
     ) {
-      runtime.caravan = createArenaCaravan(now);
+      runtime.caravan = createArenaCaravan(now, Math.random, runtime.mapId);
       runtime.snapshot.caravan = runtime.caravan;
       events.push(
         createEvent({
@@ -1104,21 +1135,27 @@ export class ArenaCoordinator {
         player.ammo = gameConfig.maxAmmo;
       }
 
-      player.x = clamp(
-        player.x +
-          player.moveVector.dx *
-            (gameConfig.movementSpeed / gameConfig.ticksPerSecond),
-        60,
-        gameConfig.arenaSize.width - 60,
+      const resolvedPosition = resolveFrontierPosition(
+        runtime.mapId,
+        clamp(
+          player.x +
+            player.moveVector.dx *
+              (gameConfig.movementSpeed / gameConfig.ticksPerSecond),
+          60,
+          gameConfig.arenaSize.width - 60,
+        ),
+        clamp(
+          player.y +
+            player.moveVector.dy *
+              (gameConfig.movementSpeed / gameConfig.ticksPerSecond),
+          60,
+          gameConfig.arenaSize.height - 60,
+        ),
+        34,
       );
-      player.y = clamp(
-        player.y +
-          player.moveVector.dy *
-            (gameConfig.movementSpeed / gameConfig.ticksPerSecond),
-        60,
-        gameConfig.arenaSize.height - 60,
-      );
-      applyCoverState(player);
+      player.x = resolvedPosition.x;
+      player.y = resolvedPosition.y;
+      applyCoverState(player, runtime.mapId);
 
       const safeZoneDistance = Math.hypot(
         player.x - runtime.snapshot.safeZone.centerX,
@@ -1427,17 +1464,23 @@ export class ArenaCoordinator {
       const dy = command.targetY - actor.y;
       const distance = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
       const dodgeDistance = 120 + actor.skills.trailcraft;
-      actor.x = clamp(
-        actor.x + (dx / distance) * dodgeDistance,
-        60,
-        gameConfig.arenaSize.width - 60,
+      const resolvedDodge = resolveFrontierPosition(
+        runtime.mapId,
+        clamp(
+          actor.x + (dx / distance) * dodgeDistance,
+          60,
+          gameConfig.arenaSize.width - 60,
+        ),
+        clamp(
+          actor.y + (dy / distance) * dodgeDistance,
+          60,
+          gameConfig.arenaSize.height - 60,
+        ),
+        34,
       );
-      actor.y = clamp(
-        actor.y + (dy / distance) * dodgeDistance,
-        60,
-        gameConfig.arenaSize.height - 60,
-      );
-      applyCoverState(actor);
+      actor.x = resolvedDodge.x;
+      actor.y = resolvedDodge.y;
+      applyCoverState(actor, runtime.mapId);
       actor.dodgeCooldownUntil = now + gameConfig.dodgeCooldownMs;
       events.push(
         createEvent({
@@ -1556,11 +1599,17 @@ export class ArenaCoordinator {
 
     const type =
       preferredType ?? (Math.random() > 0.5 ? "health" : "ammo");
+    const position = findOpenFrontierPosition(
+      runtime.mapId,
+      220 + Math.random() * (gameConfig.arenaSize.width - 440),
+      180 + Math.random() * (gameConfig.arenaSize.height - 360),
+      42,
+    );
     const pickup: ArenaPickup = {
       id: crypto.randomUUID(),
       type,
-      x: 220 + Math.random() * (gameConfig.arenaSize.width - 440),
-      y: 180 + Math.random() * (gameConfig.arenaSize.height - 360),
+      x: position.x,
+      y: position.y,
       value:
         type === "health"
           ? gameConfig.healthPickupValue
