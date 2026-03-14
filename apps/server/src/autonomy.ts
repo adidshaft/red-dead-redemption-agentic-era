@@ -64,6 +64,7 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
   const zoneDistance = Math.hypot(zoneDx, zoneDy);
   const outsideSafeZone =
     zoneDistance > Math.max(0, context.snapshot.safeZone.radius - 36);
+  const activeObjective = context.snapshot.objective;
 
   if (outsideSafeZone) {
     return moveToward(self.x, self.y, context.snapshot.safeZone.centerX, context.snapshot.safeZone.centerY);
@@ -89,6 +90,42 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
     return {
       type: "reload",
     };
+  }
+
+  if (activeObjective) {
+    const objectiveDistance = Math.hypot(
+      activeObjective.x - self.x,
+      activeObjective.y - self.y,
+    );
+    const enemyToObjectiveDistance = Math.hypot(
+      activeObjective.x - nearestEnemy.x,
+      activeObjective.y - nearestEnemy.y,
+    );
+
+    if (
+      doctrine.objectivePosture === "contest" &&
+      objectiveDistance > 120 &&
+      (self.health > 38 || enemyToObjectiveDistance < 160)
+    ) {
+      return moveToward(self.x, self.y, activeObjective.x, activeObjective.y);
+    }
+
+    if (
+      doctrine.objectivePosture === "flank" &&
+      objectiveDistance > 90
+    ) {
+      const flankX = activeObjective.x - dy * 0.35;
+      const flankY = activeObjective.y + dx * 0.35;
+      return moveToward(self.x, self.y, flankX, flankY);
+    }
+
+    if (
+      doctrine.objectivePosture === "hold" &&
+      objectiveDistance > 150 &&
+      self.health >= 55
+    ) {
+      return moveToward(self.x, self.y, activeObjective.x, activeObjective.y);
+    }
   }
 
   if (
@@ -195,7 +232,7 @@ export async function decideAutonomousAction(context: AutonomyContext): Promise<
             content: [
               {
                 type: "input_text",
-                text: "You control one arena cowboy agent. Return strict JSON matching the schema. Prioritize survival, valid actions, supplies, and concise reasoning.",
+                text: "You control one arena cowboy agent. Return strict JSON matching the schema. Prioritize survival, live objectives, valid actions, supplies, and concise reasoning.",
               },
             ],
           },

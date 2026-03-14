@@ -56,6 +56,8 @@ describe("buildAutonomyPlan", () => {
     expect(plan.paidEntries).toBe(1);
     expect(plan.settlements).toBe(0);
     expect(plan.recommendedQueue).toBe("practice");
+    expect(plan.objectivePosture).toBe("contest");
+    expect(plan.objectiveDirective.toLowerCase()).toContain("objective");
     expect(plan.readinessScore).toBeGreaterThan(0);
     expect(plan.confidenceBand).toBe("low");
   });

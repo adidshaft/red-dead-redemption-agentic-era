@@ -350,6 +350,72 @@ describe("chooseFallbackCommand", () => {
     }
   });
 
+  it("moves objective-focused duelists toward live objectives", () => {
+    const command = chooseFallbackCommand(
+      createContext(
+        {
+          skills: {
+            quickdraw: 40,
+            grit: 24,
+            trailcraft: 22,
+            tactics: 36,
+            fortune: 22,
+          },
+        },
+        {
+          objective: {
+            id: "obj-1",
+            type: "supply_drop",
+            label: "Signal Supply Drop",
+            rewardLabel: "+12 HP • +2 ammo • +60 score",
+            x: 620,
+            y: 260,
+            expiresAt: new Date(Date.now() + 10_000).toISOString(),
+          },
+          players: [
+            {
+              agentId: "agent-1",
+              displayName: "Marshal-ABC123",
+              health: 78,
+              ammo: 3,
+              isReloading: false,
+              kills: 0,
+              shotsFired: 0,
+              shotsHit: 0,
+              damageDealt: 0,
+              score: 0,
+              mode: "autonomous",
+              x: 200,
+              y: 200,
+              alive: true,
+            },
+            {
+              agentId: "enemy-1",
+              displayName: "Enemy-1",
+              health: 80,
+              ammo: 6,
+              isReloading: false,
+              kills: 0,
+              shotsFired: 0,
+              shotsHit: 0,
+              damageDealt: 0,
+              score: 0,
+              mode: "manual",
+              x: 900,
+              y: 260,
+              alive: true,
+            },
+          ],
+        },
+      ),
+    );
+
+    expect(command.type).toBe("move");
+    if (command.type === "move") {
+      expect(command.dx).toBeGreaterThan(0);
+    }
+  });
+
   it("rides back into the safe zone before doing anything else", () => {
     const command = chooseFallbackCommand(
       createContext(undefined, {

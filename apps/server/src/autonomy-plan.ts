@@ -12,6 +12,8 @@ export type DoctrineProfile = {
   summary: string;
   upgradeQueue: SkillKey[];
   combatDirective: string;
+  objectiveDirective: string;
+  objectivePosture: "contest" | "flank" | "hold";
   preferredFireRange: number;
   healthPickupThreshold: number;
   ammoPickupThreshold: number;
@@ -37,6 +39,9 @@ export function deriveDoctrineProfile(agent: AgentProfile): DoctrineProfile {
       upgradeQueue: ["quickdraw", "tactics", "fortune"] as SkillKey[],
       combatDirective:
         "Open aggressively, punish exposed targets, then rotate inward before the dust ring forces bad fights.",
+      objectiveDirective:
+        "Contest live objectives early, hold the firing lane, and force rivals to challenge your pressure.",
+      objectivePosture: "contest",
       preferredFireRange: 760,
       healthPickupThreshold: 42,
       ammoPickupThreshold: 2,
@@ -54,6 +59,9 @@ export function deriveDoctrineProfile(agent: AgentProfile): DoctrineProfile {
       upgradeQueue: ["trailcraft", "tactics", "quickdraw"] as SkillKey[],
       combatDirective:
         "Sweep the circle edge for pickups, dodge into cleaner angles, and collapse on distracted rivals.",
+      objectiveDirective:
+        "Flank around the live objective, let heavier riders commit first, then collapse through side angles.",
+      objectivePosture: "flank",
       preferredFireRange: 600,
       healthPickupThreshold: 62,
       ammoPickupThreshold: 3,
@@ -70,6 +78,9 @@ export function deriveDoctrineProfile(agent: AgentProfile): DoctrineProfile {
     upgradeQueue: ["grit", "fortune", "quickdraw"] as SkillKey[],
     combatDirective:
       "Tank the early chaos, keep the chamber topped off, and outlast weaker riders when the arena shrinks.",
+    objectiveDirective:
+      "Hold the safest route to the live objective, harvest the reward only when the ring and health state are stable.",
+    objectivePosture: "hold",
     preferredFireRange: 540,
     healthPickupThreshold: 70,
     ammoPickupThreshold: 2,
@@ -147,6 +158,7 @@ export function buildAutonomyPlan(
     nextSkillReason: `${skillLabels[nextSkill]} best reinforces the current doctrine without wasting upgrades on lower-leverage stats.`,
     upgradeQueue: doctrine.upgradeQueue,
     combatDirective: doctrine.combatDirective,
+    objectiveDirective: doctrine.objectiveDirective,
     economyDirective: autonomyPassActive
       ? "Recycle settlement wins into the next recommended upgrade, then re-enter paid queues when the treasury can sustain the fee cadence."
       : "Use confirmed wins and manual approvals to compound skills. The planner will keep recommending the next highest-leverage upgrade.",
@@ -158,6 +170,7 @@ export function buildAutonomyPlan(
     campaignPriority,
     recommendedQueue,
     economyPosture,
+    objectivePosture: doctrine.objectivePosture,
     readinessScore,
     confidenceBand,
     skillPurchases,

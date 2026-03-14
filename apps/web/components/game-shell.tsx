@@ -1454,6 +1454,9 @@ export function GameShell() {
                           Posture: {autonomyPlan.economyPosture}
                         </span>
                         <span className="rounded-full border border-white/8 px-2.5 py-1">
+                          Objective: {autonomyPlan.objectivePosture}
+                        </span>
+                        <span className="rounded-full border border-white/8 px-2.5 py-1">
                           Confidence: {autonomyPlan.confidenceBand}
                         </span>
                       </div>
@@ -1468,6 +1471,14 @@ export function GameShell() {
                             style={{ width: `${autonomyPlan.readinessScore}%` }}
                           />
                         </div>
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
+                        Objective Doctrine
+                      </div>
+                      <div className="mt-2 text-sm text-stone-200/72">
+                        {autonomyPlan.objectiveDirective}
                       </div>
                     </div>
                     <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
