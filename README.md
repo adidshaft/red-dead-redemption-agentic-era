@@ -15,6 +15,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 
 - Agent creation with `BaseName-<6 char ULID suffix>` naming.
 - Five core skills: Quickdraw, Grit, Trailcraft, Tactics, Fortune.
+- The skill UI now shows the live stat value, on-hover gameplay tooltip, and the exact combat effect each upgrade is currently contributing.
 - Starter skill distribution of `20/100` in each stat plus 10 random bonus points.
 - Manual or autonomous combat in a 4-agent free-for-all arena.
 - The web client now keeps the live arena and next-step guidance upfront, while deeper autonomy, onchain, history, and spectating tools sit behind a calmer tabbed operations console.
@@ -37,6 +38,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - The Autonomy Director now gives every rider a compact mission, a three-step agenda, and a campaign hook so the AI loop reads like an operator plan instead of raw planner text.
 - The autonomy lane is now framed as plain-language `Autopilot`: it explains what the rider will do next, whether it wants practice or paid runs, and what premium x402 adds without exposing planner jargon first.
+- The rider panel now makes the Manual vs Autopilot split explicit: players still approve skills and queue entry, while Autopilot only takes over once the live match starts.
 - Live autoplay calls are now simplified and surfaced both in the arena and in the Autopilot console, so the agent’s current decision reads like behavior instead of planner metadata.
 - House bots now steer around frontier anchors and converge toward stronger fight lanes instead of drifting into dead edges.
 - The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.

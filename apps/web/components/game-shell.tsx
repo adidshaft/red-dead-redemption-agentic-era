@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
+  CircleHelp,
   Crosshair,
   Expand,
   ExternalLink,
@@ -108,6 +109,63 @@ type BattleDirective = {
   tone: BattleTone;
 };
 
+type RecentSkillUpgrade = {
+  agentId: string;
+  skill: SkillKey;
+  nextValue: number;
+};
+
+const skillImpactGuides: Record<
+  SkillKey,
+  {
+    shortLabel: string;
+    tooltip: string;
+    impactSummary: (value: number) => string;
+    nextUpgradeLabel: (value: number) => string;
+  }
+> = {
+  quickdraw: {
+    shortLabel: "More accurate shots and harder hits.",
+    tooltip:
+      "Quickdraw improves hit chance and base shot damage. It makes your rider win more straight-up gunfights.",
+    impactSummary: (value) =>
+      `+${formatSignedPercent(value * 0.2)} hit chance • +${(value * 0.12).toFixed(1)} damage`,
+    nextUpgradeLabel: () => "+1.0% hit • +0.6 damage",
+  },
+  grit: {
+    shortLabel: "Shrugs off damage and holds cover better.",
+    tooltip:
+      "Grit reduces incoming damage and adds more value to cover. It keeps the rider alive longer under pressure.",
+    impactSummary: (value) =>
+      `-${(value * 0.05).toFixed(1)} damage taken • +${formatSignedPercent(value * 0.06)} cover hold`,
+    nextUpgradeLabel: () => "-0.3 damage taken • +0.3% cover",
+  },
+  trailcraft: {
+    shortLabel: "Longer dodges and harder-to-hit movement.",
+    tooltip:
+      "Trailcraft increases dodge distance, lowers enemy hit chance, and makes cover positions work better.",
+    impactSummary: (value) =>
+      `+${Math.round(value)}px dodge • -${formatSignedPercent(value * 0.12)} enemy hit`,
+    nextUpgradeLabel: () => "+5px dodge • -0.6% enemy hit",
+  },
+  tactics: {
+    shortLabel: "Cleaner aim lines and more efficient damage.",
+    tooltip:
+      "Tactics improves hit chance and adds extra damage. It rewards disciplined, high-value shots.",
+    impactSummary: (value) =>
+      `+${formatSignedPercent(value * 0.15)} hit chance • +${(value * 0.08).toFixed(1)} damage`,
+    nextUpgradeLabel: () => "+0.8% hit • +0.4 damage",
+  },
+  fortune: {
+    shortLabel: "Turns clean hits into bigger swing moments.",
+    tooltip:
+      "Fortune raises critical-hit chance. It does not help every shot, but it creates higher-upside bursts.",
+    impactSummary: (value) =>
+      `${formatSignedPercent(8 + value * 0.1)} crit chance`,
+    nextUpgradeLabel: () => "+0.5% crit chance",
+  },
+};
+
 export function GameShell() {
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
@@ -144,6 +202,9 @@ export function GameShell() {
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [txReveals, setTxReveals] = useState<TxReveal[]>([]);
   const [activeConsoleTab, setActiveConsoleTab] = useState<ConsoleTab>("overview");
+  const [recentSkillUpgrade, setRecentSkillUpgrade] = useState<RecentSkillUpgrade | null>(
+    null,
+  );
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
   const arenaFrameRef = useRef<HTMLDivElement | null>(null);
@@ -556,18 +617,37 @@ export function GameShell() {
 
     if (selectedAgent.mode === "manual") {
       return {
-        label: "Manual mode",
+        label: "Manual control",
+        title: "You drive every combat action",
         detail:
-          "You control movement, shots, dodge, and reload once the match starts.",
+          "After DRAW, movement, shots, dodge, and reload are fully yours.",
+        steps: [
+          "Queue the rider and stay on the arena screen for the countdown.",
+          "Once DRAW hits, use WASD to move, click to shoot, Space to dodge, and R to reload.",
+          "Skill upgrades still matter here because they change your damage, accuracy, dodge, and survival math.",
+        ],
       };
     }
 
     return {
-      label: "Autopilot mode",
+      label: "Autopilot",
+      title: "The rider fights for you once DRAW starts",
       detail:
-        "The rider handles the full fight on its own while you watch the cyan YOU marker and live calls.",
+        "Queue the rider, stay on the match screen, and the agent will move, aim, dodge, reload, chase drops, and react to ring pressure on its own.",
+      steps: [
+        "You still choose the rider, buy skills, and approve paid queue entry.",
+        "Autopilot only takes over inside the live match, not in the lobby.",
+        "Watch the cyan YOU rider and the live Autopilot call to see what it is doing next.",
+      ],
     };
   }, [selectedAgent]);
+  const recentSkillUpgradeLabel = useMemo(() => {
+    if (!selectedAgent || !recentSkillUpgrade || recentSkillUpgrade.agentId !== selectedAgent.id) {
+      return null;
+    }
+
+    return `${skillLabels[recentSkillUpgrade.skill]} is now ${recentSkillUpgrade.nextValue}/100`;
+  }, [recentSkillUpgrade, selectedAgent]);
   const queueLocked =
     busyAction !== null ||
     queueState?.status === "queued" ||
@@ -1681,34 +1761,34 @@ export function GameShell() {
 
     return [
       {
-        label: "Status",
+        label: "What it handles",
         value:
           selectedAgent.mode === "autonomous"
-            ? "Driving the rider in live fights"
-            : "Ready when you switch it on",
+            ? "Move • Aim • Dodge • Reload"
+            : "Ready to take over at DRAW",
         detail:
           selectedAgent.mode === "autonomous"
-            ? "Movement, shots, dodge, reload, and pickup routes are automated in-match."
-            : "You still control the rider until you switch to Autopilot.",
+            ? "It also chases drops, reacts to the ring, uses cover, and pressures bounties."
+            : "Switch this rider to Autopilot if you want the fight handled automatically.",
       },
       {
-        label: "Next move",
+        label: "When it starts",
+        value:
+          queueLocked && selectedAgent.mode === "autonomous"
+            ? "At the live opening bell"
+            : "Once you queue the rider",
+        detail:
+          "Autopilot only runs inside the live arena. Outside the arena, you still approve skills and queue actions.",
+      },
+      {
+        label: "What it wants next",
         value: operationQueue[0]?.label ?? autonomyPlan.missionTitle,
-        detail: operationQueue[0]?.detail ?? autonomyPlan.missionDetail,
-      },
-      {
-        label: "Queue next",
-        value:
-          autonomyPlan.recommendedQueue === "paid"
-            ? "Paid showdown"
-            : "Practice run",
         detail:
-          autonomyPlan.recommendedQueue === "paid"
-            ? "The planner thinks this rider is ready to risk the pot."
-            : "The planner wants one more rep before the next paid run.",
+          operationQueue[0]?.detail ??
+          autonomyPlan.missionDetail,
       },
     ];
-  }, [autonomyPlan, operationQueue, selectedAgent]);
+  }, [autonomyPlan, operationQueue, queueLocked, selectedAgent]);
   const autopilotLoopSteps = useMemo(() => {
     if (!autonomyPlan) {
       return [];
@@ -1716,21 +1796,22 @@ export function GameShell() {
 
     return [
       {
-        label: "Fight",
+        label: "1. You decide",
+        detail:
+          "Pick the rider, choose Manual or Autopilot, and approve skill buys or paid queue entry.",
+      },
+      {
+        label: "2. It fights",
         detail:
           selectedAgent?.mode === "autonomous"
-            ? "Autopilot handles movement, aim, dodge, and reload in the arena."
-            : "Switch modes when you want the rider to fight alone.",
+            ? "After DRAW, the rider handles movement, shooting, dodge, reload, ring pressure, and pickups."
+            : "Switch to Autopilot if you want the rider to handle the full fight alone.",
       },
       {
-        label: "Upgrade",
-        detail: `Next upgrade target is ${skillLabels[autonomyPlan.nextSkill]}.`,
-      },
-      {
-        label: "Compound",
+        label: "3. You review",
         detail: autonomyPlan.autonomyPassActive
-          ? "Premium planning is live for tighter paid-run timing."
-          : "Premium x402 unlock tightens the paid-run and upgrade loop.",
+          ? `Read the live call, then review the result and the next ${skillLabels[autonomyPlan.nextSkill]} upgrade target.`
+          : `Review the result, then decide whether to buy ${skillLabels[autonomyPlan.nextSkill]} or unlock the premium x402 planning lane.`,
       },
     ];
   }, [autonomyPlan, selectedAgent?.mode]);
@@ -2589,6 +2670,11 @@ export function GameShell() {
         `${skillLabels[skill]} upgrade confirmed`,
         `${selectedAgent.displayName} gained +5 ${skillLabels[skill]} on X Layer.`,
       );
+      setRecentSkillUpgrade({
+        agentId: response.agent.id,
+        skill,
+        nextValue: response.agent.skills[skill],
+      });
       setAgents((current) =>
         current.map((agent) =>
           agent.id === response.agent.id ? response.agent : agent,
@@ -2597,7 +2683,9 @@ export function GameShell() {
       await loadTransactions(selectedAgent.id);
       await loadAutonomyPlan(selectedAgent.id);
       setStatus(
-        `${skillLabels[skill]} improved for ${selectedAgent.displayName}.`,
+        `${skillLabels[skill]} improved for ${selectedAgent.displayName}. ${skillImpactGuides[skill].impactSummary(
+          response.agent.skills[skill],
+        )}.`,
       );
     } catch (error) {
       setStatus(normalizeUiError(error, "Skill purchase failed."));
@@ -3110,8 +3198,21 @@ export function GameShell() {
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
                       {selectedModeGuide.label}
                     </div>
+                    <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+                      {selectedModeGuide.title}
+                    </div>
                     <div className="mt-1 text-sm text-stone-200/72">
                       {selectedModeGuide.detail}
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                      {selectedModeGuide.steps.map((step) => (
+                        <div
+                          key={step}
+                          className="rounded-[14px] border border-white/8 bg-black/14 px-3 py-2 text-xs leading-relaxed text-stone-200/68"
+                        >
+                          {step}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -3198,7 +3299,7 @@ export function GameShell() {
                         Skill Network
                       </p>
                       <p className="mt-1 text-xs text-stone-300/58">
-                        Upgrade only what helps the next run.
+                        These stats directly change combat math in the arena.
                       </p>
                     </div>
                     {autonomyPlan && (
@@ -3212,30 +3313,71 @@ export function GameShell() {
                       </button>
                     )}
                   </div>
+                  {recentSkillUpgradeLabel && (
+                    <div className="mb-3 rounded-[18px] border border-[#7ed2b4]/18 bg-[#7ed2b4]/8 px-4 py-3 text-sm text-[#d8f7ee]">
+                      Last upgrade landed onchain:{" "}
+                      <span className="font-semibold text-[#f6ead7]">
+                        {recentSkillUpgradeLabel}
+                      </span>
+                    </div>
+                  )}
                   <div className="space-y-3">
-                    {skillKeys.map((skill) => (
-                      <div
-                        key={skill}
-                        className="flex items-center justify-between gap-4 rounded-[18px] border border-white/8 bg-black/14 px-4 py-3"
-                      >
-                        <div>
-                          <div className="text-sm font-semibold text-[#f6ead7]">
-                            {skillLabels[skill]}
+                    {skillKeys.map((skill) => {
+                      const skillValue = selectedAgent.skills[skill];
+                      const guide = skillImpactGuides[skill];
+                      const isRecentUpgrade =
+                        recentSkillUpgrade?.agentId === selectedAgent.id &&
+                        recentSkillUpgrade.skill === skill;
+                      return (
+                        <div
+                          key={skill}
+                          className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="text-sm font-semibold text-[#f6ead7]">
+                                  {skillLabels[skill]}
+                                </div>
+                                <SkillInfoTooltip
+                                  label={skillLabels[skill]}
+                                  detail={guide.tooltip}
+                                />
+                                {isRecentUpgrade && (
+                                  <span className="rounded-full border border-[#7ed2b4]/20 bg-[#7ed2b4]/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-[#d8f7ee]">
+                                    Just upgraded
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 text-xs text-stone-200/60">
+                                {skillValue} / 100 • {guide.shortLabel}
+                              </div>
+                              <div className="mt-2 text-sm text-[#f6ead7]">
+                                {guide.impactSummary(skillValue)}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleBuySkill(skill)}
+                              disabled={buyDisabled}
+                              className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 transition hover:border-white/20 hover:bg-white/10 disabled:opacity-45"
+                            >
+                              +5 • {formatWeiToOkb(calculateSkillPurchasePrice(skillValue))}
+                            </button>
                           </div>
-                          <div className="mt-1 text-xs text-stone-200/60">
-                            {selectedAgent.skills[skill]} / 100
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/35">
+                            <div
+                              className="h-full rounded-full bg-[linear-gradient(90deg,#d5752d,#f0bf76)]"
+                              style={{ width: `${Math.max(6, skillValue)}%` }}
+                            />
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone-300/60">
+                            <span>Next buy: {guide.nextUpgradeLabel(skillValue)}</span>
+                            <span>{Math.max(0, 100 - skillValue)} points to max</span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleBuySkill(skill)}
-                          disabled={buyDisabled}
-                          className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 transition hover:border-white/20 hover:bg-white/10 disabled:opacity-45"
-                        >
-                          +5 • {formatWeiToOkb(calculateSkillPurchasePrice(selectedAgent.skills[skill]))}
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -3308,18 +3450,18 @@ export function GameShell() {
                       <>
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
+                          <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
                               Autopilot
                             </p>
                             <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
                               {selectedAgent?.mode === "autonomous"
-                                ? "Your rider can run the fight alone"
-                                : "Autopilot is ready when you are"}
+                                ? "Your rider can run the fight on its own"
+                                : "Autopilot is available for this rider"}
                             </h3>
                             <p className="mt-2 max-w-2xl text-sm text-stone-200/72">
                               {selectedAgent?.mode === "autonomous"
-                                ? "Queue this rider and stay in the arena. The agent will move, shoot, dodge, reload, and chase pickups on its own."
-                                : "Manual keeps you in control. Autopilot takes over only inside live matches."}
+                                ? "Queue this rider, stay on the match screen, and watch the cyan YOU marker. Once DRAW happens, the agent handles movement, aim, dodge, reload, cover, and pickups."
+                                : "Manual keeps you in control. Switch to Autopilot if you want the rider to take over once the match starts."}
                             </p>
                           </div>
                           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-stone-200/72">
@@ -3387,14 +3529,17 @@ export function GameShell() {
                 <div className="space-y-4">
                   <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                      What it means
+                      Simple answer
                     </div>
                     <div className="mt-3 space-y-2 text-sm text-stone-200/72">
                       <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        Autopilot only takes over once the match starts. Outside the arena, you still choose skills and queue runs.
+                        If this rider is set to Autopilot, it only takes over after DRAW. Before that, you still handle sign-in, skill buys, and queue entry.
                       </div>
                       <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        In the fight, it reacts to ring pressure, enemies, cover, drops, and reload timing without extra clicks from you.
+                        In the fight, it moves, shoots, dodges, reloads, reacts to the dust ring, and chases drops without extra clicks from you.
+                      </div>
+                      <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
+                        The live Autopilot call below the arena is the proof line. It updates when the rider changes its immediate plan.
                       </div>
                     </div>
                   </div>
@@ -5050,6 +5195,29 @@ function ObserverPulseCard({
   );
 }
 
+function SkillInfoTooltip({
+  label,
+  detail,
+}: {
+  label: string;
+  detail: string;
+}) {
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/12 bg-white/6 text-stone-200/68 transition hover:border-white/22 hover:text-white"
+        aria-label={`What ${label} does`}
+      >
+        <CircleHelp className="h-3.5 w-3.5" />
+      </button>
+      <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-64 rounded-[16px] border border-white/10 bg-[#140d0a]/95 px-3 py-3 text-xs leading-relaxed text-stone-100/84 opacity-0 shadow-[0_16px_40px_rgba(0,0,0,0.45)] transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+        {detail}
+      </div>
+    </div>
+  );
+}
+
 function IntelLegendRow({
   icon,
   label,
@@ -5280,6 +5448,10 @@ function simplifyAutonomyCall(message: string) {
 
 function formatWeiToOkb(value: bigint) {
   return `${formatEther(value)} OKB`;
+}
+
+function formatSignedPercent(value: number) {
+  return `${value.toFixed(1)}%`;
 }
 
 function agentIdToBytes32(agentId: string) {
