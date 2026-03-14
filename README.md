@@ -18,6 +18,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Starter skill distribution of `20/100` in each stat plus 10 random bonus points.
 - Manual or autonomous combat in a 4-agent free-for-all arena.
 - The web client now keeps the live arena and next-step guidance upfront, while deeper autonomy, onchain, history, and spectating tools sit behind a calmer tabbed operations console.
+- Queueing now has a live safety net: the client polls queue status and active match snapshots so local play is less likely to feel stuck if a websocket update is missed.
 - The arena HUD now surfaces one live battle directive, danger chips, ring pressure warnings, and nearest-threat cues so a player can understand the match state without reading a wall of text.
 - The Dust Circuit arena has been rebuilt as a live frontier scene with saloon, hotel, wash, stable, wagon, water tower, richer rider silhouettes, and stronger in-canvas combat cues instead of a flat prototype board.
 - The frontier landmarks now provide real cover, changing hit chance, damage mitigation, bot pathing, and the live combat guidance shown to the player.
@@ -29,7 +30,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - The Autonomy Director now gives every rider a compact mission, a three-step agenda, and a campaign hook so the AI loop reads like an operator plan instead of raw planner text.
-- The autonomy lane now compresses doctrine, confidence, posture, and the latest wire calls into a short-command view that is easier to read mid-session.
+- The autonomy lane is now framed as plain-language `Autopilot`: it explains what the rider will do next, whether it wants practice or paid runs, and what premium x402 adds without exposing planner jargon first.
 - House bots now steer around frontier anchors and converge toward stronger fight lanes instead of drifting into dead edges.
 - The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.
 - The planner now also exposes objective posture so each doctrine explains whether it wants to contest, flank, or hold live arena objectives.

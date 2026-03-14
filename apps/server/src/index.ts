@@ -552,9 +552,30 @@ app.post("/matches/:id/command", async (request, reply) => {
   };
 });
 
+app.get("/matches/queue-status", async (request, reply) => {
+  const address = await requireAddress(request);
+  if (!address) {
+    return reply.status(401).send(unauthorizedReply().body);
+  }
+
+  return coordinator.getQueueStatus(address);
+});
+
 app.get("/matches/live", async () => ({
   matches: coordinator.getAllLiveMatches(),
 }));
+
+app.get("/matches/:id", async (request, reply) => {
+  const matchId = (request.params as { id: string }).id;
+  const match = coordinator.getMatch(matchId);
+  if (!match) {
+    return reply.status(404).send({ error: "Match not found" });
+  }
+
+  return {
+    match,
+  };
+});
 
 app.post("/matches/:id/settle-webhook", async (request, reply) => {
   const parsed = settleWebhookInputSchema.safeParse({

@@ -343,9 +343,19 @@ export type CoordinatorBroadcasts = {
   emitMatchResult(matchId: string, snapshot: MatchSnapshot): void;
   emitQueueUpdate(
     userAddress: string,
-    payload: { status: "queued" | "ready"; matchId?: string },
+    payload: { status: "queued" | "ready"; matchId?: string; queuedAt?: string },
   ): void;
 };
+
+export type QueueStatus =
+  | {
+      status: "queued" | "ready";
+      matchId?: string;
+      queuedAt?: string;
+    }
+  | {
+      status: "idle";
+    };
 
 export class ArenaCoordinator {
   private readonly practiceQueue: QueueEntry[] = [];
@@ -377,13 +387,17 @@ export class ArenaCoordinator {
   async enqueuePractice(userAddress: string, agent: AgentProfile) {
     this.assertUserAvailable(userAddress);
 
+    const queuedAt = Date.now();
     this.practiceQueue.push({
       userAddress,
       agent,
-      queuedAt: Date.now(),
+      queuedAt,
       paid: false,
     });
-    this.broadcasts.emitQueueUpdate(userAddress, { status: "queued" });
+    this.broadcasts.emitQueueUpdate(userAddress, {
+      status: "queued",
+      queuedAt: new Date(queuedAt).toISOString(),
+    });
     await this.flushQueues();
   }
 
@@ -445,15 +459,20 @@ export class ArenaCoordinator {
     }
 
     pendingMatch.reservations.delete(userAddress);
+    const queuedAt = Date.now();
     pendingMatch.entrants.push({
       userAddress,
       agent,
-      queuedAt: Date.now(),
+      queuedAt,
       entryTxHash,
       paid: true,
     });
 
-    this.broadcasts.emitQueueUpdate(userAddress, { status: "queued", matchId });
+    this.broadcasts.emitQueueUpdate(userAddress, {
+      status: "queued",
+      matchId,
+      queuedAt: new Date(queuedAt).toISOString(),
+    });
     await this.flushQueues();
     return { matchId };
   }
@@ -464,6 +483,54 @@ export class ArenaCoordinator {
 
   getAllLiveMatches() {
     return Array.from(this.matches.values()).map((runtime) => runtime.snapshot);
+  }
+
+  getQueueStatus(userAddress: string): QueueStatus {
+    const normalizedAddress = userAddress.toLowerCase();
+
+    const liveMatch = Array.from(this.matches.values()).find((runtime) =>
+      Array.from(runtime.players.values()).some(
+        (player) =>
+          !player.isBot && player.ownerAddress.toLowerCase() === normalizedAddress,
+      ),
+    );
+    if (liveMatch) {
+      return {
+        status: "ready",
+        matchId: liveMatch.snapshot.matchId,
+      };
+    }
+
+    const practiceEntry = this.practiceQueue.find(
+      (entry) => entry.userAddress.toLowerCase() === normalizedAddress,
+    );
+    if (practiceEntry) {
+      return {
+        status: "queued",
+        queuedAt: new Date(practiceEntry.queuedAt).toISOString(),
+      };
+    }
+
+    const pendingMatch = this.findPendingPaidMatchForUser(normalizedAddress);
+    if (pendingMatch) {
+      const entrant = pendingMatch.entrants.find(
+        (entry) => entry.userAddress.toLowerCase() === normalizedAddress,
+      );
+      const reservation = pendingMatch.reservations.get(normalizedAddress);
+      const queuedAt =
+        entrant?.queuedAt ??
+        reservation?.reservedAt ??
+        pendingMatch.createdAt;
+      return {
+        status: "queued",
+        matchId: pendingMatch.matchId,
+        queuedAt: new Date(queuedAt).toISOString(),
+      };
+    }
+
+    return {
+      status: "idle",
+    };
   }
 
   applyCommand(matchId: string, agentId: string, command: ArenaCommand) {

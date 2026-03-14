@@ -163,6 +163,9 @@ export function ArenaCanvas({
       const isSpace = event.code === "Space" || key === " ";
       const trapArenaKeys = shouldTrapArenaKeys(event);
       if (trapArenaKeys) {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
         event.preventDefault();
         event.stopPropagation();
       }
@@ -208,6 +211,18 @@ export function ArenaCanvas({
       handleKeyChange(event, false);
     }
 
+    function handleKeyPress(event: KeyboardEvent) {
+      if (!shouldTrapArenaKeys(event)) {
+        return;
+      }
+
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
     function handleBlur() {
       pressedKeysRef.current = { w: false, a: false, s: false, d: false };
       emitMovement(true);
@@ -218,12 +233,14 @@ export function ArenaCanvas({
     }, 90);
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener("keypress", handleKeyPress, { capture: true });
     window.addEventListener("keyup", handleKeyUp, { capture: true });
     window.addEventListener("blur", handleBlur);
 
     return () => {
       window.clearInterval(movementInterval);
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
+      window.removeEventListener("keypress", handleKeyPress, { capture: true });
       window.removeEventListener("keyup", handleKeyUp, { capture: true });
       window.removeEventListener("blur", handleBlur);
     };

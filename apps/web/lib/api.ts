@@ -12,8 +12,9 @@ import type {
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
 
 export type QueueUpdate = {
-  status: "queued" | "ready";
+  status: "idle" | "queued" | "ready";
   matchId?: string;
+  queuedAt?: string;
 };
 
 export type QueueForMatchResponse = {
@@ -182,6 +183,16 @@ export async function sendArenaCommand(
     token,
     body: JSON.stringify({ agentId, command }),
   });
+}
+
+export async function fetchQueueStatus(token: string) {
+  return apiRequest<QueueUpdate>(`/matches/queue-status`, {
+    token,
+  });
+}
+
+export async function fetchMatchSnapshot(matchId: string) {
+  return apiRequest<{ match: MatchSnapshot }>(`/matches/${matchId}`);
 }
 
 export async function fetchLiveMatches() {

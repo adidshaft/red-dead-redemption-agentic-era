@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --exclude ../../node_modules --exclude ../../apps/web --exclude ../../packages/shared/dist --exclude ../../packages/contracts src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "lint": "tsc --noEmit -p tsconfig.json",
