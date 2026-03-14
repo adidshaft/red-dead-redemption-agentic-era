@@ -89,11 +89,13 @@ export function GameShell() {
   const [arenaReadyForControls, setArenaReadyForControls] = useState(false);
   const [arenaFullscreen, setArenaFullscreen] = useState(false);
   const [matchCountdown, setMatchCountdown] = useState<number | null>(null);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
   const arenaFrameRef = useRef<HTMLDivElement | null>(null);
   const startedMatchIdRef = useRef<string | null>(null);
   const lastCountdownValueRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const selectedAgent = useMemo(
     () =>
@@ -118,6 +120,22 @@ export function GameShell() {
         ?.displayName ?? snapshot.winnerAgentId
     );
   }, [snapshot]);
+  const roundClockLabel = useMemo(() => {
+    if (!snapshot?.endsAt) {
+      return "03:00";
+    }
+
+    const remainingMs = Math.max(
+      0,
+      new Date(snapshot.endsAt).getTime() - clockNow,
+    );
+    const totalSeconds = Math.ceil(remainingMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }, [clockNow, snapshot?.endsAt]);
   const deployedContractAddress =
     contractAddress ?? process.env.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS ?? null;
 
@@ -126,6 +144,13 @@ export function GameShell() {
     if (existing) {
       setAuthToken(existing);
     }
+
+    return () => {
+      if (audioContextRef.current) {
+        void audioContextRef.current.close().catch(() => undefined);
+        audioContextRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -198,6 +223,9 @@ export function GameShell() {
       setRecentEvents(nextSnapshot.events.slice(-8));
     });
     socket.on("match:event", (events: MatchEvent[]) => {
+      events.forEach((event) => {
+        playMatchEventTone(event);
+      });
       setRecentEvents((current) => [...current, ...events].slice(-8));
     });
     socket.on("match:result", (result: MatchSnapshot) => {
@@ -227,6 +255,20 @@ export function GameShell() {
     }
     void loadTransactions(selectedAgent.id);
   }, [authToken, selectedAgent?.id]);
+
+  useEffect(() => {
+    if (!snapshot || snapshot.status === "finished") {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 250);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [snapshot?.matchId, snapshot?.status]);
 
   useEffect(() => {
     function syncFullscreenState() {
@@ -330,19 +372,12 @@ export function GameShell() {
       return;
     }
 
-    const AudioContextCtor =
-      window.AudioContext ||
-      (
-        window as Window & {
-          webkitAudioContext?: typeof AudioContext;
-        }
-      ).webkitAudioContext;
-    if (!AudioContextCtor) {
+    const audioContext = getAudioContext();
+    if (!audioContext) {
       return;
     }
 
     try {
-      const audioContext = new AudioContextCtor();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       oscillator.type = "triangle";
@@ -360,11 +395,57 @@ export function GameShell() {
       gainNode.connect(audioContext.destination);
       oscillator.start();
       oscillator.stop(audioContext.currentTime + durationSeconds + 0.02);
-      window.setTimeout(() => {
-        void audioContext.close().catch(() => undefined);
-      }, Math.ceil((durationSeconds + 0.08) * 1000));
     } catch {
       // Ignore audio errors; countdown text still provides a start cue.
+    }
+  }
+
+  function getAudioContext() {
+    if (audioContextRef.current) {
+      return audioContextRef.current;
+    }
+
+    const AudioContextCtor =
+      window.AudioContext ||
+      (
+        window as Window & {
+          webkitAudioContext?: typeof AudioContext;
+        }
+      ).webkitAudioContext;
+    if (!AudioContextCtor) {
+      return null;
+    }
+
+    try {
+      audioContextRef.current = new AudioContextCtor();
+      return audioContextRef.current;
+    } catch {
+      return null;
+    }
+  }
+
+  function playMatchEventTone(event: MatchEvent) {
+    switch (event.type) {
+      case "fire":
+        playStartTone(350, 0.06);
+        break;
+      case "hit":
+        playStartTone(210, 0.08);
+        break;
+      case "dodge":
+        playStartTone(520, 0.07);
+        break;
+      case "elimination":
+        playStartTone(160, 0.18);
+        break;
+      case "settled":
+        playStartTone(700, 0.12);
+        break;
+      case "announcement":
+        playStartTone(760, 0.12);
+        break;
+      default:
+        break;
     }
   }
 
@@ -1020,6 +1101,7 @@ export function GameShell() {
                   <div>
                     Current match: {snapshot?.matchId ?? "No active showdown"}
                   </div>
+                  <div>Round clock: {roundClockLabel}</div>
                   <div>Winner: {winnerDisplayName ?? "TBD"}</div>
                   <div>
                     Arena input:{" "}
@@ -1034,6 +1116,18 @@ export function GameShell() {
                         ? `${selectedSnapshotPlayer.displayName} in the fight`
                         : `${selectedSnapshotPlayer.displayName} was eliminated`
                       : "Not in the current showdown"}
+                  </div>
+                  <div>
+                    Combat readout:{" "}
+                    {selectedSnapshotPlayer
+                      ? `${selectedSnapshotPlayer.health} HP • ${selectedSnapshotPlayer.ammo} rounds`
+                      : "No rider selected"}
+                  </div>
+                  <div>
+                    Last order:{" "}
+                    {selectedSnapshotPlayer?.lastCommand
+                      ? selectedSnapshotPlayer.lastCommand.type
+                      : "none"}
                   </div>
                 </div>
                 <div className="mt-4">

@@ -191,6 +191,8 @@ export function ArenaCanvas({
       class ArenaScene extends Phaser.Scene {
         private sprites = new Map<string, any>();
         private labels = new Map<string, any>();
+        private processedEventIds = new Set<string>();
+        private activeMatchId: string | null = null;
 
         constructor() {
           super("ArenaScene");
@@ -231,6 +233,11 @@ export function ArenaCanvas({
             const nextSnapshot = snapshotRef.current;
             if (!nextSnapshot) {
               return;
+            }
+
+            if (this.activeMatchId !== nextSnapshot.matchId) {
+              this.activeMatchId = nextSnapshot.matchId;
+              this.processedEventIds.clear();
             }
 
             for (const player of nextSnapshot.players) {
@@ -280,6 +287,145 @@ export function ArenaCanvas({
                 this.labels.delete(agentId);
               }
             }
+
+            for (const event of nextSnapshot.events) {
+              if (this.processedEventIds.has(event.id)) {
+                continue;
+              }
+
+              this.processedEventIds.add(event.id);
+              this.playEventEffect(event);
+            }
+          });
+        }
+
+        private playEventEffect(event: MatchSnapshot["events"][number]) {
+          const actorSprite = event.actorAgentId
+            ? this.sprites.get(event.actorAgentId)
+            : null;
+          const targetSprite = event.targetAgentId
+            ? this.sprites.get(event.targetAgentId)
+            : null;
+          const actorPosition = actorSprite
+            ? { x: actorSprite.x, y: actorSprite.y }
+            : null;
+          const targetPosition = targetSprite
+            ? { x: targetSprite.x, y: targetSprite.y }
+            : null;
+
+          switch (event.type) {
+            case "announcement":
+              this.flashBanner("DRAW");
+              break;
+            case "spawn":
+              if (actorPosition) {
+                this.pulseAt(actorPosition.x, actorPosition.y, 0xe9c58d, 0.16, 26);
+              }
+              break;
+            case "fire":
+              if (actorPosition) {
+                this.pulseAt(actorPosition.x, actorPosition.y, 0xf6c27a, 0.24, 18);
+              }
+              if (actorPosition && targetPosition) {
+                this.flashLine(actorPosition, targetPosition, 0xf6c27a);
+              }
+              break;
+            case "hit":
+              if (targetPosition) {
+                this.pulseAt(targetPosition.x, targetPosition.y, 0xdf6c39, 0.28, 22);
+              }
+              break;
+            case "dodge":
+              if (actorPosition) {
+                this.ringAt(actorPosition.x, actorPosition.y, 0xd9b27a);
+              }
+              break;
+            case "elimination":
+              if (targetPosition) {
+                this.ringAt(targetPosition.x, targetPosition.y, 0xf25555, 44, 220);
+              }
+              break;
+            case "settled":
+              this.flashBanner("SETTLED");
+              break;
+            default:
+              break;
+          }
+        }
+
+        private pulseAt(
+          x: number,
+          y: number,
+          color: number,
+          alpha = 0.2,
+          radius = 20,
+        ) {
+          const pulse = this.add.circle(x, y, radius, color, alpha);
+          pulse.setBlendMode(Phaser.BlendModes.ADD);
+          this.tweens.add({
+            targets: pulse,
+            scale: 1.8,
+            alpha: 0,
+            duration: 180,
+            ease: "Quad.easeOut",
+            onComplete: () => pulse.destroy(),
+          });
+        }
+
+        private ringAt(
+          x: number,
+          y: number,
+          color: number,
+          radius = 32,
+          duration = 170,
+        ) {
+          const ring = this.add.circle(x, y, radius, color, 0);
+          ring.setStrokeStyle(4, color, 0.45);
+          this.tweens.add({
+            targets: ring,
+            scale: 1.6,
+            alpha: 0,
+            duration,
+            ease: "Cubic.easeOut",
+            onComplete: () => ring.destroy(),
+          });
+        }
+
+        private flashLine(
+          from: { x: number; y: number },
+          to: { x: number; y: number },
+          color: number,
+        ) {
+          const graphics = this.add.graphics();
+          graphics.lineStyle(3, color, 0.9);
+          graphics.beginPath();
+          graphics.moveTo(from.x, from.y);
+          graphics.lineTo(to.x, to.y);
+          graphics.strokePath();
+          this.tweens.add({
+            targets: graphics,
+            alpha: 0,
+            duration: 120,
+            ease: "Sine.easeOut",
+            onComplete: () => graphics.destroy(),
+          });
+        }
+
+        private flashBanner(label: string) {
+          const banner = this.add.text(800, 110, label, {
+            fontFamily: "var(--font-heading)",
+            fontSize: "42px",
+            color: "#f6dfb7",
+            stroke: "#120b08",
+            strokeThickness: 10,
+          }).setOrigin(0.5);
+          this.tweens.add({
+            targets: banner,
+            alpha: 0,
+            y: 86,
+            duration: 480,
+            ease: "Quad.easeOut",
+            onComplete: () => banner.destroy(),
           });
         }
       }
