@@ -333,6 +333,47 @@ export function GameShell() {
       },
     ];
   }, [scoreboardPlayers]);
+  const resultCareerPulse = useMemo(() => {
+    if (!campaignStats) {
+      return {
+        eyebrow: "Career Pulse",
+        title: "First finished run logged",
+        detail:
+          "This rider has now opened a real frontier ledger. Keep chaining runs to build tier, payout history, and streak pressure.",
+        chips: ["Tier Rookie", "Streak 0", "Career payout 0 OKB"],
+      };
+    }
+
+    const nextTier =
+      campaignStats.campaignTier === "rookie"
+        ? "Contender"
+        : campaignStats.campaignTier === "contender"
+          ? "Marshal"
+          : campaignStats.campaignTier === "marshal"
+            ? "Legend"
+            : null;
+    const pressureLine =
+      campaignStats.currentStreak >= 3
+        ? "The rider is hot. Another clean finish compounds the campaign fast."
+        : campaignStats.wins === 0
+          ? "The next win matters more than grinding safe placements."
+          : campaignStats.paidMatches === 0
+            ? "The next big lever is converting this form into a paid run."
+            : "Keep the treasury cycling and the rider tier climbing.";
+
+    return {
+      eyebrow: "Career Pulse",
+      title: `${campaignStats.campaignTier.toUpperCase()} tier • ${campaignStats.currentStreak} streak`,
+      detail: nextTier
+        ? `${pressureLine} The next tier on deck is ${nextTier}.`
+        : `${pressureLine} This rider is already operating at legend pace.`,
+      chips: [
+        `${campaignStats.wins} wins`,
+        `${campaignStats.podiums} podiums`,
+        `${formatWeiToOkb(BigInt(campaignStats.careerPayoutWei))} career payout`,
+      ],
+    };
+  }, [campaignStats]);
   const autonomyEvents = useMemo(
     () => recentEvents.filter((event) => event.type === "autonomy").slice(-4),
     [recentEvents],
@@ -2922,6 +2963,27 @@ export function GameShell() {
                                 {resultDebrief?.nextAction ??
                                   "Queue another run or compound the next skill purchase."}
                               </div>
+                            </div>
+                          </div>
+                          <div className="rounded-[22px] border border-white/8 bg-black/20 px-4 py-4">
+                            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--accent-soft)]/70">
+                              {resultCareerPulse.eyebrow}
+                            </div>
+                            <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                              {resultCareerPulse.title}
+                            </div>
+                            <div className="mt-2 text-sm text-stone-200/72">
+                              {resultCareerPulse.detail}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                              {resultCareerPulse.chips.map((chip) => (
+                                <span
+                                  key={chip}
+                                  className="rounded-full border border-white/8 px-2.5 py-1"
+                                >
+                                  {chip}
+                                </span>
+                              ))}
                             </div>
                           </div>
                           <div className="rounded-[22px] border border-white/8 bg-black/20 px-4 py-4">
