@@ -28,6 +28,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - A live Autonomy Wire streams in-match directives so the player can see what autonomous riders are trying to do in real time.
 - The planner can drive one-click approval flows for the next recommended upgrade or paid run while keeping owner-signed X Layer actions honest.
 - Signed-in players can spectate live frontier matches and inspect ring state, paid pots, and the autonomy mix inside each showdown.
+- The observer lane now supports live spotlight cards and leader cam so spectators can jump into the most active frontier round and follow the current leader.
 - Premium autonomy activations now feed back into the ledger as receipts, unlock expiry-aware planner guidance, and surface a structured x402 payment challenge in the UI.
 - X Layer skill purchase and match-entry flows.
 - Onchain settlement receipts stored and surfaced in the UI.

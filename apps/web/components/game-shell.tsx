@@ -124,6 +124,7 @@ export function GameShell() {
   const [autonomyQuote, setAutonomyQuote] = useState<AutonomyPassQuote | null>(null);
   const [arenaReadyForControls, setArenaReadyForControls] = useState(false);
   const [arenaFullscreen, setArenaFullscreen] = useState(false);
+  const [spectatorFollowLeader, setSpectatorFollowLeader] = useState(false);
   const [matchCountdown, setMatchCountdown] = useState<number | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [txReveals, setTxReveals] = useState<TxReveal[]>([]);
@@ -173,6 +174,33 @@ export function GameShell() {
         right.health - left.health,
     );
   }, [snapshot]);
+  const sortedLiveMatches = useMemo(
+    () =>
+      [...liveMatches].sort((left, right) => {
+        const leftRank =
+          (left.status === "in_progress" ? 3 : left.status === "queued" ? 2 : 1) +
+          (left.paid ? 1 : 0);
+        const rightRank =
+          (right.status === "in_progress" ? 3 : right.status === "queued" ? 2 : 1) +
+          (right.paid ? 1 : 0);
+        return rightRank - leftRank;
+      }),
+    [liveMatches],
+  );
+  const spotlightMatch = sortedLiveMatches[0] ?? null;
+  const arenaFocusAgentId =
+    selectedSnapshotPlayer?.alive
+      ? selectedAgent?.id
+      : spectatorFollowLeader
+        ? scoreboardPlayers[0]?.agentId ?? selectedAgent?.id
+        : selectedAgent?.id;
+  const arenaFocusPlayer = useMemo(
+    () =>
+      snapshot && arenaFocusAgentId
+        ? snapshot.players.find((player) => player.agentId === arenaFocusAgentId) ?? null
+        : null,
+    [arenaFocusAgentId, snapshot],
+  );
   const selectedPlacement = useMemo(() => {
     if (!selectedAgent) {
       return null;
@@ -673,6 +701,7 @@ export function GameShell() {
     setQueueState(null);
     setSnapshot(null);
     setRecentEvents([]);
+    setSpectatorFollowLeader(false);
     setAutonomyPlan(null);
     setCampaignStats(null);
     setMatchHistory([]);
@@ -1183,17 +1212,22 @@ export function GameShell() {
     }
   }
 
-  function handleSpectateMatch(match: MatchSnapshot) {
+  function handleSpectateMatch(match: MatchSnapshot, options?: { followLeader?: boolean }) {
     if (!authToken || !socketRef.current) {
       setStatus("Sign in first to spectate a live frontier match.");
       return;
     }
 
+    setSpectatorFollowLeader(Boolean(options?.followLeader));
     socketRef.current.emit("match:join", { matchId: match.matchId });
     setSnapshot(match);
     setRecentEvents(match.events.slice(-8));
     setQueueState(null);
-    setStatus(`Spectating live match ${match.matchId.slice(-6)}.`);
+    setStatus(
+      options?.followLeader
+        ? `Leader cam active for match ${match.matchId.slice(-6)}.`
+        : `Spectating live match ${match.matchId.slice(-6)}.`,
+    );
   }
 
   async function ensureAgentRegisteredOnchain(agent: AgentProfile) {
@@ -2423,7 +2457,7 @@ export function GameShell() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-[var(--panel-border)]/50 bg-[var(--panel)] px-5 py-4 text-xs shadow-[0_10px_40px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                  <div className="pointer-events-auto rounded-2xl border border-[var(--panel-border)]/50 bg-[var(--panel)] px-5 py-4 text-xs shadow-[0_10px_40px_rgba(0,0,0,0.5)] backdrop-blur-md">
                     <div className="font-bold uppercase tracking-[0.2em] text-[var(--accent-soft)]">
                       {snapshot?.status === "in_progress" ? "Spectating Module Active" : "Arena Systems Offline"}
                     </div>
@@ -2434,6 +2468,22 @@ export function GameShell() {
                           : "Awaiting valid operational status."
                         : "Switch to manual mode to engage controls."}
                     </div>
+                    {snapshot?.status === "in_progress" && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSpectatorFollowLeader((current) => !current)}
+                          className="rounded-full border border-white/12 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/80 transition hover:border-white/24 hover:text-white"
+                        >
+                          {spectatorFollowLeader ? "Leader Cam On" : "Leader Cam"}
+                        </button>
+                        {arenaFocusPlayer && (
+                          <span className="rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/10 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[#c5f4e9]">
+                            Focus {arenaFocusPlayer.displayName}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -2452,7 +2502,7 @@ export function GameShell() {
               </div>
               <ArenaCanvas
                 snapshot={snapshot}
-                selectedAgentId={selectedAgent?.id}
+                selectedAgentId={arenaFocusAgentId}
                 canControl={
                   selectedAgent?.mode === "manual" &&
                   snapshot?.status === "in_progress" &&
@@ -2566,7 +2616,7 @@ export function GameShell() {
                 <div className="mt-4">
                   <ArenaMinimap
                     snapshot={snapshot}
-                    selectedAgentId={selectedAgent?.id}
+                    selectedAgentId={arenaFocusAgentId}
                   />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-4 text-[10px] uppercase tracking-wider text-[var(--foreground)]/60">
@@ -2623,11 +2673,48 @@ export function GameShell() {
             Refresh
           </button>
         </div>
+        {spotlightMatch && (
+          <div className="mb-4 rounded-[24px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-4 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/70">
+                  Live Spotlight
+                </div>
+                <div className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                  Match {spotlightMatch.matchId.slice(-6)} • {spotlightMatch.paid ? "Paid" : "Practice"}
+                </div>
+                <div className="mt-1 text-sm text-stone-200/72">
+                  {spotlightMatch.players[0]
+                    ? `${spotlightMatch.players[0].displayName} and the field are active in the dust circuit.`
+                    : "A live frontier round is available to spectate."}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSpectateMatch(spotlightMatch)}
+                  disabled={!canSpectateLiveMatch || !authToken}
+                  className="rounded-full border border-white/12 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white/80 transition hover:border-white/24 hover:text-white disabled:opacity-50"
+                >
+                  Watch Spotlight
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSpectateMatch(spotlightMatch, { followLeader: true })}
+                  disabled={!canSpectateLiveMatch || !authToken}
+                  className="rounded-full border border-[#7ed2b4]/25 bg-[#7ed2b4]/10 px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#c5f4e9] transition hover:bg-[#7ed2b4]/16 disabled:opacity-50"
+                >
+                  Leader Cam
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {liveMatches.length === 0 && (
+          {sortedLiveMatches.length === 0 && (
             <EmptyState label="No public matches are live right now." />
           )}
-          {liveMatches.map((match) => (
+          {sortedLiveMatches.map((match, index) => (
             <div
               key={match.matchId}
               className="rounded-[24px] border border-white/8 bg-black/10 p-4"
@@ -2642,7 +2729,7 @@ export function GameShell() {
                   </div>
                 </div>
                 <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/65">
-                  {match.status}
+                  {index === 0 ? "spotlight" : match.status}
                 </span>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
@@ -2702,6 +2789,14 @@ export function GameShell() {
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/12 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white/80 transition hover:border-white/24 hover:text-white disabled:opacity-50"
               >
                 Watch Live
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSpectateMatch(match, { followLeader: true })}
+                disabled={!canSpectateLiveMatch || !authToken}
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#7ed2b4]/20 bg-[#7ed2b4]/8 px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#c5f4e9] transition hover:bg-[#7ed2b4]/14 disabled:opacity-50"
+              >
+                Jump to Leader Cam
               </button>
             </div>
           ))}
