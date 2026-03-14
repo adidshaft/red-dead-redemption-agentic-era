@@ -1044,6 +1044,86 @@ export function GameShell() {
     selectedThreat,
     snapshot,
   ]);
+  const agentIntentCards = useMemo(() => {
+    if (!selectedAgent) {
+      return [];
+    }
+
+    if (!snapshot || !selectedSnapshotPlayer) {
+      return [
+        {
+          label: "Intent",
+          value:
+            selectedAgent.mode === "autonomous"
+              ? "Waiting for a run"
+              : "Waiting for your call",
+          detail:
+            selectedAgent.mode === "autonomous"
+              ? "Queue the rider and Autopilot will take over in the arena."
+              : "Queue the rider to take direct control.",
+        },
+      ];
+    }
+
+    const targetValue = snapshot.bounty
+      ? snapshot.bounty.targetAgentId === selectedSnapshotPlayer.agentId
+        ? "You are marked"
+        : `Hunt ${snapshot.bounty.displayName}`
+      : selectedThreat
+        ? selectedThreat.player.displayName
+        : "No target";
+
+    const routeValue = selectedRingState?.outside
+      ? "Return to ring"
+      : snapshot.objective
+        ? snapshot.objective.label
+        : snapshot.caravan
+          ? snapshot.caravan.label
+          : selectedSnapshotPlayer.coverLabel
+            ? `Hold ${selectedSnapshotPlayer.coverLabel}`
+            : "Open duel";
+
+    const rewardValue = snapshot.objective
+      ? snapshot.objective.rewardLabel
+      : snapshot.caravan
+        ? snapshot.caravan.rewardLabel
+        : snapshot.bounty
+          ? `+${snapshot.bounty.bonusScore} score`
+          : matchEconomy
+            ? `Pot ${formatWeiToOkb(matchEconomy.totalPot)}`
+            : "Placement and score";
+
+    return [
+      {
+        label: "Target",
+        value: targetValue,
+        detail:
+          selectedAgent.mode === "autonomous"
+            ? "What the rider is tracking right now."
+            : "The nearest live threat or active mark.",
+      },
+      {
+        label: "Route",
+        value: routeValue,
+        detail:
+          selectedAgent.mode === "autonomous"
+            ? "Where the rider wants to move next."
+            : "The cleanest path for the next few seconds.",
+      },
+      {
+        label: "Reward",
+        value: rewardValue,
+        detail: "Why this move matters on the current run.",
+      },
+    ];
+  }, [
+    matchEconomy,
+    selectedAgent,
+    selectedRingState?.outside,
+    selectedSnapshotPlayer,
+    selectedThreat,
+    snapshot,
+  ]);
   const selectedHealthBarTone = useMemo(() => {
     if (!selectedSnapshotPlayer) {
       return "#7ed2b4";
@@ -3828,6 +3908,24 @@ export function GameShell() {
                         </span>
                       </div>
                     </div>
+                    <div className="grid gap-2 md:grid-cols-3">
+                      {agentIntentCards.map((card) => (
+                        <div
+                          key={card.label}
+                          className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-3"
+                        >
+                          <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+                            {card.label}
+                          </div>
+                          <div className="mt-1 font-semibold text-[#f6ead7]">
+                            {card.value}
+                          </div>
+                          <div className="mt-1 text-[11px] leading-relaxed text-stone-200/68">
+                            {card.detail}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                       {selectedAgent?.mode === "manual" ? (
                         <>
@@ -4104,6 +4202,51 @@ export function GameShell() {
                         })()}
                       </span>
                     </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 md:grid-cols-3">
+                    <ObserverPulseCard
+                      label="Hot rider"
+                      value={
+                        [...match.players].sort(
+                          (left, right) => right.score - left.score,
+                        )[0]?.displayName ?? "—"
+                      }
+                      detail={`${
+                        [...match.players].sort(
+                          (left, right) => right.score - left.score,
+                        )[0]?.score ?? 0
+                      } score on the ledger`}
+                    />
+                    <ObserverPulseCard
+                      label="Live prize"
+                      value={
+                        match.objective
+                          ? match.objective.label
+                          : match.caravan
+                            ? match.caravan.label
+                            : match.bounty
+                              ? `Bounty ${match.bounty.displayName}`
+                              : "Open duel"
+                      }
+                      detail={
+                        match.objective
+                          ? match.objective.rewardLabel
+                          : match.caravan
+                            ? match.caravan.rewardLabel
+                            : match.bounty
+                              ? `Worth +${match.bounty.bonusScore} score`
+                              : "No live side prize right now"
+                      }
+                    />
+                    <ObserverPulseCard
+                      label="Field state"
+                      value={`${match.players.filter((player) => player.alive).length} alive`}
+                      detail={
+                        match.status === "queued"
+                          ? "Waiting for the draw"
+                          : `${Math.round(match.safeZone.radius)}px ring`
+                      }
+                    />
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -4458,6 +4601,26 @@ function ResultStatCard({
         {label}
       </div>
       <div className="mt-1 font-semibold text-[#f6ead7]">{value}</div>
+    </div>
+  );
+}
+
+function ObserverPulseCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-[16px] border border-white/8 bg-white/[0.03] px-3 py-3">
+      <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+        {label}
+      </div>
+      <div className="mt-1 font-semibold text-[#f6ead7]">{value}</div>
+      <div className="mt-1 text-xs text-stone-200/66">{detail}</div>
     </div>
   );
 }

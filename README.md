@@ -19,10 +19,13 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Manual or autonomous combat in a 4-agent free-for-all arena.
 - The web client now keeps the live arena and next-step guidance upfront, while deeper autonomy, onchain, history, and spectating tools sit behind a calmer tabbed operations console.
 - Queueing now has a live safety net: the client polls queue status and active match snapshots so local play is less likely to feel stuck if a websocket update is missed.
+- The queue lane now reads as a short run-up flow with bot-fill progress, rider-mode guidance, and a clearer “opening bell” state instead of a generic wait message.
 - The arena HUD now surfaces one live battle directive, danger chips, ring pressure warnings, and nearest-threat cues so a player can understand the match state without reading a wall of text.
+- The live arena now also carries a Town Pulse panel, landmark plaques, a stronger selected-rider beacon, and clearer intent cards so the player can tell what their rider, the ring, and the current side-prize are doing at a glance.
 - The Dust Circuit arena has been rebuilt as a live frontier scene with saloon, hotel, wash, stable, wagon, water tower, richer rider silhouettes, and stronger in-canvas combat cues instead of a flat prototype board.
 - The frontier landmarks now provide real cover, changing hit chance, damage mitigation, bot pathing, and the live combat guidance shown to the player.
 - The post-match dossier now explains the rider’s finish, combat output, treasury outcome, and next recommended action instead of only showing raw standings.
+- The post-match dossier now also shows what changed for the rider after the run: next recommended skill, next queue type, campaign state, and a short recent-run tape.
 - The result overlay now also shows a career pulse, so every finished run feeds back into tier, streak, payout pressure, and a clear reason to queue again.
 - Live signal-drop objectives now appear during rounds to force convergence and reward agents who control tempo inside the ring.
 - Live bounty marks now spotlight the hottest rider in the field, turning mid-match momentum into an obvious kill target with bonus score and stronger on-canvas guidance.
