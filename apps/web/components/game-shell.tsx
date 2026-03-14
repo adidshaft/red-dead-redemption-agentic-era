@@ -1421,6 +1421,21 @@ export function GameShell() {
                         <span className="rounded-full border border-white/8 px-2.5 py-1">
                           Posture: {autonomyPlan.economyPosture}
                         </span>
+                        <span className="rounded-full border border-white/8 px-2.5 py-1">
+                          Confidence: {autonomyPlan.confidenceBand}
+                        </span>
+                      </div>
+                      <div className="mt-4">
+                        <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                          <span>Runway readiness</span>
+                          <span>{autonomyPlan.readinessScore}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-white/6">
+                          <div
+                            className={`h-full rounded-full transition-all ${autonomyPlan.readinessScore >= 72 ? "bg-[linear-gradient(90deg,#7ed2b4,#d7f3d6)]" : autonomyPlan.readinessScore >= 42 ? "bg-[linear-gradient(90deg,#d4934f,#f6ead7)]" : "bg-[linear-gradient(90deg,#9a4e32,#df6c39)]"}`}
+                            style={{ width: `${autonomyPlan.readinessScore}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
                     <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">

@@ -56,6 +56,8 @@ describe("buildAutonomyPlan", () => {
     expect(plan.paidEntries).toBe(1);
     expect(plan.settlements).toBe(0);
     expect(plan.recommendedQueue).toBe("practice");
+    expect(plan.readinessScore).toBeGreaterThan(0);
+    expect(plan.confidenceBand).toBe("low");
   });
 
   it("switches economy guidance when the x402 autonomy pass is active", () => {
@@ -69,5 +71,6 @@ describe("buildAutonomyPlan", () => {
     expect(plan.autonomyPassActive).toBe(true);
     expect(plan.autonomyPassValidUntil).toBe("2026-03-15T10:00:00.000Z");
     expect(plan.x402Directive.toLowerCase()).toContain("premium autonomy");
+    expect(plan.confidenceBand).toBe("low");
   });
 });

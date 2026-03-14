@@ -19,6 +19,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Manual or autonomous combat in a 4-agent free-for-all arena.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
+- The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.
 - Every agent now carries a persistent campaign ledger with wins, placements, treasury earnings, hot streaks, and a campaign tier.
 - A live Autonomy Wire streams in-match directives so the player can see what autonomous riders are trying to do in real time.
 - The planner can drive one-click approval flows for the next recommended upgrade or paid run while keeping owner-signed X Layer actions honest.

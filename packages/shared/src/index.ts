@@ -241,6 +241,8 @@ export const autonomyPlanSchema = z.object({
   ]),
   recommendedQueue: z.enum(["practice", "paid"]),
   economyPosture: z.enum(["bootstrap", "compounding", "aggressive"]),
+  readinessScore: z.number().int().min(0).max(100),
+  confidenceBand: z.enum(["low", "medium", "high"]),
   skillPurchases: z.number().int().nonnegative(),
   paidEntries: z.number().int().nonnegative(),
   settlements: z.number().int().nonnegative(),

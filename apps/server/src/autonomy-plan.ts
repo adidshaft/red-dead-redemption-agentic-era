@@ -109,6 +109,21 @@ export function buildAutonomyPlan(
     settlements >= 3 ? "aggressive" : settlements >= 1 ? "compounding" : "bootstrap";
   const recommendedQueue =
     settlements > 0 || autonomyPassActive ? "paid" : "practice";
+  const readinessScore = Math.max(
+    10,
+    Math.min(
+      100,
+      Math.round(
+        skillPurchases * 18 +
+          paidEntries * 10 +
+          settlements * 28 +
+          (autonomyPassActive ? 16 : 0) +
+          (agent.mode === "autonomous" ? 8 : 0),
+      ),
+    ),
+  );
+  const confidenceBand =
+    readinessScore >= 72 ? "high" : readinessScore >= 42 ? "medium" : "low";
   const campaignPriority = autonomyPassActive
     ? skillPurchases <= paidEntries
       ? "buy_skill"
@@ -143,6 +158,8 @@ export function buildAutonomyPlan(
     campaignPriority,
     recommendedQueue,
     economyPosture,
+    readinessScore,
+    confidenceBand,
     skillPurchases,
     paidEntries,
     settlements,
