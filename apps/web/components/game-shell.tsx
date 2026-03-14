@@ -540,6 +540,11 @@ export function GameShell() {
   const intelLegendCards = useMemo(
     () => [
       {
+        label: "Cover",
+        detail: "Named landmarks cut incoming damage.",
+        icon: <ShieldPlus className="h-3.5 w-3.5" />,
+      },
+      {
         label: "Drop",
         detail: "Orange flare = heal + ammo + score.",
         icon: <Gem className="h-3.5 w-3.5" />,
@@ -548,11 +553,6 @@ export function GameShell() {
         label: "Coach",
         detail: "Moving target = ammo + score.",
         icon: <Landmark className="h-3.5 w-3.5" />,
-      },
-      {
-        label: "Bounty",
-        detail: "Marked rider = bonus score.",
-        icon: <Sword className="h-3.5 w-3.5" />,
       },
       {
         label: "Ring",
@@ -3617,23 +3617,36 @@ export function GameShell() {
                         </div>
                       ))}
                     </div>
-                    {autonomyQuote && (
-                      <div className="mt-3 rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-sm text-stone-200/72">
-                        x402 challenge ready
-                        <div className="mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
-                          {autonomyQuote.amount && (
-                            <span className="rounded-full border border-white/8 px-2.5 py-1">
-                              {autonomyQuote.amount} {autonomyQuote.asset ?? ""}
-                            </span>
-                          )}
-                          {autonomyQuote.chainId && (
-                            <span className="rounded-full border border-white/8 px-2.5 py-1">
-                              Chain #{autonomyQuote.chainId}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
+	                    {autonomyQuote && (
+	                      <div className="mt-3 rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-sm text-stone-200/72">
+	                        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
+	                          X Layer Mainnet x402
+	                        </div>
+	                        <div className="mt-1 font-semibold text-[#f6ead7]">
+	                          Premium autonomy quote is ready
+	                        </div>
+	                        <div className="mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+	                          {autonomyQuote.amount && (
+	                            <span className="rounded-full border border-white/8 px-2.5 py-1">
+	                              {formatUsdcAmount(autonomyQuote.amount)} {autonomyQuote.asset ?? ""}
+	                            </span>
+	                          )}
+	                          {autonomyQuote.chainId && (
+	                            <span className="rounded-full border border-white/8 px-2.5 py-1">
+	                              Chain #{autonomyQuote.chainId}
+	                            </span>
+	                          )}
+	                          {autonomyQuote.payTo && (
+	                            <span className="rounded-full border border-white/8 px-2.5 py-1">
+	                              Pay {truncateAddress(autonomyQuote.payTo)}
+	                            </span>
+	                          )}
+	                        </div>
+	                        <div className="mt-2 text-xs text-stone-300/62">
+	                          This premium lane settles on X Layer mainnet through x402. Skill buys, paid queue entry, and match settlement stay on X Layer testnet.
+	                        </div>
+	                      </div>
+	                    )}
                     {autonomyHint && (
                       <div className="mt-3 rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-sm text-stone-200/72">
                         {autonomyHint}
@@ -3708,12 +3721,15 @@ export function GameShell() {
                   )}
                   {lastConfirmedReceipt ? (
                     <div className="mt-4 rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
-                      <div className="font-semibold text-[#f6ead7]">
-                        {formatReceiptPurpose(lastConfirmedReceipt.purpose)}
-                      </div>
-                      <div className="mt-1 text-xs text-stone-300/58">
-                        {truncateHash(lastConfirmedReceipt.txHash)}
-                      </div>
+	                      <div className="font-semibold text-[#f6ead7]">
+	                        {formatReceiptPurpose(lastConfirmedReceipt.purpose)}
+	                      </div>
+	                      <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-stone-300/50">
+	                        {formatReceiptLaneLabel(lastConfirmedReceipt)}
+	                      </div>
+	                      <div className="mt-1 text-xs text-stone-300/58">
+	                        {truncateHash(lastConfirmedReceipt.txHash)}
+	                      </div>
                     </div>
                   ) : (
                     <EmptyState label="No confirmed receipts yet." compact />
@@ -3735,18 +3751,18 @@ export function GameShell() {
                           rel="noreferrer"
                           className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72 transition hover:border-white/18"
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="font-semibold text-[#f6ead7]">
-                              {formatReceiptPurpose(receipt.purpose)}
-                            </span>
-                            <span className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+	                          <div className="flex items-center justify-between gap-3">
+	                            <span className="font-semibold text-[#f6ead7]">
+	                              {formatReceiptPurpose(receipt.purpose)}
+	                            </span>
+	                            <span className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
                               {receipt.status}
                             </span>
                           </div>
-                          <div className="mt-1 text-xs text-stone-300/58">
-                            {truncateHash(receipt.txHash)}
-                          </div>
-                        </a>
+	                          <div className="mt-1 text-xs text-stone-300/58">
+	                            {formatReceiptLaneLabel(receipt)} • {truncateHash(receipt.txHash)}
+	                          </div>
+	                        </a>
                       ))
                     )}
                   </div>
@@ -4632,15 +4648,20 @@ export function GameShell() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-[24px] border border-[var(--panel-border)] bg-black/20 p-4 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="font-[var(--font-heading)] text-base font-bold text-[var(--foreground)]">
-                    Field Intel
-                  </p>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--circuit-line)]">
-                    Live
-                  </span>
-                </div>
+	              <div className="rounded-[24px] border border-[var(--panel-border)] bg-black/20 p-4 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]">
+	                <div className="mb-3 flex items-center justify-between gap-3">
+	                  <div>
+	                    <p className="font-[var(--font-heading)] text-base font-bold text-[var(--foreground)]">
+	                      Field Intel
+	                    </p>
+	                    <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-stone-300/52">
+	                      {activeArenaMap.name} • solid props block movement
+	                    </div>
+	                  </div>
+	                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--circuit-line)]">
+	                    Live
+	                  </span>
+	                </div>
                 <ArenaMinimap
                   snapshot={snapshot}
                   selectedAgentId={arenaFocusAgentId}
@@ -4901,10 +4922,10 @@ export function GameShell() {
               className="pointer-events-auto overflow-hidden rounded-[22px] border border-emerald-200/18 bg-[linear-gradient(180deg,rgba(16,24,20,0.96),rgba(8,10,9,0.98))] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur"
             >
               <div className="flex items-start justify-between gap-3 border-b border-white/6 px-4 py-3">
-                <div>
-                  <div className="text-[10px] uppercase tracking-[0.24em] text-emerald-200/65">
-                    X Layer Confirmed
-                  </div>
+	                <div>
+	                  <div className="text-[10px] uppercase tracking-[0.24em] text-emerald-200/65">
+	                    {formatReceiptLaneLabel(item.receipt)}
+	                  </div>
                   <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
                     {item.headline}
                   </div>
@@ -4982,6 +5003,26 @@ function ArenaMinimap({
     <div className="rounded-[22px] border border-white/8 bg-[#170f0b] p-3">
       <div className="relative aspect-[16/9] overflow-hidden rounded-[18px] border border-amber-300/10 bg-[radial-gradient(circle_at_top,_rgba(236,183,102,0.12),_transparent_48%),linear-gradient(180deg,_rgba(52,32,22,0.95),_rgba(19,11,8,0.98))]">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(244,227,199,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(244,227,199,0.06)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        {map.obstacles.map((obstacle) => (
+          <div
+            key={obstacle.id}
+            className="absolute -translate-x-1/2 -translate-y-1/2 border border-white/8 bg-black/28 shadow-[0_0_12px_rgba(0,0,0,0.22)]"
+            style={{
+              left: `${(obstacle.x / 1600) * 100}%`,
+              top: `${(obstacle.y / 900) * 100}%`,
+              width:
+                obstacle.solid.shape === "rect"
+                  ? `${(obstacle.solid.width / 1600) * 100}%`
+                  : `${(obstacle.solid.radius * 2 / 1600) * 100}%`,
+              height:
+                obstacle.solid.shape === "rect"
+                  ? `${(obstacle.solid.height / 900) * 100}%`
+                  : `${(obstacle.solid.radius * 2 / 900) * 100}%`,
+              borderRadius:
+                obstacle.solid.shape === "rect" ? "0.6rem" : "9999px",
+            }}
+          />
+        ))}
         {map.landmarks.slice(0, 6).map((landmark) => (
           <div
             key={landmark.id}
@@ -5341,8 +5382,14 @@ function formatReceiptPurpose(value: OnchainReceipt["purpose"]) {
     case "match_settlement":
       return "Match Settlement";
     case "autonomy_pass":
-      return "Autonomy Pass";
+      return "x402 Premium Pass";
   }
+}
+
+function formatReceiptLaneLabel(receipt: OnchainReceipt) {
+  return receipt.purpose === "autonomy_pass"
+    ? "X Layer Mainnet x402"
+    : "X Layer Testnet";
 }
 
 function formatReceiptRevealDetail(receipt: OnchainReceipt) {
@@ -5358,8 +5405,21 @@ function formatReceiptRevealDetail(receipt: OnchainReceipt) {
     case "match_settlement":
       return "Match rewards were settled on X Layer and the final ledger is locked.";
     case "autonomy_pass":
-      return "Autonomous premium access has been confirmed.";
+      return "Premium autonomy has been unlocked over x402 on X Layer mainnet.";
   }
+}
+
+function formatUsdcAmount(raw?: string) {
+  if (!raw) {
+    return "0";
+  }
+
+  const normalized = Number(raw) / 1_000_000;
+  if (!Number.isFinite(normalized)) {
+    return raw;
+  }
+
+  return normalized.toFixed(normalized >= 10 ? 0 : 2);
 }
 
 function ordinal(value: number) {
