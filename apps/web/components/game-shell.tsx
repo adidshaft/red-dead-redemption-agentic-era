@@ -5,6 +5,7 @@ import {
   Bot,
   Crosshair,
   Expand,
+  ExternalLink,
   Gem,
   LoaderCircle,
   Minimize,
@@ -1220,7 +1221,7 @@ export function GameShell() {
                       >
                         <div className="flex items-center justify-between gap-3">
                           <span className="font-medium text-[#f6ead7]">
-                            {receipt.purpose.replaceAll("_", " ")}
+                            {formatReceiptPurpose(receipt.purpose)}
                           </span>
                           <span
                             className={`rounded-full px-2 py-1 text-[11px] uppercase ${receipt.status === "confirmed" ? "bg-emerald-200/12 text-emerald-200" : "bg-stone-200/10 text-stone-200/70"}`}
@@ -1230,6 +1231,13 @@ export function GameShell() {
                         </div>
                         <div className="mt-2 text-xs text-stone-200/62">
                           {truncateHash(receipt.txHash)}
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
+                          <span>{receipt.matchId ? `Match ${receipt.matchId.slice(-6)}` : "Agent action"}</span>
+                          <span className="inline-flex items-center gap-1 text-[#f0bf76]">
+                            Explorer
+                            <ExternalLink className="h-3 w-3" />
+                          </span>
                         </div>
                       </a>
                     ))}
@@ -1346,6 +1354,21 @@ function truncateAddress(value: string) {
 
 function truncateHash(value: string) {
   return `${value.slice(0, 10)}…${value.slice(-8)}`;
+}
+
+function formatReceiptPurpose(value: OnchainReceipt["purpose"]) {
+  switch (value) {
+    case "agent_registration":
+      return "Agent Registration";
+    case "skill_purchase":
+      return "Skill Purchase";
+    case "match_entry":
+      return "Match Entry";
+    case "match_settlement":
+      return "Match Settlement";
+    case "autonomy_pass":
+      return "Autonomy Pass";
+  }
 }
 
 function formatWeiToOkb(value: bigint) {

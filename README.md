@@ -98,6 +98,13 @@ pnpm test
 
 ## Submission Proof
 
-The proof checklist and placeholder tx-hash sections live in [docs/proof.md](/Users/amanpandey/Desktop/rdr/docs/proof.md).
+Confirmed live X Layer testnet proof captured so far:
+
+- Agent registration: `0x879412e6086b9c3a07191f21fa7af0adae73fcc133233ae63264ce5f0adb290a`
+- Skill purchase: `0x9f4d343091a57050501bc63a0a0af0c337b1e26fc0dc14da407611e0d7a3fae0`
+- Match entry: `0x889943b9c505a6258438c9ad7f630b64822d89f283dc919d8c9b2eb774018d8b`
+- Match settlement: `0xdb2b0690c42598c0d40840896e73661f7d012120d0cc55bb6739ab182a49c8cf`
+
+The proof checklist, explorer links, and reproduction notes live in [docs/proof.md](/Users/amanpandey/Desktop/rdr/docs/proof.md).
 
 The live deployment checklist lives in [docs/testnet-runbook.md](/Users/amanpandey/Desktop/rdr/docs/testnet-runbook.md).
