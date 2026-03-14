@@ -138,6 +138,7 @@ export function GameShell() {
   const [autonomyQuote, setAutonomyQuote] = useState<AutonomyPassQuote | null>(null);
   const [arenaReadyForControls, setArenaReadyForControls] = useState(false);
   const [arenaFullscreen, setArenaFullscreen] = useState(false);
+  const [arenaCameraMode, setArenaCameraMode] = useState<"follow" | "wide">("follow");
   const [spectatorFollowLeader, setSpectatorFollowLeader] = useState(false);
   const [matchCountdown, setMatchCountdown] = useState<number | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
@@ -4057,22 +4058,36 @@ export function GameShell() {
                   </div>
                 )}
                 
-                <button
-                  type="button"
-                  onClick={() => void handleArenaFullscreenToggle()}
-                  className="pointer-events-auto flex items-center gap-2 rounded-full border border-[var(--panel-border)] bg-[var(--panel)] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)] backdrop-blur-md transition hover:border-[var(--accent-soft)] hover:text-[var(--accent-soft)]"
-                >
-                  {arenaFullscreen ? (
-                    <Minimize className="h-4 w-4" />
-                  ) : (
-                    <Expand className="h-4 w-4" />
-                  )}
-                  {arenaFullscreen ? "Exit" : "Expand"}
-                </button>
+                <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setArenaCameraMode((current) =>
+                        current === "follow" ? "wide" : "follow",
+                      )
+                    }
+                    className="flex items-center gap-2 rounded-full border border-[#7ed2b4]/18 bg-[var(--panel)] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#d5f5ec] backdrop-blur-md transition hover:border-[#7ed2b4]/34 hover:text-[#f1fff9]"
+                  >
+                    {arenaCameraMode === "follow" ? "Rider Cam" : "Town Cam"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleArenaFullscreenToggle()}
+                    className="flex items-center gap-2 rounded-full border border-[var(--panel-border)] bg-[var(--panel)] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)] backdrop-blur-md transition hover:border-[var(--accent-soft)] hover:text-[var(--accent-soft)]"
+                  >
+                    {arenaFullscreen ? (
+                      <Minimize className="h-4 w-4" />
+                    ) : (
+                      <Expand className="h-4 w-4" />
+                    )}
+                    {arenaFullscreen ? "Exit" : "Expand"}
+                  </button>
+                </div>
               </div>
               <ArenaCanvas
                 snapshot={snapshot}
                 selectedAgentId={arenaFocusAgentId}
+                cameraMode={arenaCameraMode}
                 canControl={
                   selectedAgent?.mode === "manual" &&
                   snapshot?.status === "in_progress" &&

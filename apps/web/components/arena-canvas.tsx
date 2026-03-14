@@ -11,6 +11,7 @@ import {
 type ArenaCanvasProps = {
   snapshot: MatchSnapshot | null;
   selectedAgentId?: string;
+  cameraMode?: "follow" | "wide";
   canControl: boolean;
   onCommand: (command: ArenaCommand) => void;
   onControlReadyChange?: (ready: boolean) => void;
@@ -19,6 +20,7 @@ type ArenaCanvasProps = {
 export function ArenaCanvas({
   snapshot,
   selectedAgentId,
+  cameraMode = "follow",
   canControl,
   onCommand,
   onControlReadyChange,
@@ -27,6 +29,7 @@ export function ArenaCanvas({
   const snapshotRef = useRef<MatchSnapshot | null>(snapshot);
   const onCommandRef = useRef(onCommand);
   const selectedAgentIdRef = useRef(selectedAgentId);
+  const cameraModeRef = useRef(cameraMode);
   const canControlRef = useRef(canControl);
   const onControlReadyChangeRef = useRef(onControlReadyChange);
   const pointerPositionRef = useRef({ x: 800, y: 450 });
@@ -52,6 +55,10 @@ export function ArenaCanvas({
   useEffect(() => {
     selectedAgentIdRef.current = selectedAgentId;
   }, [selectedAgentId]);
+
+  useEffect(() => {
+    cameraModeRef.current = cameraMode;
+  }, [cameraMode]);
 
   useEffect(() => {
     canControlRef.current = canControl;
@@ -168,6 +175,7 @@ export function ArenaCanvas({
         }
         event.preventDefault();
         event.stopPropagation();
+        (event as KeyboardEvent & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
       }
       if (key === "w" || key === "a" || key === "s" || key === "d") {
         pressedKeysRef.current[key] = isPressed;
@@ -221,6 +229,7 @@ export function ArenaCanvas({
       }
       event.preventDefault();
       event.stopPropagation();
+      (event as KeyboardEvent & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
     }
 
     function handleBlur() {
@@ -247,6 +256,16 @@ export function ArenaCanvas({
   }, []);
 
   useEffect(() => {
+    if (
+      containerRef.current &&
+      snapshot &&
+      (snapshot.status === "queued" || snapshot.status === "in_progress")
+    ) {
+      containerRef.current.focus();
+    }
+  }, [canControl, snapshot?.matchId, snapshot?.status]);
+
+  useEffect(() => {
     let destroyed = false;
     let game: any = null;
 
@@ -271,6 +290,7 @@ export function ArenaCanvas({
         private reticle?: any;
         private processedEventIds = new Set<string>();
         private activeMatchId: string | null = null;
+        private activeCameraFocusId: string | null = null;
 
         constructor() {
           super("ArenaScene");
@@ -278,6 +298,7 @@ export function ArenaCanvas({
 
         create() {
           this.cameras.main.setBackgroundColor("#2a1710");
+          this.cameras.main.setBounds(0, 0, 1600, 900);
           onControlReadyChangeRef.current?.(true);
 
           this.buildFrontierBackdrop();
@@ -321,6 +342,11 @@ export function ArenaCanvas({
             }
 
             const selectedPlayer = nextSnapshot.players.find(
+              (player) =>
+                player.agentId === selectedAgentIdRef.current && player.alive,
+            );
+
+            const focusPlayer = nextSnapshot.players.find(
               (player) =>
                 player.agentId === selectedAgentIdRef.current && player.alive,
             );
@@ -744,6 +770,28 @@ export function ArenaCanvas({
                 this.sprites.delete(agentId);
                 this.labels.delete(agentId);
               }
+            }
+
+            const shouldFollowPlayer =
+              cameraModeRef.current === "follow" &&
+              nextSnapshot.status === "in_progress" &&
+              focusPlayer;
+            if (shouldFollowPlayer) {
+              const focusSprite = this.sprites.get(focusPlayer.agentId);
+              if (focusSprite) {
+                if (this.activeCameraFocusId !== focusPlayer.agentId) {
+                  this.cameras.main.startFollow(focusSprite, true, 0.08, 0.08);
+                  this.activeCameraFocusId = focusPlayer.agentId;
+                }
+                this.cameras.main.setZoom(1.12);
+              }
+            } else {
+              if (this.activeCameraFocusId) {
+                this.cameras.main.stopFollow();
+                this.activeCameraFocusId = null;
+              }
+              this.cameras.main.setZoom(1);
+              this.cameras.main.centerOn(800, 450);
             }
 
             for (const pickup of nextSnapshot.pickups) {
