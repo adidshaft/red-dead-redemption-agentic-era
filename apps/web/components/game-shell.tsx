@@ -797,6 +797,36 @@ export function GameShell() {
     ],
     [autonomyPlan?.autonomyPassActive, transactions],
   );
+  const premiumLaneSummary = useMemo(() => {
+    if (autonomyPlan?.autonomyPassActive) {
+      return {
+        title: "Premium autonomy active",
+        detail:
+          autonomyPassRemainingLabel ??
+          "The premium lane is active and the planner is running with tighter queue discipline.",
+      };
+    }
+
+    if (autonomyQuote) {
+      return {
+        title: "x402 payment challenge ready",
+        detail:
+          autonomyHint ??
+          "The premium autonomy lane is waiting on payment verification.",
+      };
+    }
+
+    return {
+      title: "Premium autonomy available",
+      detail:
+        "Unlock the x402 lane for stronger planning, tighter paid-run timing, and clearer autonomous economy routing.",
+    };
+  }, [
+    autonomyHint,
+    autonomyPassRemainingLabel,
+    autonomyPlan?.autonomyPassActive,
+    autonomyQuote,
+  ]);
   const transactionCounts = useMemo(
     () => ({
       registrations: transactions.filter((receipt) => receipt.purpose === "agent_registration").length,
@@ -1633,11 +1663,15 @@ export function GameShell() {
           payTo: response.payload?.payTo,
           scheme: response.payload?.scheme,
         });
-        setAutonomyHint(JSON.stringify(response.payload, null, 2));
+        setAutonomyHint(
+          "Premium autonomy is waiting on an x402 payment challenge. Review the quote below and complete the payment through your configured flow.",
+        );
         setStatus("x402 payment is required for the autonomy pass.");
       } else {
         setAutonomyQuote(null);
-        setAutonomyHint(JSON.stringify(response.payload, null, 2));
+        setAutonomyHint(
+          "Premium autonomy is active. The planner can now route upgrades and paid queue timing with tighter discipline.",
+        );
         if (response.payload?.receipt) {
           pushTxReveal(
             response.payload.receipt as OnchainReceipt,
@@ -2305,11 +2339,63 @@ export function GameShell() {
                     <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
                       Premium Autonomy
                     </div>
-                    <div className="mt-2 text-sm text-stone-200/72">
-                      {autonomyPlan?.autonomyPassActive
-                        ? autonomyPassRemainingLabel ?? "Premium autonomy active"
-                        : "Optional x402 lane for stronger queue discipline."}
+                    <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                      {premiumLaneSummary.title}
                     </div>
+                    <div className="mt-2 text-sm text-stone-200/72">
+                      {premiumLaneSummary.detail}
+                    </div>
+                    <div className="mt-3 grid gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+                      {premiumLaneSteps.map((step) => (
+                        <div
+                          key={step.label}
+                          className={`rounded-[14px] border px-3 py-2 ${
+                            step.done
+                              ? "border-[#7ed2b4]/18 bg-[#7ed2b4]/10 text-[#daf8ef]"
+                              : "border-white/8 bg-black/14 text-stone-200/72"
+                          }`}
+                        >
+                          <div className="font-semibold">{step.label}</div>
+                          <div className="mt-1 text-[10px] normal-case tracking-normal opacity-80">
+                            {step.detail}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {autonomyQuote && (
+                      <div className="mt-3 rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-sm text-stone-200/72">
+                        <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                          x402 challenge
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                          {autonomyQuote.amount && (
+                            <span className="rounded-full border border-white/8 px-2.5 py-1">
+                              {autonomyQuote.amount} {autonomyQuote.asset ?? ""}
+                            </span>
+                          )}
+                          {autonomyQuote.chainId && (
+                            <span className="rounded-full border border-white/8 px-2.5 py-1">
+                              Chain #{autonomyQuote.chainId}
+                            </span>
+                          )}
+                          {autonomyQuote.scheme && (
+                            <span className="rounded-full border border-white/8 px-2.5 py-1">
+                              {autonomyQuote.scheme}
+                            </span>
+                          )}
+                        </div>
+                        {autonomyQuote.payTo && (
+                          <div className="mt-2 text-xs text-stone-300/60">
+                            Pay to {truncateAddress(autonomyQuote.payTo)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {autonomyHint && (
+                      <div className="mt-3 rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-sm text-stone-200/72">
+                        {autonomyHint}
+                      </div>
+                    )}
                     {!autonomyPlan?.autonomyPassActive && (
                       <button
                         type="button"
@@ -2317,7 +2403,7 @@ export function GameShell() {
                         disabled={busyAction !== null}
                         className="mt-3 rounded-full border border-[#df6c39]/30 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/16 disabled:opacity-50"
                       >
-                        Unlock x402 Premium
+                        {autonomyQuote ? "Refresh x402 Challenge" : "Unlock x402 Premium"}
                       </button>
                     )}
                   </div>
