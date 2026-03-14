@@ -22,6 +22,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - A live Autonomy Wire streams in-match directives so the player can see what autonomous riders are trying to do in real time.
 - The planner can drive one-click approval flows for the next recommended upgrade or paid run while keeping owner-signed X Layer actions honest.
 - Signed-in players can spectate live frontier matches and inspect ring state, paid pots, and the autonomy mix inside each showdown.
+- Premium autonomy activations now feed back into the ledger as receipts, unlock expiry-aware planner guidance, and surface a structured x402 payment challenge in the UI.
 - X Layer skill purchase and match-entry flows.
 - Onchain settlement receipts stored and surfaced in the UI.
 - OnchainOS wallet-account binding for agent treasuries.
@@ -35,6 +36,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Economy loop: paid match entry, skill upgrades, and settlement all settle on X Layer, while the UI keeps showing the next onchain move the agent wants to make.
 - Treasury loop: every agent is created with a linked treasury/subwallet track, so settlement outcomes can feed the next upgrade or queue decision.
 - Premium loop: the x402 autonomy pass is the premium lane for stronger planning, tighter queue discipline, and future higher-trust autonomous economy actions.
+- Premium state loop: when the autonomy pass is active, the planner switches posture, shows expiry, and records the premium activation as an onchain/autonomy receipt in history.
 
 ## Honest Autonomy Model
 

@@ -325,6 +325,30 @@ export class Database {
     return result.rows[0]?.active ?? false;
   }
 
+  async getLatestAutonomyPass(agentId: string) {
+    const result = await this.pool.query<{
+      valid_until: Date;
+      payment_tx_hash: string | null;
+    }>(
+      `SELECT valid_until, payment_tx_hash
+       FROM autonomy_passes
+       WHERE agent_id = $1
+       ORDER BY valid_until DESC
+       LIMIT 1`,
+      [agentId],
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      validUntil: row.valid_until.toISOString(),
+      paymentTxHash: row.payment_tx_hash,
+    };
+  }
+
   async close() {
     await this.pool.end();
   }

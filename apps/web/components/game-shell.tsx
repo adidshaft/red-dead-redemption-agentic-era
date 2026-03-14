@@ -74,6 +74,14 @@ type TxReveal = {
   detail: string;
 };
 
+type AutonomyPassQuote = {
+  amount?: string;
+  asset?: string;
+  chainId?: number;
+  payTo?: string;
+  scheme?: string;
+};
+
 export function GameShell() {
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
@@ -99,6 +107,7 @@ export function GameShell() {
   );
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [autonomyHint, setAutonomyHint] = useState<string | null>(null);
+  const [autonomyQuote, setAutonomyQuote] = useState<AutonomyPassQuote | null>(null);
   const [arenaReadyForControls, setArenaReadyForControls] = useState(false);
   const [arenaFullscreen, setArenaFullscreen] = useState(false);
   const [matchCountdown, setMatchCountdown] = useState<number | null>(null);
@@ -476,6 +485,7 @@ export function GameShell() {
     setSnapshot(null);
     setRecentEvents([]);
     setAutonomyPlan(null);
+    setAutonomyQuote(null);
     setTxReveals([]);
     seenTxHashesRef.current = new Set();
     txRevealTimersRef.current.forEach((timeoutId) => {
@@ -915,10 +925,26 @@ export function GameShell() {
     try {
       const response = await requestAutonomyPass(authToken, selectedAgent.id);
       if (response.status === 402) {
+        setAutonomyQuote({
+          amount: response.payload?.amount,
+          asset: response.payload?.asset,
+          chainId: response.payload?.chainId,
+          payTo: response.payload?.payTo,
+          scheme: response.payload?.scheme,
+        });
         setAutonomyHint(JSON.stringify(response.payload, null, 2));
         setStatus("x402 payment is required for the autonomy pass.");
       } else {
+        setAutonomyQuote(null);
         setAutonomyHint(JSON.stringify(response.payload, null, 2));
+        if (response.payload?.receipt) {
+          pushTxReveal(
+            response.payload.receipt as OnchainReceipt,
+            "x402 autonomy pass confirmed",
+            "Premium autonomy routing is active for the next 24 hours.",
+          );
+        }
+        await loadTransactions(selectedAgent.id, { revealNew: true });
         await loadAutonomyPlan(selectedAgent.id);
         setStatus("Autonomy pass activated.");
       }
@@ -1348,13 +1374,13 @@ export function GameShell() {
                   <div className="mt-4 grid gap-3 text-sm text-stone-200/74 xl:grid-cols-2">
                     <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
                       <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
-                        Next Onchain Move
+                        Campaign Priority
                       </div>
                       <div className="mt-2 font-semibold text-[#f6ead7]">
-                        Buy {skillLabels[autonomyPlan.nextSkill]}
+                        {formatCampaignPriority(autonomyPlan.campaignPriority)}
                       </div>
                       <div className="mt-1 text-sm text-stone-200/68">
-                        {autonomyPlan.nextSkillReason}
+                        {formatCampaignPriorityDetail(autonomyPlan)}
                       </div>
                     </div>
                     <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
@@ -1372,6 +1398,14 @@ export function GameShell() {
                       <div className="mt-2 text-sm text-stone-200/72">
                         {autonomyPlan.economyDirective}
                       </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                        <span className="rounded-full border border-white/8 px-2.5 py-1">
+                          Queue: {autonomyPlan.recommendedQueue}
+                        </span>
+                        <span className="rounded-full border border-white/8 px-2.5 py-1">
+                          Posture: {autonomyPlan.economyPosture}
+                        </span>
+                      </div>
                     </div>
                     <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
                       <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
@@ -1380,6 +1414,14 @@ export function GameShell() {
                       <div className="mt-2 text-sm text-stone-200/72">
                         {autonomyPlan.x402Directive}
                       </div>
+                      {autonomyPlan.autonomyPassValidUntil && (
+                        <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/58">
+                          Valid until{" "}
+                          <span className="text-[#f6ead7]">
+                            {formatShortDateTime(autonomyPlan.autonomyPassValidUntil)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
@@ -1549,6 +1591,24 @@ export function GameShell() {
                 <p className="mt-3 text-sm text-stone-200/72">
                   Premium autonomy is the payment-gated lane for stronger planning, cleaner paid-run discipline, and future higher-trust agent economy flows on top of OnchainOS and x402.
                 </p>
+                {autonomyQuote && (
+                  <div className="mt-3 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3 text-sm text-stone-200/72">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
+                      Payment challenge ready
+                    </div>
+                    <div className="mt-2 grid gap-2 text-[11px] uppercase tracking-[0.16em] text-stone-300/58 sm:grid-cols-2">
+                      <div>
+                        Amount: <span className="text-[#f6ead7]">{autonomyQuote.amount ?? "—"} {autonomyQuote.asset ?? ""}</span>
+                      </div>
+                      <div>
+                        Chain: <span className="text-[#f6ead7]">#{autonomyQuote.chainId ?? "—"}</span>
+                      </div>
+                      <div className="sm:col-span-2">
+                        Pay to: <span className="text-[#f6ead7]">{autonomyQuote.payTo ? truncateAddress(autonomyQuote.payTo) : "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {autonomyHint && (
                   <div className="mt-3 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3 text-xs text-stone-200/68">
                     Latest payment response captured. Open the raw payload if you need to inspect the gateway details.
@@ -2350,6 +2410,47 @@ function formatReceiptRevealDetail(receipt: OnchainReceipt) {
       return "Match rewards were settled on X Layer and the final ledger is locked.";
     case "autonomy_pass":
       return "Autonomous premium access has been confirmed.";
+  }
+}
+
+function formatCampaignPriority(
+  value: AutonomyPlan["campaignPriority"],
+) {
+  switch (value) {
+    case "buy_skill":
+      return "Approve next skill upgrade";
+    case "queue_paid":
+      return "Deploy a paid showdown run";
+    case "buy_autonomy_pass":
+      return "Unlock premium autonomy";
+    case "run_practice":
+      return "Run a practice frontier cycle";
+  }
+}
+
+function formatCampaignPriorityDetail(plan: AutonomyPlan) {
+  switch (plan.campaignPriority) {
+    case "buy_skill":
+      return `The next approved upgrade should be ${skillLabels[plan.nextSkill]}. ${plan.nextSkillReason}`;
+    case "queue_paid":
+      return "The agent has enough momentum to push into the paid queue and try to compound settlements.";
+    case "buy_autonomy_pass":
+      return "Premium autonomy is now the highest-leverage upgrade for this agent's planning and queue discipline.";
+    case "run_practice":
+      return "Stay in practice until the current doctrine is sharper, then move back into higher-risk economy actions.";
+  }
+}
+
+function formatShortDateTime(value: string) {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
   }
 }
 

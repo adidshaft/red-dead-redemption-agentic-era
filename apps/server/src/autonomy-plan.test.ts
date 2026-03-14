@@ -48,19 +48,26 @@ describe("buildAutonomyPlan", () => {
       },
     ];
 
-    const plan = buildAutonomyPlan(createAgent(), receipts, false);
+    const plan = buildAutonomyPlan(createAgent(), receipts, false, null);
 
     expect(plan.doctrine).toBe("Railshot Duelist");
     expect(plan.nextSkill).toBe("quickdraw");
     expect(plan.skillPurchases).toBe(1);
     expect(plan.paidEntries).toBe(1);
     expect(plan.settlements).toBe(0);
+    expect(plan.recommendedQueue).toBe("practice");
   });
 
   it("switches economy guidance when the x402 autonomy pass is active", () => {
-    const plan = buildAutonomyPlan(createAgent(), [], true);
+    const plan = buildAutonomyPlan(
+      createAgent(),
+      [],
+      true,
+      "2026-03-15T10:00:00.000Z",
+    );
 
     expect(plan.autonomyPassActive).toBe(true);
+    expect(plan.autonomyPassValidUntil).toBe("2026-03-15T10:00:00.000Z");
     expect(plan.x402Directive.toLowerCase()).toContain("premium autonomy");
   });
 });

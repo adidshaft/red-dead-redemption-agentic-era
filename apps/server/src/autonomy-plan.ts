@@ -61,6 +61,7 @@ export function buildAutonomyPlan(
   agent: AgentProfile,
   receipts: OnchainReceipt[],
   autonomyPassActive: boolean,
+  autonomyPassValidUntil: string | null,
 ): AutonomyPlan {
   const doctrine = getDoctrine(agent);
   const nextSkill = pickNextSkill(agent, doctrine.upgradeQueue);
@@ -73,6 +74,23 @@ export function buildAutonomyPlan(
   const settlements = receipts.filter(
     (receipt) => receipt.purpose === "match_settlement",
   ).length;
+  const economyPosture =
+    settlements >= 3 ? "aggressive" : settlements >= 1 ? "compounding" : "bootstrap";
+  const recommendedQueue =
+    settlements > 0 || autonomyPassActive ? "paid" : "practice";
+  const campaignPriority = autonomyPassActive
+    ? skillPurchases <= paidEntries
+      ? "buy_skill"
+      : recommendedQueue === "paid"
+        ? "queue_paid"
+        : "run_practice"
+    : paidEntries >= 2
+      ? "buy_autonomy_pass"
+      : skillPurchases === 0
+        ? "buy_skill"
+        : recommendedQueue === "paid"
+          ? "queue_paid"
+          : "run_practice";
 
   return {
     agentId: agent.id,
@@ -90,6 +108,10 @@ export function buildAutonomyPlan(
       ? "Premium autonomy is active: use the planner for stronger queue discipline, upgrade timing, and economy routing."
       : "Buy the x402 autonomy pass to unlock premium planning and a tighter autonomous play loop.",
     autonomyPassActive,
+    autonomyPassValidUntil,
+    campaignPriority,
+    recommendedQueue,
+    economyPosture,
     skillPurchases,
     paidEntries,
     settlements,

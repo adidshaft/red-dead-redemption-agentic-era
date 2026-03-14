@@ -16,6 +16,7 @@ import {
   registerAgentInputSchema,
   setAgentModeInputSchema,
   settleWebhookInputSchema,
+  toExplorerTxUrl,
   verifySignatureInputSchema,
   x402AutonomyPassInputSchema,
 } from "@rdr/shared";
@@ -222,9 +223,15 @@ app.get("/agents/:id/autonomy-plan", async (request, reply) => {
     db.listAgentTransactions(agent.id),
     db.hasActiveAutonomyPass(agent.id),
   ]);
+  const latestAutonomyPass = await db.getLatestAutonomyPass(agent.id);
 
   return {
-    plan: buildAutonomyPlan(agent, receipts, autonomyPassActive),
+    plan: buildAutonomyPlan(
+      agent,
+      receipts,
+      autonomyPassActive,
+      latestAutonomyPass?.validUntil ?? null,
+    ),
   };
 });
 
@@ -575,16 +582,37 @@ app.post("/payments/x402/autonomy-pass", async (request, reply) => {
     parsed.data.paymentPayload,
   );
   const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const paymentTxHash = settlement?.data?.[0]?.txHash ?? null;
   await db.createAutonomyPass(
     agent.id,
     validUntil,
-    settlement?.data?.[0]?.txHash ?? null,
+    paymentTxHash,
   );
+
+  const receipt =
+    paymentTxHash
+      ? {
+          txHash: paymentTxHash,
+          chainId: config.XLAYER_TESTNET_CHAIN_ID,
+          status: "confirmed" as const,
+          purpose: "autonomy_pass" as const,
+          agentId: agent.id,
+          explorerUrl: toExplorerTxUrl(
+            paymentTxHash,
+            config.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+          ),
+          createdAt: new Date().toISOString(),
+        }
+      : null;
+  if (receipt) {
+    await db.createOrUpdateTransaction(receipt);
+  }
 
   return {
     status: "active",
     validUntil: validUntil.toISOString(),
     settlement,
+    receipt,
   };
 });
 
