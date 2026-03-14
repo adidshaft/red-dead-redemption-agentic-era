@@ -492,6 +492,18 @@ export function ArenaCanvas({
                   align: "center",
                   letterSpacing: isSelected ? 1 : 0,
                 }).setOrigin(0.5);
+                const bountyBadge = this.add
+                  .text(0, -54, "BOUNTY", {
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "11px",
+                    color: "#1b0f0a",
+                    backgroundColor: "#df6c39",
+                    align: "center",
+                    padding: { x: 8, y: 3 },
+                    letterSpacing: 1,
+                  })
+                  .setOrigin(0.5)
+                  .setVisible(false);
 
                 const container = this.add.container(player.x, player.y, [
                   glowGfx,
@@ -500,6 +512,7 @@ export function ArenaCanvas({
                   figure,
                   hpBg,
                   hp,
+                  bountyBadge,
                   labelBg,
                   label,
                 ]);
@@ -519,6 +532,7 @@ export function ArenaCanvas({
                   hatBrim,
                   hatTop,
                   weapon,
+                  bountyBadge,
                 });
               }
 
@@ -527,6 +541,8 @@ export function ArenaCanvas({
               if (sprite && spriteData) {
                 sprite.setPosition(player.x, player.y);
                 const isSelected = player.agentId === selectedAgentIdRef.current;
+                const isBounty =
+                  nextSnapshot.bounty?.targetAgentId === player.agentId;
                 const baseColor = isSelected ? 0xf4c885 : player.mode === "autonomous" ? 0xb53c1e : 0x7ed2b4;
 
                 spriteData.mount.setFillStyle(baseColor, player.alive ? 0.95 : 0.25);
@@ -542,7 +558,11 @@ export function ArenaCanvas({
                 if (isSelected && player.alive) {
                     spriteData.ring.rotation += 0.05;
                 }
-                spriteData.ring.setStrokeStyle(isSelected ? 4 : 2, isSelected ? 0xffe6b3 : 0xffffff, isSelected ? 0.8 : 0.25);
+                spriteData.ring.setStrokeStyle(
+                  isSelected ? 4 : isBounty ? 4 : 2,
+                  isSelected ? 0xffe6b3 : isBounty ? 0xdf6c39 : 0xffffff,
+                  isSelected ? 0.8 : isBounty ? 0.78 : 0.25,
+                );
                 const facing =
                   player.lastCommand?.type === "move"
                     ? Math.atan2(player.lastCommand.dy, player.lastCommand.dx)
@@ -568,6 +588,8 @@ export function ArenaCanvas({
                 spriteData.label.setAlpha(player.alive ? 1 : 0.45);
                 spriteData.labelBg.setAlpha(player.alive ? 1 : 0.15);
                 spriteData.labelBg.width = spriteData.label.width + 12;
+                spriteData.bountyBadge.setVisible(isBounty && player.alive);
+                spriteData.bountyBadge.setAlpha(player.alive ? 0.95 : 0);
               }
             }
 
@@ -944,6 +966,14 @@ export function ArenaCanvas({
                 this.pulseAt(actorPosition.x, actorPosition.y, 0xdf6c39, 0.28, 30);
               } else {
                 this.flashBanner("SUPPLY DROP");
+              }
+              break;
+            case "bounty":
+              if (targetPosition) {
+                this.ringAt(targetPosition.x, targetPosition.y, 0xdf6c39, 48, 320);
+                this.pulseAt(targetPosition.x, targetPosition.y, 0xdf6c39, 0.24, 32);
+              } else {
+                this.flashBanner("BOUNTY POSTED");
               }
               break;
             case "spawn":

@@ -22,6 +22,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The Dust Circuit arena has been rebuilt as a live frontier scene with saloon, hotel, wash, stable, wagon, water tower, richer rider silhouettes, and stronger in-canvas combat cues instead of a flat prototype board.
 - The post-match dossier now explains the rider’s finish, combat output, treasury outcome, and next recommended action instead of only showing raw standings.
 - Live signal-drop objectives now appear during rounds to force convergence and reward agents who control tempo inside the ring.
+- Live bounty marks now spotlight the hottest rider in the field, turning mid-match momentum into an obvious kill target with bonus score and stronger on-canvas guidance.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - The autonomy lane now compresses doctrine, confidence, posture, and the latest wire calls into a short-command view that is easier to read mid-session.
@@ -50,6 +51,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 
 - Combat loop: autonomous agents decide when to chase, reload, dodge, rotate into the safe zone, and contest pickups.
 - Objective loop: signal-drop objectives pull riders into contested territory and reward whoever secures the drop with score, ammo, and healing.
+- Bounty loop: the arena periodically posts a live mark on one rider, forcing the field to hunt the leader or helping the marked rider bait bad pushes for a comeback swing.
 - Doctrine loop: each agent derives a doctrine from its skills, and the fallback combat brain now changes firing range, pickup routing, flanking, and center-control behavior to match it.
 - Progression loop: the Autonomy Director recommends the next highest-leverage skill buy based on the agent's current stat profile and receipt history.
 - Visibility loop: live autonomy directives explain why agents rotate, reload, contest supplies, or force a fight.

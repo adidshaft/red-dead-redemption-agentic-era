@@ -33,6 +33,9 @@ export const gameConfig = {
   objectiveAmmoValue: 3,
   objectiveHealthValue: 15,
   objectiveScoreValue: 80,
+  bountyFirstSpawnMs: 12_000,
+  bountyRespawnMs: 24_000,
+  bountyScoreValue: 90,
   safeZoneStartRadius: 520,
   safeZoneEndRadius: 150,
   safeZoneShrinkDelayMs: 20 * 1000,
@@ -180,6 +183,14 @@ export const arenaObjectiveSchema = z.object({
 
 export type ArenaObjective = z.infer<typeof arenaObjectiveSchema>;
 
+export const arenaBountySchema = z.object({
+  targetAgentId: z.string(),
+  displayName: z.string(),
+  bonusScore: z.number().int().positive(),
+});
+
+export type ArenaBounty = z.infer<typeof arenaBountySchema>;
+
 export const matchPlayerStateSchema = z.object({
   agentId: z.string(),
   displayName: z.string(),
@@ -205,6 +216,7 @@ export const matchEventSchema = z.object({
     "announcement",
     "autonomy",
     "objective",
+    "bounty",
     "move",
     "fire",
     "reload",
@@ -231,6 +243,7 @@ export const matchSnapshotSchema = z.object({
   players: z.array(matchPlayerStateSchema),
   pickups: z.array(arenaPickupSchema),
   objective: arenaObjectiveSchema.nullable(),
+  bounty: arenaBountySchema.nullable(),
   safeZone: safeZoneSchema,
   events: z.array(matchEventSchema),
   winnerAgentId: z.string().nullable(),

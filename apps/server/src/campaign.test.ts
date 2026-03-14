@@ -19,6 +19,7 @@ function createMatch(
     settlementTxHash: null,
     pickups: [],
     objective: null,
+    bounty: null,
     safeZone: {
       centerX: 800,
       centerY: 450,

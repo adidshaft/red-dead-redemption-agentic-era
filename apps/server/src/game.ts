@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 import {
+  type ArenaBounty,
   gameConfig,
   type ArenaObjective,
   baseSkillValue,
@@ -64,6 +65,8 @@ type MatchRuntime = {
   players: Map<string, RuntimePlayer>;
   pickups: Map<string, ArenaPickup>;
   objective: ArenaObjective | null;
+  bounty: ArenaBounty | null;
+  nextBountyAt: number;
   nextObjectiveAt: number;
   lastPickupSpawnAt: number;
   lastSafeZoneStage: number;
@@ -228,6 +231,29 @@ export function createArenaObjective(
       gameConfig.arenaSize.height - 140,
     ),
     expiresAt: new Date(now + gameConfig.objectiveDurationMs).toISOString(),
+  };
+}
+
+export function createArenaBounty(
+  players: Array<Pick<RuntimePlayer, "agentId" | "displayName" | "alive" | "score">>,
+  random = Math.random,
+): ArenaBounty | null {
+  const alivePlayers = players.filter((player) => player.alive);
+  if (alivePlayers.length < 2) {
+    return null;
+  }
+
+  const ranked = [...alivePlayers].sort((left, right) => right.score - left.score);
+  const pool = ranked.slice(0, Math.min(3, ranked.length));
+  const target = pool[Math.floor(random() * pool.length)] ?? pool[0];
+  if (!target) {
+    return null;
+  }
+
+  return {
+    targetAgentId: target.agentId,
+    displayName: target.displayName,
+    bonusScore: gameConfig.bountyScoreValue,
   };
 }
 
@@ -688,6 +714,7 @@ export class ArenaCoordinator {
       players: Array.from(players.values()).map(toSnapshotPlayer),
       pickups: [],
       objective: null,
+      bounty: null,
       safeZone: computeSafeZone(0),
       events,
       winnerAgentId: null,
@@ -703,6 +730,8 @@ export class ArenaCoordinator {
       players,
       pickups,
       objective: null,
+      bounty: null,
+      nextBountyAt: gameConfig.bountyFirstSpawnMs,
       nextObjectiveAt: gameConfig.objectiveFirstSpawnMs,
       lastPickupSpawnAt: Date.now(),
       lastSafeZoneStage: 0,
@@ -751,6 +780,24 @@ export class ArenaCoordinator {
       : now;
     const elapsedMs = Math.max(0, now - startedAtMs);
     runtime.snapshot.safeZone = computeSafeZone(elapsedMs);
+    if (
+      !runtime.bounty &&
+      elapsedMs >= runtime.nextBountyAt &&
+      runtime.snapshot.status === "in_progress"
+    ) {
+      runtime.bounty = createArenaBounty(Array.from(runtime.players.values()));
+      runtime.snapshot.bounty = runtime.bounty;
+      if (runtime.bounty) {
+        events.push(
+          createEvent({
+            type: "bounty",
+            targetAgentId: runtime.bounty.targetAgentId,
+            message: `${runtime.bounty.displayName} is marked for bounty. Drop them for +${runtime.bounty.bonusScore} score.`,
+          }),
+        );
+      }
+    }
+
     if (
       !runtime.objective &&
       elapsedMs >= runtime.nextObjectiveAt &&
@@ -836,6 +883,18 @@ export class ArenaCoordinator {
         if (player.health <= 0) {
           player.alive = false;
           player.moveVector = { dx: 0, dy: 0 };
+          if (runtime.bounty?.targetAgentId === player.agentId) {
+            runtime.bounty = null;
+            runtime.snapshot.bounty = null;
+            runtime.nextBountyAt = elapsedMs + gameConfig.bountyRespawnMs;
+            events.push(
+              createEvent({
+                type: "bounty",
+                targetAgentId: player.agentId,
+                message: `${player.displayName} drops with the bounty still active. A new mark will be posted soon.`,
+              }),
+            );
+          }
           events.push(
             createEvent({
               type: "elimination",
@@ -946,6 +1005,7 @@ export class ArenaCoordinator {
     );
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     runtime.snapshot.objective = runtime.objective;
+    runtime.snapshot.bounty = runtime.bounty;
     const alivePlayers = runtime.snapshot.players.filter(
       (player) => player.alive,
     );
@@ -1155,6 +1215,26 @@ export class ArenaCoordinator {
             target.alive = false;
             target.moveVector = { dx: 0, dy: 0 };
             actor.kills += 1;
+            if (runtime.bounty?.targetAgentId === target.agentId) {
+              actor.objectiveBonus += runtime.bounty.bonusScore;
+              events.push(
+                createEvent({
+                  type: "bounty",
+                  actorAgentId: actor.agentId,
+                  targetAgentId: target.agentId,
+                  message: `${actor.displayName} cashes the bounty on ${target.displayName} for +${runtime.bounty.bonusScore} score.`,
+                }),
+              );
+              runtime.bounty = null;
+              runtime.snapshot.bounty = null;
+              runtime.nextBountyAt =
+                Math.max(
+                  0,
+                  (runtime.snapshot.startedAt
+                    ? now - new Date(runtime.snapshot.startedAt).getTime()
+                    : 0),
+                ) + gameConfig.bountyRespawnMs;
+            }
             events.push(
               createEvent({
                 type: "elimination",
@@ -1182,6 +1262,7 @@ export class ArenaCoordinator {
     );
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     runtime.snapshot.objective = runtime.objective;
+    runtime.snapshot.bounty = runtime.bounty;
     return events;
   }
 
@@ -1252,6 +1333,7 @@ export class ArenaCoordinator {
     );
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     runtime.snapshot.objective = runtime.objective;
+    runtime.snapshot.bounty = runtime.bounty;
     void this.db.appendMatchEvents(runtime.snapshot.matchId, events);
     void this.db.createOrUpdateMatch(runtime.snapshot);
     this.broadcasts.emitEvents(runtime.snapshot.matchId, events);

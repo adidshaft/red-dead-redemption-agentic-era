@@ -624,6 +624,24 @@ export function GameShell() {
         };
       }
 
+      if (snapshot.bounty) {
+        if (snapshot.bounty.targetAgentId === selectedSnapshotPlayer.agentId) {
+          return {
+            eyebrow: "Bounty",
+            title: "You are the marked rider",
+            detail: `The field gets +${snapshot.bounty.bonusScore} score for dropping you. Break sight lines, stay healthy, and force bad chases.`,
+            tone: "danger",
+          };
+        }
+
+        return {
+          eyebrow: "Bounty",
+          title: `Bring down ${snapshot.bounty.displayName}`,
+          detail: `A live bounty is worth +${snapshot.bounty.bonusScore} score. Collapse when the mark is exposed and don’t waste ammo on bad angles.`,
+          tone: "accent",
+        };
+      }
+
       if (selectedThreat) {
         return {
           eyebrow: "Pressure",
@@ -721,6 +739,20 @@ export function GameShell() {
       });
     }
 
+    if (snapshot.bounty) {
+      signals.push({
+        label:
+          snapshot.bounty.targetAgentId === selectedAgent?.id
+            ? `Marked bounty • +${snapshot.bounty.bonusScore}`
+            : `Bounty ${snapshot.bounty.displayName}`,
+        tone:
+          snapshot.bounty.targetAgentId === selectedAgent?.id
+            ? "danger"
+            : "accent",
+        icon: <Sword className="h-3.5 w-3.5" />,
+      });
+    }
+
     if (matchEconomy) {
       signals.push({
         label: `Pot ${formatWeiToOkb(matchEconomy.totalPot)}`,
@@ -733,6 +765,7 @@ export function GameShell() {
   }, [
     matchEconomy,
     objectiveTimerLabel,
+    selectedAgent?.id,
     selectedRingState,
     selectedSnapshotPlayer,
     selectedThreat,
@@ -3587,6 +3620,7 @@ function ArenaMinimap({
           const left = `${(player.x / 1600) * 100}%`;
           const top = `${(player.y / 900) * 100}%`;
           const isSelected = player.agentId === selectedAgentId;
+          const isBounty = snapshot.bounty?.targetAgentId === player.agentId;
           return (
             <div
               key={player.agentId}
@@ -3597,6 +3631,8 @@ function ArenaMinimap({
                 className={`rounded-full border ${
                   isSelected
                     ? "h-4 w-4 border-[#f8e3b4] bg-[#f0bf76] shadow-[0_0_18px_rgba(240,191,118,0.45)]"
+                    : isBounty
+                      ? "h-4 w-4 border-[#ffd0ae] bg-[#df6c39] shadow-[0_0_16px_rgba(223,108,57,0.4)]"
                     : player.alive
                       ? "h-3 w-3 border-white/30 bg-[#7ed2b4]"
                       : "h-3 w-3 border-white/10 bg-white/20"
