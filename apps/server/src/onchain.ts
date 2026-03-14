@@ -34,6 +34,19 @@ export function matchIdToBytes32(matchId: string) {
   return keccak256(stringToHex(matchId)) as Hex;
 }
 
+function normalizePrivateKey(privateKey?: string | null): Hex | null {
+  if (!privateKey) {
+    return null;
+  }
+
+  const trimmed = privateKey.trim().replace(/^['"]|['"]$/g, "");
+  if (!trimmed) {
+    return null;
+  }
+
+  return (trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`) as Hex;
+}
+
 export class OnchainOsClient {
   async createTrackedWalletAccount(address: Address) {
     if (
@@ -180,9 +193,13 @@ export class XLayerChainService {
     transport: http(config.XLAYER_TESTNET_RPC_URL),
   });
 
-  private readonly walletClient = config.ARENA_OPERATOR_PRIVATE_KEY
+  private readonly walletClient = normalizePrivateKey(
+    config.ARENA_OPERATOR_PRIVATE_KEY,
+  )
     ? createWalletClient({
-        account: privateKeyToAccount(config.ARENA_OPERATOR_PRIVATE_KEY as Hex),
+        account: privateKeyToAccount(
+          normalizePrivateKey(config.ARENA_OPERATOR_PRIVATE_KEY)!,
+        ),
         chain: {
           id: config.XLAYER_TESTNET_CHAIN_ID,
           name: xLayerTestnet.name,

@@ -100,6 +100,12 @@ export function GameShell() {
   }, []);
 
   useEffect(() => {
+    if (isConnected && !authToken) {
+      setStatus("Wallet connected. Sign in with a wallet signature to mint an agent.");
+    }
+  }, [isConnected, authToken]);
+
+  useEffect(() => {
     if (!selectedAgent && agents[0]) {
       setSelectedAgentId(agents[0].id);
     }
@@ -235,29 +241,7 @@ export function GameShell() {
     try {
       const response = await createAgent(authToken, baseName);
       if (response.registrationRequired) {
-        if (!walletClient || !publicClient || !deployedContractAddress) {
-          throw new Error(
-            "Wallet connection and contract deployment are required to register this agent onchain.",
-          );
-        }
-        await ensureXLayer();
-        const registrationTx = await walletClient.writeContract({
-          account: walletClient.account!,
-          chain: xLayerTestnetChain,
-          address: deployedContractAddress as Address,
-          abi: arenaEconomyAbi,
-          functionName: "registerAgent",
-          args: [
-            agentIdToBytes32(response.agent.id),
-            response.agent.walletAddress as Address,
-          ],
-        });
-        await publicClient.waitForTransactionReceipt({ hash: registrationTx });
-        await registerAgentOnServer(
-          authToken,
-          response.agent.id,
-          registrationTx,
-        );
+        await ensureAgentRegisteredOnchain(response.agent);
       }
       setAgents((current) => [...current, response.agent]);
       setSelectedAgentId(response.agent.id);
@@ -309,6 +293,7 @@ export function GameShell() {
 
     setBusyAction(`skill-${skill}`);
     try {
+      await ensureAgentRegisteredOnchain(selectedAgent);
       await ensureXLayer();
       const hash = await walletClient.writeContract({
         account: walletClient.account!,
@@ -352,6 +337,7 @@ export function GameShell() {
     setBusyAction(paid ? "paid-queue" : "practice-queue");
     try {
       if (paid) {
+        await ensureAgentRegisteredOnchain(selectedAgent);
         if (!walletClient || !publicClient || !deployedContractAddress) {
           throw new Error(
             "Deploy the ArenaEconomy contract before paid queueing.",
@@ -430,6 +416,38 @@ export function GameShell() {
     } finally {
       setBusyAction(null);
     }
+  }
+
+  async function ensureAgentRegisteredOnchain(agent: AgentProfile) {
+    if (!authToken || !walletClient || !publicClient || !deployedContractAddress) {
+      throw new Error(
+        "Wallet connection and contract deployment are required to register this agent onchain.",
+      );
+    }
+
+    await ensureXLayer();
+    const registrationState = await publicClient.readContract({
+      address: deployedContractAddress as Address,
+      abi: arenaEconomyAbi,
+      functionName: "agents",
+      args: [agentIdToBytes32(agent.id)],
+    });
+
+    if (registrationState[2]) {
+      return;
+    }
+
+    setStatus(`Registering ${agent.displayName} on X Layer...`);
+    const registrationTx = await walletClient.writeContract({
+      account: walletClient.account!,
+      chain: xLayerTestnetChain,
+      address: deployedContractAddress as Address,
+      abi: arenaEconomyAbi,
+      functionName: "registerAgent",
+      args: [agentIdToBytes32(agent.id), agent.walletAddress as Address],
+    });
+    await publicClient.waitForTransactionReceipt({ hash: registrationTx });
+    await registerAgentOnServer(authToken, agent.id, registrationTx);
   }
 
   function handleArenaCommand(command: ArenaCommand) {
@@ -568,7 +586,7 @@ export function GameShell() {
                 ) : (
                   <Gem className="h-4 w-4" />
                 )}
-                Mint a New Agent Profile
+                {authToken ? "Mint a New Agent Profile" : "Sign In to Mint an Agent"}
               </button>
               <p className="text-sm text-stone-300/68">
                 Every agent is named as{" "}
@@ -578,6 +596,11 @@ export function GameShell() {
                 , starts with five core stats, and gets a linked subwallet for
                 settlement.
               </p>
+              {!authToken ? (
+                <p className="text-xs text-amber-100/75">
+                  Next step: click <span className="font-semibold">Sign In</span> above, approve the wallet signature, then mint the agent.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
