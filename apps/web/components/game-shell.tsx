@@ -243,6 +243,17 @@ export function GameShell() {
     () => recentEvents.filter((event) => event.type === "autonomy").slice(-4),
     [recentEvents],
   );
+  const criticalEvents = useMemo(
+    () =>
+      recentEvents
+        .filter((event) =>
+          ["announcement", "objective", "elimination", "timeout", "settled"].includes(
+            event.type,
+          ),
+        )
+        .slice(-3),
+    [recentEvents],
+  );
   const arenaPhaseLabel = useMemo(() => {
     if (snapshot?.status === "queued") {
       return "Waiting for showdown";
@@ -2627,6 +2638,33 @@ export function GameShell() {
                 </div>
                 <div className="mt-4 border-t border-white/5 pt-4">
                   <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
+                    Critical Calls
+                  </p>
+                  <div className="space-y-2">
+                    {criticalEvents.length === 0 ? (
+                      <EmptyState
+                        label="Ring shifts, eliminations, and objective claims will surface here."
+                        compact
+                      />
+                    ) : (
+                      criticalEvents.map((event) => (
+                        <div
+                          key={event.id}
+                          className={`rounded-2xl border px-3 py-2 ${getEventToneClasses(event.type)}`}
+                        >
+                          <div className="text-[10px] uppercase tracking-[0.18em] opacity-70">
+                            {formatEventTypeLabel(event.type)}
+                          </div>
+                          <div className="mt-1 text-sm">
+                            {event.message}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="mt-4 border-t border-white/5 pt-4">
+                  <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
                     Event Feed
                   </p>
                   <div className="scrollbar-thin max-h-52 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
@@ -2639,9 +2677,16 @@ export function GameShell() {
                     {recentEvents.map((event) => (
                       <div
                         key={event.id}
-                        className="rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
+                        className={`rounded-2xl border px-3 py-2 ${getEventToneClasses(event.type)}`}
                       >
-                        {event.message}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] uppercase tracking-[0.18em] opacity-70">
+                            {formatEventTypeLabel(event.type)}
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          {event.message}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -3091,6 +3136,54 @@ function formatReceiptRevealDetail(receipt: OnchainReceipt) {
       return "Match rewards were settled on X Layer and the final ledger is locked.";
     case "autonomy_pass":
       return "Autonomous premium access has been confirmed.";
+  }
+}
+
+function formatEventTypeLabel(value: MatchEvent["type"]) {
+  switch (value) {
+    case "announcement":
+      return "Arena Call";
+    case "autonomy":
+      return "Directive";
+    case "objective":
+      return "Objective";
+    case "elimination":
+      return "Elimination";
+    case "timeout":
+      return "Time Call";
+    case "settled":
+      return "Settlement";
+    case "pickup":
+      return "Supply";
+    case "fire":
+      return "Shot";
+    case "hit":
+      return "Hit";
+    case "reload":
+      return "Reload";
+    case "dodge":
+      return "Dodge";
+    case "spawn":
+      return "Spawn";
+    case "move":
+      return "Move";
+  }
+}
+
+function getEventToneClasses(value: MatchEvent["type"]) {
+  switch (value) {
+    case "announcement":
+    case "objective":
+      return "border-[#df6c39]/20 bg-[#df6c39]/8 text-[#ffd9c8]";
+    case "elimination":
+    case "timeout":
+      return "border-amber-300/20 bg-amber-100/8 text-[#f6ead7]";
+    case "settled":
+      return "border-[#7ed2b4]/20 bg-[#7ed2b4]/8 text-[#d7f5ec]";
+    case "autonomy":
+      return "border-sky-300/18 bg-sky-100/8 text-sky-50";
+    default:
+      return "border-white/7 bg-white/4 text-stone-200/72";
   }
 }
 
