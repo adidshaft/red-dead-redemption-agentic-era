@@ -221,6 +221,88 @@ export function GameShell() {
       scoreboardPlayers.findIndex((player) => player.agentId === selectedAgent.id) + 1;
     return placement > 0 ? placement : null;
   }, [scoreboardPlayers, selectedAgent]);
+  const selectedResultPlayer = useMemo(
+    () =>
+      selectedAgent
+        ? scoreboardPlayers.find((player) => player.agentId === selectedAgent.id) ?? null
+        : null,
+    [scoreboardPlayers, selectedAgent],
+  );
+  const selectedResultAccuracy = useMemo(() => {
+    if (!selectedResultPlayer || selectedResultPlayer.shotsFired === 0) {
+      return null;
+    }
+
+    return Math.round(
+      (selectedResultPlayer.shotsHit / selectedResultPlayer.shotsFired) * 100,
+    );
+  }, [selectedResultPlayer]);
+  const resultNextAction = useMemo(() => {
+    if (!autonomyPlan) {
+      return "Queue another run or move into the next approved upgrade.";
+    }
+
+    switch (autonomyPlan.campaignPriority) {
+      case "buy_skill":
+        return `Approve ${skillLabels[autonomyPlan.nextSkill]} next and sharpen the doctrine before the next run.`;
+      case "queue_paid":
+        return "Momentum is good enough for another paid showdown if you want to compound the treasury.";
+      case "buy_autonomy_pass":
+        return "The premium autonomy lane is the next leverage move for this rider.";
+      case "run_practice":
+        return "Stay in practice one more round to tighten the doctrine before taking more economic risk.";
+    }
+  }, [autonomyPlan]);
+  const resultDebrief = useMemo(() => {
+    if (!snapshot || snapshot.status !== "finished") {
+      return null;
+    }
+
+    if (!selectedPlacement) {
+      return {
+        headline: "Spectator result logged",
+        detail:
+          "This round settled without your rider on the field. Use the rider deck to send a fighter into the next showdown.",
+        nextAction: "Select a rider and queue the next frontier run.",
+      };
+    }
+
+    if (!selectedResultPlayer) {
+      return {
+        headline: `Finished ${ordinal(selectedPlacement)}`,
+        detail:
+          "Your placement is recorded, but detailed rider telemetry was unavailable for this round.",
+        nextAction: resultNextAction,
+      };
+    }
+
+    if (selectedPlacement === 1) {
+      return {
+        headline: "You converted the showdown",
+        detail: `The rider finished on top with ${selectedResultPlayer.kills} eliminations, ${selectedResultPlayer.damageDealt} damage, and ${selectedResultPlayer.score} score.`,
+        nextAction: resultNextAction,
+      };
+    }
+
+    if (!selectedResultPlayer.alive) {
+      return {
+        headline: `Down at ${ordinal(selectedPlacement)}`,
+        detail: `The rider was eliminated after dealing ${selectedResultPlayer.damageDealt} damage and landing ${selectedResultPlayer.kills} eliminations.`,
+        nextAction: resultNextAction,
+      };
+    }
+
+    return {
+      headline: `Finished ${ordinal(selectedPlacement)} on the clock`,
+      detail: `The rider survived to time with ${selectedResultPlayer.health} health remaining and ${selectedResultPlayer.score} score on the ledger.`,
+      nextAction: resultNextAction,
+    };
+  }, [
+    resultNextAction,
+    selectedPlacement,
+    selectedResultPlayer,
+    snapshot,
+  ]);
   const resultMedals = useMemo(() => {
     if (scoreboardPlayers.length === 0) {
       return [];
@@ -2390,15 +2472,37 @@ export function GameShell() {
                               Your Dossier
                             </div>
                             <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
-                              {selectedPlacement ? `Finish #${selectedPlacement}` : "Spectator result"}
+                              {resultDebrief?.headline ??
+                                (selectedPlacement ? `Finish #${selectedPlacement}` : "Spectator result")}
                             </div>
                             <div className="mt-2 text-sm text-stone-200/72">
-                              {selectedPlacement === 1
-                                ? "You converted the frontier run and locked the settlement."
-                                : selectedPlacement
-                                  ? "The agent ledger updates with this finish, score, and treasury result."
-                                  : "You were not fielded in this showdown, but the result is now archived."}
+                              {resultDebrief?.detail ??
+                                (selectedPlacement === 1
+                                  ? "You converted the frontier run and locked the settlement."
+                                  : selectedPlacement
+                                    ? "The agent ledger updates with this finish, score, and treasury result."
+                                    : "You were not fielded in this showdown, but the result is now archived.")}
                             </div>
+                            {selectedResultPlayer && (
+                              <div className="mt-3 grid gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58 sm:grid-cols-2">
+                                <span className="rounded-full border border-white/8 px-2.5 py-1">
+                                  {selectedResultPlayer.kills} kills
+                                </span>
+                                <span className="rounded-full border border-white/8 px-2.5 py-1">
+                                  {selectedResultPlayer.damageDealt} damage
+                                </span>
+                                <span className="rounded-full border border-white/8 px-2.5 py-1">
+                                  {selectedResultAccuracy !== null
+                                    ? `${selectedResultAccuracy}% accuracy`
+                                    : "No shot data"}
+                                </span>
+                                <span className="rounded-full border border-white/8 px-2.5 py-1">
+                                  {selectedResultPlayer.alive
+                                    ? `${selectedResultPlayer.health} health left`
+                                    : "Eliminated"}
+                                </span>
+                              </div>
+                            )}
                             {matchEconomy && (
                               <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
                                 <span className="rounded-full border border-white/8 px-2.5 py-1">
@@ -2407,8 +2511,20 @@ export function GameShell() {
                                 <span className="rounded-full border border-white/8 px-2.5 py-1">
                                   Winner {formatWeiToOkb(matchEconomy.winnerPayout)}
                                 </span>
+                                <span className="rounded-full border border-white/8 px-2.5 py-1">
+                                  Treasury {formatWeiToOkb(matchEconomy.treasuryCut)}
+                                </span>
                               </div>
                             )}
+                            <div className="mt-3 rounded-[16px] border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-stone-200/74">
+                              <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/52">
+                                Next approved action
+                              </div>
+                              <div className="mt-1 font-medium text-[#f6ead7]">
+                                {resultDebrief?.nextAction ??
+                                  "Queue another run or compound the next skill purchase."}
+                              </div>
+                            </div>
                           </div>
                           <div className="rounded-[22px] border border-white/8 bg-black/20 px-4 py-4">
                             <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--accent-soft)]/70">
