@@ -165,6 +165,44 @@ export function GameShell() {
         right.health - left.health,
     );
   }, [snapshot]);
+  const selectedPlacement = useMemo(() => {
+    if (!selectedAgent) {
+      return null;
+    }
+
+    const placement =
+      scoreboardPlayers.findIndex((player) => player.agentId === selectedAgent.id) + 1;
+    return placement > 0 ? placement : null;
+  }, [scoreboardPlayers, selectedAgent]);
+  const resultMedals = useMemo(() => {
+    if (scoreboardPlayers.length === 0) {
+      return [];
+    }
+
+    const topKills = [...scoreboardPlayers].sort((left, right) => right.kills - left.kills)[0];
+    const topDamage = [...scoreboardPlayers].sort((left, right) => right.damageDealt - left.damageDealt)[0];
+    const topScore = scoreboardPlayers[0];
+    const survivor = [...scoreboardPlayers].sort((left, right) => right.health - left.health)[0];
+
+    return [
+      {
+        label: "Deadeye",
+        detail: `${topKills?.displayName ?? "—"} • ${topKills?.kills ?? 0} eliminations`,
+      },
+      {
+        label: "Pressure",
+        detail: `${topDamage?.displayName ?? "—"} • ${topDamage?.damageDealt ?? 0} damage`,
+      },
+      {
+        label: "Ledger Lead",
+        detail: `${topScore?.displayName ?? "—"} • ${topScore?.score ?? 0} score`,
+      },
+      {
+        label: "Last Grit",
+        detail: `${survivor?.displayName ?? "—"} • ${survivor?.health ?? 0} health`,
+      },
+    ];
+  }, [scoreboardPlayers]);
   const autonomyEvents = useMemo(
     () => recentEvents.filter((event) => event.type === "autonomy").slice(-4),
     [recentEvents],
@@ -2017,7 +2055,7 @@ export function GameShell() {
               )}
               {snapshot?.status === "finished" && (
                 <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[#0d0a08]/85 backdrop-blur-md">
-                  <div className="relative w-[600px] max-w-[90%] overflow-hidden rounded-[32px] border border-[var(--panel-border)] bg-[var(--panel)] px-10 py-12 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)]">
+                  <div className="relative w-[760px] max-w-[94%] overflow-hidden rounded-[32px] border border-[var(--panel-border)] bg-[var(--panel)] px-8 py-10 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)]">
                     <div className="absolute inset-0 circuit-bg opacity-10" />
                     <div className="relative">
                       <div className="flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.4em] text-[var(--accent)]/80">
@@ -2039,27 +2077,76 @@ export function GameShell() {
                         </div>
                       )}
 
-                      <div className="mt-8 space-y-2 text-left">
-                        {scoreboardPlayers.map((player, i) => (
-                          <div
-                            key={player.agentId}
-                            className={`flex items-center gap-4 rounded-[18px] px-5 py-3 transition-colors ${
-                              player.agentId === snapshot.winnerAgentId
-                                ? "bg-[var(--accent)]/15 border border-[var(--accent-soft)]/30"
-                                : player.agentId === selectedAgent?.id
-                                  ? "bg-[var(--onchain-glow)]/15 border border-[var(--onchain-glow)]/30"
-                                  : "bg-white/5 border border-transparent"
-                            }`}
-                          >
-                            <span className="w-6 text-center text-xs font-bold text-[var(--foreground)]/40">{i + 1}</span>
-                            <span className={`flex-1 truncate text-base font-medium ${
-                               player.agentId === snapshot.winnerAgentId ? "text-[var(--accent-soft)]" : "text-[var(--foreground)]"
-                            }`}>{player.displayName}</span>
-                            <span className="text-xs uppercase tracking-wider text-[var(--foreground)]/50">{player.kills} K</span>
-                            <span className="text-xs uppercase tracking-wider text-[var(--foreground)]/50">{player.damageDealt} DMG</span>
-                            <span className="text-sm font-bold text-[var(--accent-soft)]">{player.score} PTS</span>
+                      <div className="mt-8 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+                        <div className="space-y-2 text-left">
+                          {scoreboardPlayers.map((player, i) => (
+                            <div
+                              key={player.agentId}
+                              className={`flex items-center gap-4 rounded-[18px] px-5 py-3 transition-colors ${
+                                player.agentId === snapshot.winnerAgentId
+                                  ? "bg-[var(--accent)]/15 border border-[var(--accent-soft)]/30"
+                                  : player.agentId === selectedAgent?.id
+                                    ? "bg-[var(--onchain-glow)]/15 border border-[var(--onchain-glow)]/30"
+                                    : "bg-white/5 border border-transparent"
+                              }`}
+                            >
+                              <span className="w-6 text-center text-xs font-bold text-[var(--foreground)]/40">{i + 1}</span>
+                              <span className={`flex-1 truncate text-base font-medium ${
+                                 player.agentId === snapshot.winnerAgentId ? "text-[var(--accent-soft)]" : "text-[var(--foreground)]"
+                              }`}>{player.displayName}</span>
+                              <span className="text-xs uppercase tracking-wider text-[var(--foreground)]/50">{player.kills} K</span>
+                              <span className="text-xs uppercase tracking-wider text-[var(--foreground)]/50">{player.damageDealt} DMG</span>
+                              <span className="text-sm font-bold text-[var(--accent-soft)]">{player.score} PTS</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="space-y-3 text-left">
+                          <div className="rounded-[22px] border border-white/8 bg-black/20 px-4 py-4">
+                            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--accent-soft)]/70">
+                              Your Dossier
+                            </div>
+                            <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                              {selectedPlacement ? `Finish #${selectedPlacement}` : "Spectator result"}
+                            </div>
+                            <div className="mt-2 text-sm text-stone-200/72">
+                              {selectedPlacement === 1
+                                ? "You converted the frontier run and locked the settlement."
+                                : selectedPlacement
+                                  ? "The agent ledger updates with this finish, score, and treasury result."
+                                  : "You were not fielded in this showdown, but the result is now archived."}
+                            </div>
+                            {matchEconomy && (
+                              <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                                <span className="rounded-full border border-white/8 px-2.5 py-1">
+                                  Pot {formatWeiToOkb(matchEconomy.totalPot)}
+                                </span>
+                                <span className="rounded-full border border-white/8 px-2.5 py-1">
+                                  Winner {formatWeiToOkb(matchEconomy.winnerPayout)}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        ))}
+                          <div className="rounded-[22px] border border-white/8 bg-black/20 px-4 py-4">
+                            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--accent-soft)]/70">
+                              Match Medals
+                            </div>
+                            <div className="mt-3 grid gap-2">
+                              {resultMedals.map((medal) => (
+                                <div
+                                  key={medal.label}
+                                  className="rounded-[14px] border border-white/6 bg-white/[0.03] px-3 py-2"
+                                >
+                                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[#f0bf76]">
+                                    {medal.label}
+                                  </div>
+                                  <div className="mt-1 text-sm text-stone-200/72">
+                                    {medal.detail}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {matchEconomy && (
