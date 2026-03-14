@@ -879,6 +879,34 @@ export function GameShell() {
     selectedAgent,
     walletClient,
   ]);
+  const autonomySignals = useMemo(() => {
+    if (!autonomyPlan) {
+      return [];
+    }
+
+    return [
+      `Readiness ${autonomyPlan.readinessScore}%`,
+      `${formatConfidenceBand(autonomyPlan.confidenceBand)} confidence`,
+      `${formatObjectivePosture(autonomyPlan.objectivePosture)} objective posture`,
+      `${formatEconomyPosture(autonomyPlan.economyPosture)} economy`,
+      `${autonomyPlan.recommendedQueue === "paid" ? "Paid" : "Practice"} queue next`,
+    ];
+  }, [autonomyPlan]);
+  const autonomyWireFeed = useMemo(() => {
+    if (autonomyEvents.length > 0) {
+      return autonomyEvents.slice(-3).reverse().map((event) => event.message);
+    }
+
+    if (!autonomyPlan) {
+      return [];
+    }
+
+    return [
+      autonomyPlan.summary,
+      autonomyPlan.combatDirective,
+      autonomyPlan.objectiveDirective,
+    ];
+  }, [autonomyEvents, autonomyPlan]);
   const settlementExplorerUrl = useMemo(() => {
     if (!snapshot?.settlementTxHash) {
       return null;
@@ -2169,23 +2197,60 @@ export function GameShell() {
                           <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
                             {autonomyPlan.doctrine}
                           </h3>
+                          <p className="mt-2 max-w-xl text-sm text-stone-200/72">
+                            {autonomyPlan.summary}
+                          </p>
                         </div>
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-stone-200/72">
                           {autonomyPlan.readinessScore}% ready
                         </span>
                       </div>
-                      <div className="mt-4 grid gap-3 text-sm text-stone-200/72">
-                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3">
-                          Next move: <span className="font-semibold text-[#f6ead7]">{skillLabels[autonomyPlan.nextSkill]}</span>
+                      <div className="mt-4 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em]">
+                        {autonomySignals.map((signal) => (
+                          <span
+                            key={signal}
+                            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-stone-200/72"
+                          >
+                            {signal}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                            Right now
+                          </div>
+                          <div className="mt-2 font-semibold text-[#f6ead7]">
+                            {operationQueue[0]?.label ?? `Approve ${skillLabels[autonomyPlan.nextSkill]}`}
+                          </div>
+                          <div className="mt-1 text-xs text-stone-300/60">
+                            {operationQueue[0]?.detail ?? autonomyPlan.nextSkillReason}
+                          </div>
                         </div>
-                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3">
-                          Queue: <span className="font-semibold text-[#f6ead7]">{autonomyPlan.recommendedQueue}</span>
+                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                            Queue posture
+                          </div>
+                          <div className="mt-2 font-semibold text-[#f6ead7]">
+                            {autonomyPlan.recommendedQueue === "paid"
+                              ? "Push a paid showdown"
+                              : "Keep this rider in practice"}
+                          </div>
+                          <div className="mt-1 text-xs text-stone-300/60">
+                            {autonomyPlan.economyDirective}
+                          </div>
                         </div>
-                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3">
-                          Combat: <span className="font-semibold text-[#f6ead7]">{autonomyPlan.combatDirective}</span>
+                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                            Combat rule
+                          </div>
+                          <div className="mt-2 text-[#f6ead7]">{autonomyPlan.combatDirective}</div>
                         </div>
-                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3">
-                          Objective: <span className="font-semibold text-[#f6ead7]">{autonomyPlan.objectiveDirective}</span>
+                        <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                            Objective rule
+                          </div>
+                          <div className="mt-2 text-[#f6ead7]">{autonomyPlan.objectiveDirective}</div>
                         </div>
                       </div>
                     </>
@@ -2194,6 +2259,25 @@ export function GameShell() {
                   )}
                 </div>
                 <div className="space-y-4">
+                  <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                      Autonomy Wire
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                      {autonomyWireFeed.length > 0 ? (
+                        autonomyWireFeed.map((message) => (
+                          <div
+                            key={message}
+                            className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-sm text-stone-200/72"
+                          >
+                            {message}
+                          </div>
+                        ))
+                      ) : (
+                        <EmptyState label="No live autonomy calls yet." compact />
+                      )}
+                    </div>
+                  </div>
                   <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
                       Next approved actions
@@ -3475,6 +3559,39 @@ function formatCampaignPriorityDetail(plan: AutonomyPlan) {
       return "Premium autonomy is now the highest-leverage upgrade for this agent's planning and queue discipline.";
     case "run_practice":
       return "Stay in practice until the current doctrine is sharper, then move back into higher-risk economy actions.";
+  }
+}
+
+function formatConfidenceBand(value: AutonomyPlan["confidenceBand"]) {
+  switch (value) {
+    case "high":
+      return "High";
+    case "medium":
+      return "Medium";
+    case "low":
+      return "Low";
+  }
+}
+
+function formatObjectivePosture(value: AutonomyPlan["objectivePosture"]) {
+  switch (value) {
+    case "contest":
+      return "Contest";
+    case "flank":
+      return "Flank";
+    case "hold":
+      return "Hold";
+  }
+}
+
+function formatEconomyPosture(value: AutonomyPlan["economyPosture"]) {
+  switch (value) {
+    case "bootstrap":
+      return "Bootstrap";
+    case "compounding":
+      return "Compounding";
+    case "aggressive":
+      return "Aggressive";
   }
 }
 

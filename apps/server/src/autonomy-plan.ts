@@ -35,12 +35,12 @@ export function deriveDoctrineProfile(agent: AgentProfile): DoctrineProfile {
     return {
       doctrine: "Railshot Duelist",
       summary:
-        "This agent wants first contact, faster takedowns, and decisive trades before the ring closes.",
+        "Open first, force quick trades, and win the lane before the ring tightens.",
       upgradeQueue: ["quickdraw", "tactics", "fortune"] as SkillKey[],
       combatDirective:
-        "Open aggressively, punish exposed targets, then rotate inward before the dust ring forces bad fights.",
+        "Open hard, punish exposed targets, then rotate inward before the ring punishes overextension.",
       objectiveDirective:
-        "Contest live objectives early, hold the firing lane, and force rivals to challenge your pressure.",
+        "Contest the live objective early and make rivals fight through your firing lane.",
       objectivePosture: "contest",
       preferredFireRange: 760,
       healthPickupThreshold: 42,
@@ -55,12 +55,12 @@ export function deriveDoctrineProfile(agent: AgentProfile): DoctrineProfile {
     return {
       doctrine: "Ghost Circuit Scout",
       summary:
-        "This agent plays for angle control, cleaner dodges, and late-circle positioning around supplies.",
+        "Play angles, dodge cleanly, and turn supplies plus late-ring space into winning fights.",
       upgradeQueue: ["trailcraft", "tactics", "quickdraw"] as SkillKey[],
       combatDirective:
-        "Sweep the circle edge for pickups, dodge into cleaner angles, and collapse on distracted rivals.",
+        "Sweep the edge, steal supplies, and collapse when rivals are distracted.",
       objectiveDirective:
-        "Flank around the live objective, let heavier riders commit first, then collapse through side angles.",
+        "Flank the live objective, let heavier riders commit first, then strike through the side lane.",
       objectivePosture: "flank",
       preferredFireRange: 600,
       healthPickupThreshold: 62,
@@ -74,12 +74,12 @@ export function deriveDoctrineProfile(agent: AgentProfile): DoctrineProfile {
   return {
     doctrine: "Iron Ledger Survivor",
     summary:
-      "This agent values staying power, swingy fortune spikes, and steady attrition through longer fights.",
+      "Absorb the early chaos, stay healthy, and win the long fight when the arena gets tight.",
     upgradeQueue: ["grit", "fortune", "quickdraw"] as SkillKey[],
     combatDirective:
-      "Tank the early chaos, keep the chamber topped off, and outlast weaker riders when the arena shrinks.",
+      "Tank the opener, keep the chamber full, and outlast weaker riders as the circle closes.",
     objectiveDirective:
-      "Hold the safest route to the live objective, harvest the reward only when the ring and health state are stable.",
+      "Hold the safest route to the live objective and only harvest it when health and ring position are stable.",
     objectivePosture: "hold",
     preferredFireRange: 540,
     healthPickupThreshold: 70,
@@ -160,11 +160,11 @@ export function buildAutonomyPlan(
     combatDirective: doctrine.combatDirective,
     objectiveDirective: doctrine.objectiveDirective,
     economyDirective: autonomyPassActive
-      ? "Recycle settlement wins into the next recommended upgrade, then re-enter paid queues when the treasury can sustain the fee cadence."
-      : "Use confirmed wins and manual approvals to compound skills. The planner will keep recommending the next highest-leverage upgrade.",
+      ? "Recycle wins into the next upgrade, then re-enter paid queues when the treasury can carry the cadence."
+      : "Compound confirmed wins into the next best skill. The planner keeps the upgrade order tight.",
     x402Directive: autonomyPassActive
-      ? "Premium autonomy is active: use the planner for stronger queue discipline, upgrade timing, and economy routing."
-      : "Buy the x402 autonomy pass to unlock premium planning and a tighter autonomous play loop.",
+      ? "Premium autonomy is active: queue discipline, upgrade timing, and economy routing are all tighter now."
+      : "Buy the x402 autonomy pass to unlock stronger planning and a tighter autonomous loop.",
     autonomyPassActive,
     autonomyPassValidUntil,
     campaignPriority,
