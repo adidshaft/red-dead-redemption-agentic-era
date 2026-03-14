@@ -255,6 +255,50 @@ export function GameShell() {
       treasuryCut,
     };
   }, [snapshot]);
+  const autonomyPassRemainingLabel = useMemo(() => {
+    if (!autonomyPlan?.autonomyPassValidUntil) {
+      return null;
+    }
+
+    const remainingMs = Math.max(
+      0,
+      new Date(autonomyPlan.autonomyPassValidUntil).getTime() - clockNow,
+    );
+    const totalMinutes = Math.ceil(remainingMs / 60_000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours <= 0) {
+      return `${minutes}m remaining`;
+    }
+
+    return `${hours}h ${minutes.toString().padStart(2, "0")}m remaining`;
+  }, [autonomyPlan?.autonomyPassValidUntil, clockNow]);
+  const premiumLaneSteps = useMemo(
+    () => [
+      {
+        label: "Upgrade loop",
+        done: transactions.some((receipt) => receipt.purpose === "skill_purchase"),
+        detail: "Compound at least one skill upgrade.",
+      },
+      {
+        label: "Paid queue",
+        done: transactions.some((receipt) => receipt.purpose === "match_entry"),
+        detail: "Prove the agent can run the paid frontier.",
+      },
+      {
+        label: "x402 unlock",
+        done: Boolean(autonomyPlan?.autonomyPassActive),
+        detail: "Activate the premium planning lane.",
+      },
+      {
+        label: "Settlement loop",
+        done: transactions.some((receipt) => receipt.purpose === "match_settlement"),
+        detail: "Recycle a confirmed win back into the treasury.",
+      },
+    ],
+    [autonomyPlan?.autonomyPassActive, transactions],
+  );
   const settlementExplorerUrl = useMemo(() => {
     if (!snapshot?.settlementTxHash) {
       return null;
@@ -1815,10 +1859,67 @@ export function GameShell() {
                 <p className="mt-3 text-sm text-stone-200/72">
                   Premium autonomy is the payment-gated lane for stronger planning, cleaner paid-run discipline, and future higher-trust agent economy flows on top of OnchainOS and x402.
                 </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
+                      Pass status
+                    </div>
+                    <div className="mt-2 text-sm font-semibold text-[#f6ead7]">
+                      {autonomyPlan?.autonomyPassActive
+                        ? autonomyPassRemainingLabel ?? "Premium autonomy active"
+                        : "Locked until x402 payment is confirmed"}
+                    </div>
+                    <div className="mt-1 text-xs text-stone-300/62">
+                      {autonomyPlan?.autonomyPassActive
+                        ? "Planner now pushes tighter queue timing and cleaner economy routing."
+                        : "The payment challenge opens a 24-hour premium planning window for this agent."}
+                    </div>
+                  </div>
+                  <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
+                      Benefits
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs text-stone-200/72">
+                      <div>Higher-trust queue discipline</div>
+                      <div>Premium planner posture and readiness routing</div>
+                      <div>Receipt-backed economy history in the same agent ledger</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                  <div className="mb-3 text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
+                    Premium lane checklist
+                  </div>
+                  <div className="grid gap-2">
+                    {premiumLaneSteps.map((step) => (
+                      <div
+                        key={step.label}
+                        className="flex items-start gap-3 rounded-[14px] border border-white/6 bg-white/[0.02] px-3 py-2"
+                      >
+                        <div
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${step.done ? "border-[#7ed2b4]/40 bg-[#7ed2b4]/12 text-[#c5f4e9]" : "border-white/10 bg-white/4 text-stone-300/56"}`}
+                        >
+                          {step.done ? "✓" : "•"}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-[#f6ead7]">
+                            {step.label}
+                          </div>
+                          <div className="text-xs text-stone-300/62">
+                            {step.detail}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 {autonomyQuote && (
                   <div className="mt-3 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3 text-sm text-stone-200/72">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
                       Payment challenge ready
+                    </div>
+                    <div className="mt-2 text-xs text-stone-300/62">
+                      This is the structured x402 challenge returned by the payment lane. Once settled, the agent receives a 24-hour premium autonomy window and the receipt is written into Onchain History.
                     </div>
                     <div className="mt-2 grid gap-2 text-[11px] uppercase tracking-[0.16em] text-stone-300/58 sm:grid-cols-2">
                       <div>

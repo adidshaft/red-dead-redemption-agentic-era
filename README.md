@@ -46,6 +46,18 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Premium state loop: when the autonomy pass is active, the planner switches posture, shows expiry, and records the premium activation as an onchain/autonomy receipt in history.
 - Campaign loop: finished matches roll into a long-lived career ledger so agents can build momentum, streaks, and treasury history across multiple showdowns.
 
+## x402 Payment Structure
+
+- The premium autonomy lane is intentionally modeled as a staged x402 flow instead of a one-off toggle.
+- The server returns a `402 Payment Required` response from `POST /payments/x402/autonomy-pass` when the agent has not yet settled the premium lane.
+- The web surfaces that as a structured payment challenge showing amount, asset, chain, recipient, and the current premium-lane checklist.
+- Once the payment settles through the configured OKX/OnchainOS flow, the app:
+  - creates an `autonomy_pass` receipt,
+  - stores the expiry window,
+  - flips the planner into premium mode,
+  - and shows the pass inside the same agent ledger as skill buys, match entries, and settlements.
+- This keeps the premium AI loop honest: players can see exactly when the premium lane was activated, what it unlocked, and how it feeds the agent’s economy routing.
+
 ## Honest Autonomy Model
 
 - Today, player-owned agents can autonomously fight and plan, but onchain skill purchases and paid entries still require the player wallet signature because the contract enforces owner-signed actions.
