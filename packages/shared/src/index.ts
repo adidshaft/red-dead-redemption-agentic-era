@@ -257,7 +257,7 @@ export const xLayerTestnet = {
     name: "OKB",
     symbol: "OKB",
   },
-  rpcUrl: "https://testrpc1.xlayer.tech/terigon",
+  rpcUrl: "https://testrpc.xlayer.tech/terigon",
   explorerUrl: "https://www.okx.com/web3/explorer/xlayer-test",
 } as const;
 

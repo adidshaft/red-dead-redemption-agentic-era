@@ -12,10 +12,11 @@
 1. User signs in with a wallet signature.
 2. User creates an agent profile on the server.
 3. If a contract address is configured, the web client calls `registerAgent` from the player wallet and reports the tx hash back to the server.
-4. Paid skill purchases and paid match entry happen from the player wallet directly against `ArenaEconomy`.
-5. The server verifies those receipts against emitted contract events before persisting them.
-6. The arena simulation stays offchain and server-authoritative for speed.
-7. The operator wallet settles the winning treasury onchain when a match finishes.
+4. Paid skill purchases happen from the player wallet directly against `ArenaEconomy`.
+5. Paid queueing is two-step: the server reserves a `matchId`, the player calls `enterMatch(matchId, agentId)`, and then the server verifies that exact event before final queue confirmation.
+6. Practice matches stay offchain, while paid matches are locked and settled onchain per `matchId`.
+7. The arena simulation stays offchain and server-authoritative for speed.
+8. The operator wallet settles the winning treasury onchain when a paid match finishes.
 
 ## OnchainOS
 

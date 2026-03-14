@@ -23,9 +23,13 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {},
     xlayerTestnet: {
-      url: process.env.XLAYER_TESTNET_RPC_URL ?? "https://testrpc1.xlayer.tech/terigon",
+      url:
+        process.env.XLAYER_TESTNET_RPC_URL ??
+        "https://testrpc.xlayer.tech/terigon",
       chainId: Number(process.env.XLAYER_TESTNET_CHAIN_ID ?? "1952"),
-      accounts: process.env.ARENA_OPERATOR_PRIVATE_KEY ? [process.env.ARENA_OPERATOR_PRIVATE_KEY] : [],
+      accounts: process.env.ARENA_OPERATOR_PRIVATE_KEY
+        ? [process.env.ARENA_OPERATOR_PRIVATE_KEY]
+        : [],
     },
   },
 };

@@ -42,15 +42,23 @@ cp .env.example .env
 docker compose up -d postgres
 ```
 
-4. Deploy the contract to X Layer testnet after setting `ARENA_OPERATOR_PRIVATE_KEY` and `APP_TREASURY_ADDRESS`.
+4. Run a testnet preflight before deploying.
+
+```bash
+pnpm --filter @rdr/contracts preflight:testnet
+```
+
+5. Deploy the contract to X Layer testnet after setting `ARENA_OPERATOR_PRIVATE_KEY` and `APP_TREASURY_ADDRESS`.
 
 ```bash
 pnpm --filter @rdr/contracts deploy:testnet
 ```
 
-5. Set `NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS` in `.env` to the deployed contract address.
+The deploy command writes `packages/contracts/deployments/xlayerTestnet.json` and prints the env lines to copy.
 
-6. Start the app stack.
+6. Set `NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS` in `.env` to the deployed contract address.
+
+7. Start the app stack.
 
 ```bash
 pnpm dev
@@ -70,12 +78,26 @@ pnpm test
 - Agent wallets are generated locally and optionally bound to an OnchainOS wallet account through the Wallet API when the OKX API credentials are configured.
 - The x402 route is exposed at `POST /payments/x402/autonomy-pass`.
 - The current implementation uses the OKX Payments `/supported`, `/verify`, and `/settle` endpoints when payment payloads are supplied.
+- `ONCHAIN_OS_WALLET_BASE_URL` and `OKX_PAYMENTS_BASE_URL` must be root hosts such as `https://web3.okx.com`, not full `/api/...` paths.
 
 ## X Layer Notes
 
-- The repo currently defaults to the recent X Layer testnet configuration: chain ID `1952`, RPC `https://testrpc1.xlayer.tech/terigon`, explorer `https://www.okx.com/web3/explorer/xlayer-test`.
+- The repo currently defaults to the recent X Layer testnet configuration: chain ID `1952`, RPC `https://testrpc.xlayer.tech/terigon`, explorer `https://www.okx.com/web3/explorer/xlayer-test`.
 - OKX has published inconsistent testnet snippets on different pages. If your wallet or RPC provider expects a legacy config, override the env values instead of editing code.
+- The web wallet config now also reads `NEXT_PUBLIC_XLAYER_TESTNET_CHAIN_ID`, so the browser and server can be kept aligned if the live network uses a different testnet chain ID.
+
+## Live Deployment
+
+- ArenaEconomy address: `0x31a44d5dcA53A0BFB13C79d8dF5ED3148f08DB97`
+- Deployment tx: `0xf6573f85ca2dfdc1e4cfee1a027782a1c620d918e3ce984280c12dacb268386a`
+- Network: `xlayerTestnet`
+- Chain ID: `1952`
+- RPC: `https://testrpc.xlayer.tech/terigon`
+- Explorer: [OKX X Layer Testnet Explorer](https://www.okx.com/web3/explorer/xlayer-test)
+- Deployment artifact: `packages/contracts/deployments/xlayerTestnet.json`
 
 ## Submission Proof
 
 The proof checklist and placeholder tx-hash sections live in [docs/proof.md](/Users/amanpandey/Desktop/rdr/docs/proof.md).
+
+The live deployment checklist lives in [docs/testnet-runbook.md](/Users/amanpandey/Desktop/rdr/docs/testnet-runbook.md).

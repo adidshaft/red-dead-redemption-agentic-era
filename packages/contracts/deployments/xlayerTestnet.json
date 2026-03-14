@@ -1,0 +1,12 @@
+{
+  "network": "xlayerTestnet",
+  "address": "0x31a44d5dcA53A0BFB13C79d8dF5ED3148f08DB97",
+  "deployer": "0x1620e0aEd0215Add62EF51A109De35455D35B6A1",
+  "appTreasury": "0x1620e0aEd0215Add62EF51A109De35455D35B6A1",
+  "chainId": 1952,
+  "rpcUrl": "https://testrpc.xlayer.tech/terigon",
+  "explorerUrl": "https://www.okx.com/web3/explorer/xlayer-test",
+  "deploymentTxHash": "0xf6573f85ca2dfdc1e4cfee1a027782a1c620d918e3ce984280c12dacb268386a",
+  "deploymentBlockNumber": 25006326,
+  "deployedAt": "2026-03-14T05:12:43.260Z"
+}

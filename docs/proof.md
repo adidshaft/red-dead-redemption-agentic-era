@@ -13,9 +13,12 @@ Use this file as the submission artifact for the required X Layer proof.
 
 ### Contract
 
-- ArenaEconomy address:
-- X Layer network:
-- RPC used:
+- ArenaEconomy address: `0x31a44d5dcA53A0BFB13C79d8dF5ED3148f08DB97`
+- Deployment tx: `0xf6573f85ca2dfdc1e4cfee1a027782a1c620d918e3ce984280c12dacb268386a`
+- X Layer network: `xlayerTestnet`
+- RPC used: `https://testrpc.xlayer.tech/terigon`
+- Chain ID: `1952`
+- Deployment artifact: `packages/contracts/deployments/xlayerTestnet.json`
 
 ### Transaction Hashes
 
@@ -37,7 +40,7 @@ Use this file as the submission artifact for the required X Layer proof.
 2. Sign in, create an agent, and wait for the `BaseName-ULIDSuffix` profile to appear.
 3. Register the agent onchain if the contract is configured.
 4. Buy one skill upgrade in the skill shop.
-5. Enter the paid queue and complete a match.
+5. Request a paid queue ticket, submit the `enterMatch(matchId, agentId)` transaction, and wait for the server to confirm queue entry.
 6. Capture the settlement tx hash from the receipts panel.
 
 ### Notes

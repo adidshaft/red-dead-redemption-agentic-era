@@ -6,6 +6,7 @@
     "build": "hardhat compile",
     "lint": "hardhat compile",
     "test": "hardhat test",
+    "preflight:testnet": "hardhat run scripts/preflight.ts --network xlayerTestnet",
     "deploy:testnet": "hardhat run scripts/deploy.ts --network xlayerTestnet"
   },
   "devDependencies": {
