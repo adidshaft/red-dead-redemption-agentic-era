@@ -15,6 +15,11 @@ export type QueueUpdate = {
   status: "idle" | "queued" | "ready";
   matchId?: string;
   queuedAt?: string;
+  queueKind?: "practice" | "paid";
+  slotsFilled?: number;
+  slotsTotal?: number;
+  humansCommitted?: number;
+  etaSeconds?: number;
 };
 
 export type QueueForMatchResponse = {

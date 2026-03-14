@@ -343,7 +343,16 @@ export type CoordinatorBroadcasts = {
   emitMatchResult(matchId: string, snapshot: MatchSnapshot): void;
   emitQueueUpdate(
     userAddress: string,
-    payload: { status: "queued" | "ready"; matchId?: string; queuedAt?: string },
+    payload: {
+      status: "queued" | "ready";
+      matchId?: string;
+      queuedAt?: string;
+      queueKind?: "practice" | "paid";
+      slotsFilled?: number;
+      slotsTotal?: number;
+      humansCommitted?: number;
+      etaSeconds?: number;
+    },
   ): void;
 };
 
@@ -352,6 +361,11 @@ export type QueueStatus =
       status: "queued" | "ready";
       matchId?: string;
       queuedAt?: string;
+      queueKind?: "practice" | "paid";
+      slotsFilled?: number;
+      slotsTotal?: number;
+      humansCommitted?: number;
+      etaSeconds?: number;
     }
   | {
       status: "idle";
@@ -397,6 +411,11 @@ export class ArenaCoordinator {
     this.broadcasts.emitQueueUpdate(userAddress, {
       status: "queued",
       queuedAt: new Date(queuedAt).toISOString(),
+      queueKind: "practice",
+      slotsFilled: this.practiceQueue.length,
+      slotsTotal: 4,
+      humansCommitted: this.practiceQueue.length,
+      etaSeconds: Math.ceil(gameConfig.humanQueueFillMs / 1000),
     });
     await this.flushQueues();
   }
@@ -472,6 +491,17 @@ export class ArenaCoordinator {
       status: "queued",
       matchId,
       queuedAt: new Date(queuedAt).toISOString(),
+      queueKind: "paid",
+      slotsFilled: pendingMatch.entrants.length,
+      slotsTotal: 4,
+      humansCommitted: pendingMatch.entrants.length,
+      etaSeconds: Math.max(
+        0,
+        Math.ceil(
+          (pendingMatch.createdAt + gameConfig.humanQueueFillMs - Date.now()) /
+            1000,
+        ),
+      ),
     });
     await this.flushQueues();
     return { matchId };
@@ -487,6 +517,7 @@ export class ArenaCoordinator {
 
   getQueueStatus(userAddress: string): QueueStatus {
     const normalizedAddress = userAddress.toLowerCase();
+    const totalSlots = 4;
 
     const liveMatch = Array.from(this.matches.values()).find((runtime) =>
       Array.from(runtime.players.values()).some(
@@ -498,6 +529,13 @@ export class ArenaCoordinator {
       return {
         status: "ready",
         matchId: liveMatch.snapshot.matchId,
+        queueKind: liveMatch.paid ? "paid" : "practice",
+        slotsFilled: totalSlots,
+        slotsTotal: totalSlots,
+        humansCommitted: liveMatch.snapshot.players.filter(
+          (player) => !player.displayName.startsWith("HouseBot-"),
+        ).length,
+        etaSeconds: 0,
       };
     }
 
@@ -505,9 +543,21 @@ export class ArenaCoordinator {
       (entry) => entry.userAddress.toLowerCase() === normalizedAddress,
     );
     if (practiceEntry) {
+      const etaSeconds = Math.max(
+        0,
+        Math.ceil(
+          (practiceEntry.queuedAt + gameConfig.humanQueueFillMs - Date.now()) /
+            1000,
+        ),
+      );
       return {
         status: "queued",
         queuedAt: new Date(practiceEntry.queuedAt).toISOString(),
+        queueKind: "practice",
+        slotsFilled: this.practiceQueue.length,
+        slotsTotal: totalSlots,
+        humansCommitted: this.practiceQueue.length,
+        etaSeconds,
       };
     }
 
@@ -521,10 +571,24 @@ export class ArenaCoordinator {
         entrant?.queuedAt ??
         reservation?.reservedAt ??
         pendingMatch.createdAt;
+      const humansCommitted =
+        pendingMatch.entrants.length + pendingMatch.reservations.size;
+      const etaSeconds = Math.max(
+        0,
+        Math.ceil(
+          (pendingMatch.createdAt + gameConfig.humanQueueFillMs - Date.now()) /
+            1000,
+        ),
+      );
       return {
         status: "queued",
         matchId: pendingMatch.matchId,
         queuedAt: new Date(queuedAt).toISOString(),
+        queueKind: "paid",
+        slotsFilled: humansCommitted,
+        slotsTotal: totalSlots,
+        humansCommitted,
+        etaSeconds,
       };
     }
 

@@ -443,6 +443,31 @@ export function GameShell() {
         .slice(-4),
     [recentEvents],
   );
+  const intelLegendCards = useMemo(
+    () => [
+      {
+        label: "Drop",
+        detail: "Orange flare = heal + ammo + score.",
+        icon: <Gem className="h-3.5 w-3.5" />,
+      },
+      {
+        label: "Coach",
+        detail: "Moving target = ammo + score.",
+        icon: <Landmark className="h-3.5 w-3.5" />,
+      },
+      {
+        label: "Bounty",
+        detail: "Marked rider = bonus score.",
+        icon: <Sword className="h-3.5 w-3.5" />,
+      },
+      {
+        label: "Ring",
+        detail: "Outside circle = storm damage.",
+        icon: <ShieldPlus className="h-3.5 w-3.5" />,
+      },
+    ],
+    [],
+  );
   const arenaPhaseLabel = useMemo(() => {
     if (snapshot?.status === "queued") {
       return "Waiting for showdown";
@@ -466,25 +491,33 @@ export function GameShell() {
       return null;
     }
 
+    if (typeof queueState.etaSeconds === "number") {
+      return Math.max(0, queueState.etaSeconds);
+    }
+
     const readyAt =
       new Date(queueState.queuedAt).getTime() + gameConfig.humanQueueFillMs;
     const remainingMs = Math.max(0, readyAt - clockNow);
     return Math.ceil(remainingMs / 1000);
-  }, [clockNow, queueState?.queuedAt, snapshot]);
+  }, [clockNow, queueState?.etaSeconds, queueState?.queuedAt, snapshot]);
   const queueWaitLabel = useMemo(() => {
     if (!queueState || queueState.status === "idle" || snapshot) {
       return null;
     }
 
+    const slotsFilled = queueState.slotsFilled ?? 1;
+    const slotsTotal = queueState.slotsTotal ?? 4;
+    const slotLabel = `${slotsFilled}/${slotsTotal} riders armed`;
+
     if (queueState.matchId) {
       return queueWaitCountdown && queueWaitCountdown > 0
-        ? `House bots deploy in ${queueWaitCountdown}s`
-        : "Field is arming now";
+        ? `${slotLabel} • bots deploy in ${queueWaitCountdown}s`
+        : `${slotLabel} • field is arming now`;
     }
 
     return queueWaitCountdown && queueWaitCountdown > 0
-      ? `House bots arrive in ${queueWaitCountdown}s`
-      : "Building a four-rider field";
+      ? `${slotLabel} • bots arrive in ${queueWaitCountdown}s`
+      : `${slotLabel} • building a four-rider field`;
   }, [queueState, queueWaitCountdown, snapshot]);
   const queueProgressRatio = useMemo(() => {
     if (!queueState?.queuedAt || snapshot) {
@@ -498,6 +531,16 @@ export function GameShell() {
       Math.min(1, elapsed / gameConfig.humanQueueFillMs),
     );
   }, [clockNow, queueState?.queuedAt, snapshot]);
+  const queueCompositionLabel = useMemo(() => {
+    if (!queueState || queueState.status === "idle" || snapshot) {
+      return null;
+    }
+
+    const humansCommitted = queueState.humansCommitted ?? 1;
+    const slotsTotal = queueState.slotsTotal ?? 4;
+    const botsExpected = Math.max(0, slotsTotal - humansCommitted);
+    return `${humansCommitted} human${humansCommitted === 1 ? "" : "s"} locked • ${botsExpected} house bot${botsExpected === 1 ? "" : "s"} incoming`;
+  }, [queueState, snapshot]);
   const selectedModeGuide = useMemo(() => {
     if (!selectedAgent) {
       return null;
@@ -627,6 +670,114 @@ export function GameShell() {
 
     return nearest ?? null;
   }, [selectedSnapshotPlayer, snapshot]);
+  const intelPrimaryFocus = useMemo(() => {
+    if (!snapshot) {
+      return {
+        title:
+          queueState?.status === "queued"
+            ? "Field is arming"
+            : "Queue a run to light up the map",
+        detail:
+          queueState?.status === "queued"
+            ? queueWaitLabel ??
+              "Stay here while the rider slot locks and the field fills."
+            : "The minimap, live calls, and town objectives show up once a showdown is armed.",
+        chips:
+          queueState?.status === "queued"
+            ? [queueCompositionLabel ?? "1 rider locked", "Opening bell soon"]
+            : ["Practice = fast reps", "Paid = onchain pot"],
+      };
+    }
+
+    if (snapshot.status === "queued") {
+      return {
+        title:
+          matchCountdown !== null && matchCountdown > 0
+            ? `Showdown in ${matchCountdown}`
+            : "Stand by for the draw",
+        detail:
+          "Everyone is frozen until the bell. Find your cyan YOU rider, note the ring, and choose the first angle.",
+        chips: [
+          selectedAgent?.mode === "autonomous"
+            ? "Autopilot is armed"
+            : "Manual control arms at DRAW",
+          safeZoneLabel,
+        ],
+      };
+    }
+
+    if (selectedRingState?.outside) {
+      return {
+        title: "Get back inside the ring",
+        detail: `The storm is already burning your rider. Cut ${selectedRingState.distanceFromEdge}px back into the safe circle now.`,
+        chips: ["Storm damage live", safeZoneLabel],
+      };
+    }
+
+    if (snapshot.objective) {
+      return {
+        title: snapshot.objective.label,
+        detail: `${snapshot.objective.rewardLabel}${objectiveTimerLabel ? ` • closes in ${objectiveTimerLabel}` : ""}.`,
+        chips: ["Signal drop live", "Fastest tempo swing"],
+      };
+    }
+
+    if (snapshot.caravan) {
+      return {
+        title: snapshot.caravan.label,
+        detail: `${snapshot.caravan.rewardLabel}. Cut across its line instead of chasing from behind.`,
+        chips: ["Moving objective", "Intercept for ammo"],
+      };
+    }
+
+    if (snapshot.bounty) {
+      return snapshot.bounty.targetAgentId === selectedAgent?.id
+        ? {
+            title: "You are marked",
+            detail: `The field gets +${snapshot.bounty.bonusScore} score for dropping you. Break line-of-sight and kite bad pushes.`,
+            chips: ["Bounty is on you", "Survive the collapse"],
+          }
+        : {
+            title: `Bounty on ${snapshot.bounty.displayName}`,
+            detail: `Dropping the marked rider is worth +${snapshot.bounty.bonusScore} score.`,
+            chips: ["Bonus score live", "Collapse only on clean angles"],
+          };
+    }
+
+    if (selectedThreat) {
+      return {
+        title: `Nearest threat: ${selectedThreat.player.displayName}`,
+        detail:
+          selectedThreat.distance <= 220
+            ? "Close duel range. Strafe, dodge, and be ready to punish reloads."
+            : `Open pressure at ${Math.round(selectedThreat.distance)}px. Hold cover or angle inward.`,
+        chips: [
+          `${Math.round(selectedThreat.distance)}px away`,
+          selectedSnapshotPlayer?.coverLabel ?? "Open ground",
+        ],
+      };
+    }
+
+    return {
+      title: "Ride the town",
+      detail:
+        "Watch the live calls below. The next drop, coach, or bounty will create the first real swing.",
+      chips: [safeZoneLabel, snapshot.paid ? "Paid frontier" : "Practice run"],
+    };
+  }, [
+    matchCountdown,
+    objectiveTimerLabel,
+    queueCompositionLabel,
+    queueState?.status,
+    queueWaitLabel,
+    safeZoneLabel,
+    selectedAgent?.id,
+    selectedAgent?.mode,
+    selectedRingState,
+    selectedSnapshotPlayer?.coverLabel,
+    selectedThreat,
+    snapshot,
+  ]);
   const selectedPlayerEvent = useMemo(() => {
     if (!selectedAgent?.id) {
       return null;
@@ -1911,21 +2062,78 @@ export function GameShell() {
     }
 
     frontierCueMatchIdRef.current = matchId;
-    playStartTone(392, 0.18, { gain: 0.06, type: "triangle" });
-    playStartTone(494, 0.18, {
-      delaySeconds: 0.18,
-      gain: 0.055,
-      type: "triangle",
-    });
-    playStartTone(622, 0.54, {
-      delaySeconds: 0.38,
-      gain: 0.032,
+    playToneSweep(660, 320, 0.65, {
+      gain: 0.038,
       type: "sine",
     });
+    playStartTone(220, 0.1, {
+      delaySeconds: 0.12,
+      gain: 0.03,
+      type: "triangle",
+    });
+    playStartTone(330, 0.1, {
+      delaySeconds: 0.24,
+      gain: 0.028,
+      type: "triangle",
+    });
+    playStartTone(440, 0.16, {
+      delaySeconds: 0.36,
+      gain: 0.03,
+      type: "triangle",
+    });
+  }
+
+  function playToneSweep(
+    fromFrequency: number,
+    toFrequency: number,
+    durationSeconds: number,
+    options?: {
+      delaySeconds?: number;
+      gain?: number;
+      type?: OscillatorType;
+    },
+  ) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const audioContext = getAudioContext();
+    if (!audioContext) {
+      return;
+    }
+
+    try {
+      const delaySeconds = options?.delaySeconds ?? 0;
+      const gain = options?.gain ?? 0.04;
+      const startAt = audioContext.currentTime + delaySeconds;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.type = options?.type ?? "sine";
+      oscillator.frequency.setValueAtTime(fromFrequency, startAt);
+      oscillator.frequency.exponentialRampToValueAtTime(
+        Math.max(40, toFrequency),
+        startAt + durationSeconds,
+      );
+      gainNode.gain.setValueAtTime(0.0001, startAt);
+      gainNode.gain.exponentialRampToValueAtTime(gain, startAt + 0.04);
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.0001,
+        startAt + durationSeconds,
+      );
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + durationSeconds + 0.04);
+    } catch {
+      // Ignore audio errors; the visual countdown remains the primary cue.
+    }
   }
 
   function getAudioContext() {
     if (audioContextRef.current) {
+      if (audioContextRef.current.state === "suspended") {
+        void audioContextRef.current.resume().catch(() => undefined);
+      }
       return audioContextRef.current;
     }
 
@@ -1942,6 +2150,9 @@ export function GameShell() {
 
     try {
       audioContextRef.current = new AudioContextCtor();
+      if (audioContextRef.current.state === "suspended") {
+        void audioContextRef.current.resume().catch(() => undefined);
+      }
       return audioContextRef.current;
     } catch {
       return null;
@@ -2288,6 +2499,11 @@ export function GameShell() {
           status: "queued",
           matchId: queued.matchId ?? preparation.matchId,
           queuedAt: new Date().toISOString(),
+          queueKind: "paid",
+          slotsFilled: 1,
+          slotsTotal: 4,
+          humansCommitted: 1,
+          etaSeconds: Math.ceil(gameConfig.humanQueueFillMs / 1000),
         });
         setStatus("Paid queue confirmed onchain. Waiting for other agents...");
       } else {
@@ -2295,6 +2511,11 @@ export function GameShell() {
         setQueueState({
           status: "queued",
           queuedAt: new Date().toISOString(),
+          queueKind: "practice",
+          slotsFilled: 1,
+          slotsTotal: 4,
+          humansCommitted: 1,
+          etaSeconds: Math.ceil(gameConfig.humanQueueFillMs / 1000),
         });
         setStatus("Practice queue started. Waiting for other agents...");
       }
@@ -3287,6 +3508,11 @@ export function GameShell() {
                     </div>
                   </div>
                 </div>
+                {queueCompositionLabel && (
+                  <div className="mt-3 rounded-[16px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/8 px-3 py-2 text-[11px] text-[#d9f7ee]">
+                    {queueCompositionLabel}
+                  </div>
+                )}
               </div>
             )}
             <div
@@ -4040,36 +4266,46 @@ export function GameShell() {
                   snapshot={snapshot}
                   selectedAgentId={arenaFocusAgentId}
                 />
-                <div className="mt-3 grid gap-2">
-                  <IntelLegendRow
-                    icon={<Gem className="h-3.5 w-3.5" />}
-                    label="Supply Drop"
-                    detail="Orange flare. Ride through it for health, ammo, and score."
-                  />
-                  <IntelLegendRow
-                    icon={<Landmark className="h-3.5 w-3.5" />}
-                    label="Stagecoach"
-                    detail="Moving coach. Cut across its path for ammo and bonus score."
-                  />
-                  <IntelLegendRow
-                    icon={<Sword className="h-3.5 w-3.5" />}
-                    label="Bounty"
-                    detail="Marked rider. Drop them for bonus score, or kite if the mark is on you."
-                  />
-                  <IntelLegendRow
-                    icon={<ShieldPlus className="h-3.5 w-3.5" />}
-                    label="Dust Ring"
-                    detail="Stay inside the circle. Outside it, the storm burns health every tick."
-                  />
+                <div className="mt-3 rounded-[18px] border border-[#7ed2b4]/12 bg-[#7ed2b4]/8 px-3 py-3">
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-[#bfeee0]/70">
+                    Right now
+                  </div>
+                  <div className="mt-1 font-semibold text-[#f6ead7]">
+                    {intelPrimaryFocus.title}
+                  </div>
+                  <div className="mt-1 text-xs leading-relaxed text-stone-200/72">
+                    {intelPrimaryFocus.detail}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {intelPrimaryFocus.chips.map((chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-full border border-white/10 bg-black/14 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/70"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {intelLegendCards.map((card) => (
+                    <IntelLegendRow
+                      key={card.label}
+                      icon={card.icon}
+                      label={card.label}
+                      detail={card.detail}
+                      compact
+                    />
+                  ))}
                 </div>
                 <div className="mt-3 space-y-2">
                   {criticalEvents.length === 0 ? (
                     <EmptyState
-                      label="The next supply drop, stagecoach run, bounty call, or elimination will show up here."
+                      label="Live calls will land here as soon as the first drop, bounty, coach, or elimination happens."
                       compact
                     />
                   ) : (
-                    criticalEvents.slice(-3).map((event) => (
+                    criticalEvents.slice(-2).map((event) => (
                       <div
                         key={event.id}
                         className={`rounded-[16px] border px-3 py-2 ${getEventToneClasses(event.type)}`}
@@ -4629,21 +4865,33 @@ function IntelLegendRow({
   icon,
   label,
   detail,
+  compact = false,
 }: {
   icon: React.ReactNode;
   label: string;
   detail: string;
+  compact?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-[16px] border border-white/8 bg-black/14 px-3 py-3">
-      <div className="mt-0.5 rounded-full border border-white/10 bg-white/6 p-2 text-[var(--accent-soft)]">
+    <div
+      className={`flex items-start gap-3 rounded-[16px] border border-white/8 bg-black/14 ${
+        compact ? "px-3 py-2.5" : "px-3 py-3"
+      }`}
+    >
+      <div
+        className={`mt-0.5 rounded-full border border-white/10 bg-white/6 text-[var(--accent-soft)] ${
+          compact ? "p-1.5" : "p-2"
+        }`}
+      >
         {icon}
       </div>
       <div className="min-w-0">
         <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-300/58">
           {label}
         </div>
-        <div className="mt-1 text-xs leading-relaxed text-stone-200/74">
+        <div
+          className={`mt-1 text-stone-200/74 ${compact ? "text-[11px] leading-snug" : "text-xs leading-relaxed"}`}
+        >
           {detail}
         </div>
       </div>

@@ -9,7 +9,7 @@ export const gameConfig = {
   },
   matchDurationMs: 3 * 60 * 1000,
   matchCountdownMs: 3 * 1000,
-  humanQueueFillMs: 10 * 1000,
+  humanQueueFillMs: 6 * 1000,
   paidQueueReservationMs: 90 * 1000,
   ticksPerSecond: 10,
   autonomyDecisionMs: 1_200,
