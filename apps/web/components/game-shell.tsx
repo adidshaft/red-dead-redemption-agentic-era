@@ -380,6 +380,48 @@ export function GameShell() {
       ],
     };
   }, [campaignStats]);
+  const resultChangeCards = useMemo(() => {
+    if (!selectedAgent) {
+      return [];
+    }
+
+    return [
+      {
+        label: "Mode",
+        value: selectedAgent.mode === "autonomous" ? "Autopilot" : "Manual",
+        detail:
+          selectedAgent.mode === "autonomous"
+            ? "This rider can self-pilot the next fight."
+            : "You control the next fight directly.",
+      },
+      {
+        label: "Next skill",
+        value: autonomyPlan ? skillLabels[autonomyPlan.nextSkill] : "Open planner",
+        detail: autonomyPlan
+          ? "Recommended upgrade before the next run."
+          : "Pick a rider to unlock a plan.",
+      },
+      {
+        label: "Next run",
+        value:
+          autonomyPlan?.recommendedQueue === "paid"
+            ? "Paid showdown"
+            : "Practice run",
+        detail: autonomyPlan
+          ? autonomyPlan.economyDirective
+          : "Practice keeps risk low while you learn the loop.",
+      },
+      {
+        label: "Campaign",
+        value: campaignStats
+          ? `${campaignStats.campaignTier.toUpperCase()} • ${campaignStats.currentStreak} streak`
+          : "Rookie ledger",
+        detail: campaignStats
+          ? `${campaignStats.wins} wins • ${campaignStats.podiums} podiums`
+          : "First runs will build this ledger.",
+      },
+    ];
+  }, [autonomyPlan, campaignStats, selectedAgent]);
   const autonomyEvents = useMemo(
     () => recentEvents.filter((event) => event.type === "autonomy").slice(-4),
     [recentEvents],
@@ -3290,6 +3332,35 @@ export function GameShell() {
                         </div>
                       )}
 
+                      {selectedResultPlayer && (
+                        <div className="mx-auto mt-2 mb-8 grid max-w-4xl gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <ResultStatCard
+                            label="Finish"
+                            value={selectedPlacement ? ordinal(selectedPlacement) : "Spectating"}
+                          />
+                          <ResultStatCard
+                            label="Score"
+                            value={`${selectedResultPlayer.score} pts`}
+                          />
+                          <ResultStatCard
+                            label="Damage"
+                            value={`${selectedResultPlayer.damageDealt}`}
+                          />
+                          <ResultStatCard
+                            label="Payout"
+                            value={
+                              matchEconomy
+                                ? formatWeiToOkb(
+                                    selectedPlacement === 1
+                                      ? matchEconomy.winnerPayout
+                                      : 0n,
+                                  )
+                                : "Practice"
+                            }
+                          />
+                        </div>
+                      )}
+
                       <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
                         <div className="space-y-2 text-left">
                           {scoreboardPlayers.map((player, i) => (
@@ -3375,6 +3446,29 @@ export function GameShell() {
                           </div>
                           <div className="rounded-[22px] border border-white/8 bg-black/20 px-4 py-4">
                             <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--accent-soft)]/70">
+                              What changed
+                            </div>
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                              {resultChangeCards.map((card) => (
+                                <div
+                                  key={card.label}
+                                  className="rounded-[14px] border border-white/6 bg-white/[0.03] px-3 py-3"
+                                >
+                                  <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+                                    {card.label}
+                                  </div>
+                                  <div className="mt-1 font-semibold text-[#f6ead7]">
+                                    {card.value}
+                                  </div>
+                                  <div className="mt-1 text-xs text-stone-200/66">
+                                    {card.detail}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="rounded-[22px] border border-white/8 bg-black/20 px-4 py-4">
+                            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--accent-soft)]/70">
                               {resultCareerPulse.eyebrow}
                             </div>
                             <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
@@ -3412,6 +3506,35 @@ export function GameShell() {
                                   </div>
                                 </div>
                               ))}
+                            </div>
+                          </div>
+                          <div className="rounded-[22px] border border-white/8 bg-black/20 px-4 py-4">
+                            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--accent-soft)]/70">
+                              Frontier Tape
+                            </div>
+                            <div className="mt-3 grid gap-2">
+                              {matchHistory.slice(0, 3).length > 0 ? (
+                                matchHistory.slice(0, 3).map((match) => (
+                                  <div
+                                    key={match.matchId}
+                                    className="rounded-[14px] border border-white/6 bg-white/[0.03] px-3 py-3"
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="text-sm font-semibold text-[#f6ead7]">
+                                        {match.paid ? "Paid Showdown" : "Practice Run"} • Finish #{match.placement}
+                                      </div>
+                                      <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                                        {match.won ? "Won" : "Logged"}
+                                      </div>
+                                    </div>
+                                    <div className="mt-1 text-xs text-stone-200/66">
+                                      {match.score} pts • {match.kills} kills • {formatWeiToOkb(BigInt(match.payoutWei))} payout
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <EmptyState label="This was the first logged run for this rider." compact />
+                              )}
                             </div>
                           </div>
                         </div>
@@ -4318,6 +4441,23 @@ function ScoreboardTable({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ResultStatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[18px] border border-white/8 bg-black/18 px-4 py-3 text-left">
+      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+        {label}
+      </div>
+      <div className="mt-1 font-semibold text-[#f6ead7]">{value}</div>
     </div>
   );
 }
