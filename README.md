@@ -33,6 +33,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Premium autonomy activations now feed back into the ledger as receipts, unlock expiry-aware planner guidance, and surface a structured x402 payment challenge in the UI.
 - X Layer skill purchase and match-entry flows.
 - Onchain settlement receipts stored and surfaced in the UI.
+- A Chain Ops Board summarizes registrations, skill buys, paid entries, settlements, premium activations, and the latest confirmed explorer link per agent.
 - OnchainOS wallet-account binding for agent treasuries.
 - x402 payment challenge route for premium autonomy passes.
 

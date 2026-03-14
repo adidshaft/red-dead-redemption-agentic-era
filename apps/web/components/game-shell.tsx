@@ -384,6 +384,17 @@ export function GameShell() {
     ],
     [autonomyPlan?.autonomyPassActive, transactions],
   );
+  const transactionCounts = useMemo(
+    () => ({
+      registrations: transactions.filter((receipt) => receipt.purpose === "agent_registration").length,
+      upgrades: transactions.filter((receipt) => receipt.purpose === "skill_purchase").length,
+      entries: transactions.filter((receipt) => receipt.purpose === "match_entry").length,
+      settlements: transactions.filter((receipt) => receipt.purpose === "match_settlement").length,
+      premium: transactions.filter((receipt) => receipt.purpose === "autonomy_pass").length,
+    }),
+    [transactions],
+  );
+  const lastConfirmedReceipt = transactions[0] ?? null;
   const operationQueue = useMemo<AgentOperation[]>(() => {
     if (!selectedAgent || !autonomyPlan) {
       return [];
@@ -2034,6 +2045,51 @@ export function GameShell() {
               </div>
 
               <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <div className="mb-4 rounded-[18px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-3 py-3">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/68">
+                    Chain Ops Board
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Registrations {transactionCounts.registrations}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Upgrades {transactionCounts.upgrades}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Entries {transactionCounts.entries}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Settlements {transactionCounts.settlements}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Premium {transactionCounts.premium}
+                    </span>
+                  </div>
+                  {lastConfirmedReceipt && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-white/6 bg-black/18 px-3 py-3 text-xs text-stone-200/70">
+                      <div>
+                        <div className="uppercase tracking-[0.16em] text-stone-300/56">
+                          Last confirmed action
+                        </div>
+                        <div className="mt-1 font-semibold text-[#f6ead7]">
+                          {formatReceiptPurpose(lastConfirmedReceipt.purpose)} • {truncateHash(lastConfirmedReceipt.txHash)}
+                        </div>
+                      </div>
+                      {lastConfirmedReceipt.explorerUrl && (
+                        <a
+                          href={lastConfirmedReceipt.explorerUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 text-[#7ed2b4] transition hover:text-[#c5f4e9]"
+                        >
+                          Open explorer
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
                   Onchain History
                 </p>
