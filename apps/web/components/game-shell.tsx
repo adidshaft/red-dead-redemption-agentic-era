@@ -86,6 +86,14 @@ type AutonomyPassQuote = {
   scheme?: string;
 };
 
+type AgentOperation = {
+  id: string;
+  label: string;
+  detail: string;
+  status: "ready" | "queued" | "locked";
+  action: "buy_skill" | "queue_paid" | "queue_practice" | "buy_autonomy_pass";
+};
+
 export function GameShell() {
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
@@ -337,6 +345,77 @@ export function GameShell() {
     ],
     [autonomyPlan?.autonomyPassActive, transactions],
   );
+  const operationQueue = useMemo<AgentOperation[]>(() => {
+    if (!selectedAgent || !autonomyPlan) {
+      return [];
+    }
+
+    const canBuyNextSkill = Boolean(
+      selectedAgent &&
+        !busyAction &&
+        (contractAddress ?? process.env.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS) &&
+        walletClient &&
+        publicClient,
+    );
+
+    const items: AgentOperation[] = [
+      {
+        id: "skill",
+        label: `Approve ${skillLabels[autonomyPlan.nextSkill]}`,
+        detail: autonomyPlan.nextSkillReason,
+        status: canBuyNextSkill ? "ready" : "locked",
+        action: "buy_skill",
+      },
+    ];
+
+    if (!autonomyPlan.autonomyPassActive) {
+      items.push({
+        id: "premium",
+        label: "Unlock x402 premium",
+        detail:
+          "Open the premium planning lane so the agent can route paid runs with stronger discipline.",
+        status: busyAction === "autonomy-pass" ? "queued" : "ready",
+        action: "buy_autonomy_pass",
+      });
+    }
+
+    items.push({
+      id: autonomyPlan.recommendedQueue === "paid" ? "paid-run" : "practice-run",
+      label:
+        autonomyPlan.recommendedQueue === "paid"
+          ? "Deploy paid frontier run"
+          : "Run a practice frontier cycle",
+      detail:
+        autonomyPlan.recommendedQueue === "paid"
+          ? `Current readiness is ${autonomyPlan.readinessScore}%. Use the queue when the frontier is clear.`
+          : "Build another finish before risking more treasury cadence.",
+      status: queueLocked ? "queued" : "ready",
+      action:
+        autonomyPlan.recommendedQueue === "paid" ? "queue_paid" : "queue_practice",
+    });
+
+    if (campaignStats && campaignStats.matchesPlayed === 0) {
+      items.push({
+        id: "first-finish",
+        label: "Log the first finished frontier run",
+        detail:
+          "The campaign ledger needs one closed match before the doctrine can compound from real history.",
+        status: queueLocked ? "queued" : "ready",
+        action: "queue_practice",
+      });
+    }
+
+    return items.slice(0, 4);
+  }, [
+    autonomyPlan,
+    busyAction,
+    campaignStats,
+    contractAddress,
+    publicClient,
+    queueLocked,
+    selectedAgent,
+    walletClient,
+  ]);
   const settlementExplorerUrl = useMemo(() => {
     if (!snapshot?.settlementTxHash) {
       return null;
@@ -1085,6 +1164,25 @@ export function GameShell() {
     }
   }
 
+  async function handleOperationExecute(operation: AgentOperation) {
+    switch (operation.action) {
+      case "buy_skill":
+        if (autonomyPlan) {
+          await handleBuySkill(autonomyPlan.nextSkill);
+        }
+        break;
+      case "queue_paid":
+        await handleQueue(true);
+        break;
+      case "queue_practice":
+        await handleQueue(false);
+        break;
+      case "buy_autonomy_pass":
+        await handleAutonomyPass();
+        break;
+    }
+  }
+
   function handleSpectateMatch(match: MatchSnapshot) {
     if (!authToken || !socketRef.current) {
       setStatus("Sign in first to spectate a live frontier match.");
@@ -1698,6 +1796,60 @@ export function GameShell() {
                         ))
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {operationQueue.length > 0 && (
+                <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(10,14,14,0.92),rgba(7,9,10,0.96))] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
+                        Campaign Ops Queue
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                        Next approved actions
+                      </h3>
+                      <p className="mt-2 text-sm text-stone-200/72">
+                        This queue translates the planner into concrete owner-approved moves for the agent.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/10 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[#c5f4e9]">
+                      {operationQueue.length} actions
+                    </span>
+                  </div>
+                  <div className="mt-4 grid gap-3">
+                    {operationQueue.map((operation, index) => (
+                      <div
+                        key={operation.id}
+                        className="flex flex-wrap items-start justify-between gap-3 rounded-[18px] border border-white/8 bg-black/16 px-4 py-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[10px] font-bold text-stone-200/72">
+                              {index + 1}
+                            </span>
+                            <span className="text-sm font-semibold text-[#f6ead7]">
+                              {operation.label}
+                            </span>
+                            <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${operation.status === "ready" ? "border-[#7ed2b4]/25 bg-[#7ed2b4]/10 text-[#c5f4e9]" : operation.status === "queued" ? "border-amber-300/22 bg-amber-100/10 text-[#f6ead7]" : "border-white/10 bg-white/5 text-stone-300/58"}`}>
+                              {operation.status}
+                            </span>
+                          </div>
+                          <div className="mt-2 pl-8 text-sm text-stone-200/68">
+                            {operation.detail}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleOperationExecute(operation)}
+                          disabled={operation.status !== "ready"}
+                          className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 transition hover:border-white/25 hover:bg-white/10 disabled:opacity-45"
+                        >
+                          Execute
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

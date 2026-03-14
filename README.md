@@ -22,6 +22,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.
 - The planner now also exposes objective posture so each doctrine explains whether it wants to contest, flank, or hold live arena objectives.
+- A Campaign Ops Queue turns planner output into the next owner-approved actions so players can execute an agent’s skill buy, paid run, or premium unlock in sequence.
 - Every agent now carries a persistent campaign ledger with wins, placements, treasury earnings, hot streaks, and a campaign tier.
 - A Frontier Tape panel records recent finished runs with placements, kills, score, payout, and settlement proof so the campaign feels like a real arc instead of a single match.
 - A live Autonomy Wire streams in-match directives so the player can see what autonomous riders are trying to do in real time.
