@@ -259,6 +259,33 @@ export function ArenaCanvas({
               this.processedEventIds.clear();
             }
 
+            const selectedPlayer = nextSnapshot.players.find(
+              (player) =>
+                player.agentId === selectedAgentIdRef.current && player.alive,
+            );
+
+            if (this.reticle) {
+              const [outer, inner, h, v] = this.reticle.list as any[];
+              const engaged =
+                canControlRef.current &&
+                nextSnapshot.status === "in_progress" &&
+                Boolean(selectedPlayer);
+              const reticleColor = !engaged
+                ? 0x8f7b65
+                : selectedPlayer?.isReloading
+                  ? 0x7ab7ff
+                  : (selectedPlayer?.health ?? 100) <= 30
+                    ? 0xe84a4a
+                    : nextSnapshot.objective
+                      ? 0xdf6c39
+                      : 0xf0bf76;
+              outer.setStrokeStyle(2, reticleColor, engaged ? 0.72 : 0.28);
+              inner.setFillStyle(reticleColor, engaged ? 0.9 : 0.38);
+              h.setFillStyle(engaged ? 0xf6ead7 : 0xc0ad99, engaged ? 0.72 : 0.4);
+              v.setFillStyle(engaged ? 0xf6ead7 : 0xc0ad99, engaged ? 0.72 : 0.4);
+              this.reticle.setAlpha(engaged ? 1 : 0.5);
+            }
+
             if (this.safeZoneGraphics) {
               this.safeZoneGraphics.clear();
               if (
@@ -283,11 +310,6 @@ export function ArenaCanvas({
 
             if (this.guidanceGraphics) {
               this.guidanceGraphics.clear();
-              const selectedPlayer = nextSnapshot.players.find(
-                (player) =>
-                  player.agentId === selectedAgentIdRef.current && player.alive,
-              );
-
               if (
                 selectedPlayer &&
                 nextSnapshot.status === "in_progress"
@@ -334,6 +356,31 @@ export function ArenaCanvas({
                   );
                 }
 
+                if (nextSnapshot.objective) {
+                  this.guidanceGraphics.lineStyle(2, 0xdf6c39, 0.2);
+                  this.guidanceGraphics.beginPath();
+                  this.guidanceGraphics.moveTo(selectedPlayer.x, selectedPlayer.y);
+                  this.guidanceGraphics.lineTo(
+                    nextSnapshot.objective.x,
+                    nextSnapshot.objective.y,
+                  );
+                  this.guidanceGraphics.strokePath();
+                  this.guidanceGraphics.strokeCircle(
+                    nextSnapshot.objective.x,
+                    nextSnapshot.objective.y,
+                    48,
+                  );
+                }
+
+                if (selectedPlayer.isReloading) {
+                  this.guidanceGraphics.lineStyle(4, 0x7ab7ff, 0.38);
+                  this.guidanceGraphics.strokeCircle(
+                    selectedPlayer.x,
+                    selectedPlayer.y,
+                    44,
+                  );
+                }
+
                 const distanceToRing = Math.hypot(
                   selectedPlayer.x - nextSnapshot.safeZone.centerX,
                   selectedPlayer.y - nextSnapshot.safeZone.centerY,
@@ -341,6 +388,14 @@ export function ArenaCanvas({
                 if (distanceToRing > nextSnapshot.safeZone.radius) {
                   this.guidanceGraphics.lineStyle(8, 0xe84a4a, 0.18);
                   this.guidanceGraphics.strokeRect(10, 10, 1580, 880);
+                }
+
+                if (selectedPlayer.health <= 30) {
+                  this.guidanceGraphics.fillStyle(0xe84a4a, 0.08);
+                  this.guidanceGraphics.fillRect(0, 0, 1600, 24);
+                  this.guidanceGraphics.fillRect(0, 876, 1600, 24);
+                  this.guidanceGraphics.fillRect(0, 0, 24, 900);
+                  this.guidanceGraphics.fillRect(1576, 0, 24, 900);
                 }
               }
             }

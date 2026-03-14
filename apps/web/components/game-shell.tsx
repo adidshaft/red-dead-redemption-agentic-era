@@ -911,6 +911,49 @@ export function GameShell() {
         "Registration, upgrades, paid entry, and settlement are all proven. The next job is compounding that loop cleanly.",
     };
   }, [transactionCounts]);
+  const bountyTrail = useMemo(() => {
+    if (!selectedAgent) {
+      return null;
+    }
+
+    if (!campaignStats || campaignStats.matchesPlayed === 0) {
+      return {
+        title: "Close the first frontier tape",
+        detail:
+          "One finished run unlocks the rider’s real campaign history, placement record, and streak pressure.",
+      };
+    }
+
+    if (campaignStats.currentStreak > 0 && campaignStats.currentStreak < 3) {
+      return {
+        title: `Hot streak at ${campaignStats.currentStreak}`,
+        detail:
+          "One more strong finish keeps the streak alive and makes the next paid run feel worth the risk.",
+      };
+    }
+
+    if (transactionCounts.settlements === 0) {
+      return {
+        title: "Hunt the first real payout",
+        detail:
+          "The rider has momentum, but the addictive loop starts when a paid match closes with a live settlement receipt.",
+      };
+    }
+
+    if (!autonomyPlan?.autonomyPassActive) {
+      return {
+        title: "Upgrade the rider’s brain",
+        detail:
+          "The next bait is premium autonomy so this rider can chain upgrades and paid entries with better timing.",
+      };
+    }
+
+    return {
+      title: "Press the compounding loop",
+      detail:
+        "This rider is ready to keep cycling wins into upgrades, premium planning, and more expensive frontier runs.",
+    };
+  }, [autonomyPlan?.autonomyPassActive, campaignStats, selectedAgent, transactionCounts.settlements]);
   const lastConfirmedReceipt = transactions[0] ?? null;
   const operationQueue = useMemo<AgentOperation[]>(() => {
     if (!selectedAgent || !autonomyPlan) {
@@ -2257,6 +2300,19 @@ export function GameShell() {
                   </div>
                 </div>
                 <div className="space-y-4">
+                  {bountyTrail && (
+                    <div className="rounded-[24px] border border-[#df6c39]/18 bg-[linear-gradient(180deg,rgba(52,24,14,0.92),rgba(16,9,7,0.96))] p-4">
+                      <div className="text-[10px] uppercase tracking-[0.24em] text-[#ffd0ae]/68">
+                        Bounty Trail
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                        {bountyTrail.title}
+                      </div>
+                      <div className="mt-2 text-sm text-stone-200/72">
+                        {bountyTrail.detail}
+                      </div>
+                    </div>
+                  )}
                   {campaignLoopSummary && (
                     <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(14,24,20,0.92),rgba(10,12,11,0.96))] p-4">
                       <div className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
@@ -2855,6 +2911,44 @@ export function GameShell() {
                           )}
                         </div>
                       )}
+                      <div className="pointer-events-auto mt-6 flex flex-wrap justify-center gap-3">
+                        {selectedAgent && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleQueue(
+                                autonomyPlan?.recommendedQueue === "paid",
+                              )
+                            }
+                            disabled={busyAction !== null || queueLocked}
+                            className="rounded-full border border-amber-300/25 bg-amber-100/10 px-4 py-2 text-xs uppercase tracking-[0.16em] text-[#f6ead7] transition hover:bg-amber-100/16 disabled:opacity-45"
+                          >
+                            {autonomyPlan?.recommendedQueue === "paid"
+                              ? "Run Paid Again"
+                              : "Run Practice Again"}
+                          </button>
+                        )}
+                        {autonomyPlan && (
+                          <button
+                            type="button"
+                            onClick={() => void handleBuySkill(autonomyPlan.nextSkill)}
+                            disabled={buyDisabled}
+                            className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-xs uppercase tracking-[0.16em] text-white/80 transition hover:border-white/20 hover:bg-white/10 disabled:opacity-45"
+                          >
+                            Buy {skillLabels[autonomyPlan.nextSkill]}
+                          </button>
+                        )}
+                        {!autonomyPlan?.autonomyPassActive && selectedAgent && (
+                          <button
+                            type="button"
+                            onClick={handleAutonomyPass}
+                            disabled={busyAction !== null}
+                            className="rounded-full border border-[#df6c39]/25 bg-[#df6c39]/10 px-4 py-2 text-xs uppercase tracking-[0.16em] text-[#ffd0ae] transition hover:bg-[#df6c39]/16 disabled:opacity-45"
+                          >
+                            Unlock Premium
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3056,13 +3150,39 @@ export function GameShell() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-stone-200/76">
-                      <Crosshair className="h-3.5 w-3.5 shrink-0 text-[#f0bf76]" />
-                      <span>
-                        {selectedAgent?.mode === "manual"
-                          ? "WASD move, click fires, space dodges, R reloads."
-                          : "Switch to manual if you want direct control."}
-                      </span>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                      {selectedAgent?.mode === "manual" ? (
+                        <>
+                          <BattleChip
+                            icon={<Crosshair className="h-3.5 w-3.5" />}
+                            label="Aim"
+                            detail="Cursor sets the shot target."
+                          />
+                          <BattleChip
+                            icon={<Sword className="h-3.5 w-3.5" />}
+                            label="Fire"
+                            detail="Click to take the shot."
+                          />
+                          <BattleChip
+                            icon={<RadioTower className="h-3.5 w-3.5" />}
+                            label="Dodge"
+                            detail="Space for an escape burst."
+                          />
+                          <BattleChip
+                            icon={<RotateCcw className="h-3.5 w-3.5" />}
+                            label="Reload"
+                            detail="Press R before the chamber goes dry."
+                          />
+                        </>
+                      ) : (
+                        <div className="sm:col-span-2 xl:col-span-4">
+                          <BattleChip
+                            icon={<Bot className="h-3.5 w-3.5" />}
+                            label="Autonomous"
+                            detail="Switch to manual if you want direct control over movement, fire, dodge, and reload."
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="shrink-0 rounded-[18px] border border-white/8 bg-black/20 p-3">
@@ -3141,6 +3261,18 @@ export function GameShell() {
                   snapshot={snapshot}
                   selectedAgentId={arenaFocusAgentId}
                 />
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <BattleChip
+                    icon={<Gem className="h-3.5 w-3.5" />}
+                    label="Supply Drop"
+                    detail="Orange beacon gives health, ammo, and score."
+                  />
+                  <BattleChip
+                    icon={<ShieldPlus className="h-3.5 w-3.5" />}
+                    label="Dust Ring"
+                    detail="Stay inside the safe circle or burn out fast."
+                  />
+                </div>
                 <div className="mt-3 space-y-2">
                   {criticalEvents.length === 0 ? (
                     <EmptyState
@@ -3393,6 +3525,21 @@ function ArenaMinimap({
     <div className="rounded-[22px] border border-white/8 bg-[#170f0b] p-3">
       <div className="relative aspect-[16/9] overflow-hidden rounded-[18px] border border-amber-300/10 bg-[radial-gradient(circle_at_top,_rgba(236,183,102,0.12),_transparent_48%),linear-gradient(180deg,_rgba(52,32,22,0.95),_rgba(19,11,8,0.98))]">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(244,227,199,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(244,227,199,0.06)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        {[
+          { left: "17%", top: "18%", label: "Saloon" },
+          { left: "81%", top: "18%", label: "Hotel" },
+          { left: "16%", top: "81%", label: "Wash" },
+          { left: "82%", top: "80%", label: "Stable" },
+          { left: "65%", top: "25%", label: "Water" },
+        ].map((landmark) => (
+          <div
+            key={landmark.label}
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/8 bg-black/18 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-stone-200/58"
+            style={{ left: landmark.left, top: landmark.top }}
+          >
+            {landmark.label}
+          </div>
+        ))}
         <div
           className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--accent-soft)]/45 bg-[radial-gradient(circle,_rgba(244,200,133,0.08)_0%,_rgba(244,200,133,0.02)_55%,_transparent_72%)] shadow-[0_0_24px_rgba(244,200,133,0.12)]"
           style={{
@@ -3481,6 +3628,26 @@ function QuickBriefRow({
         <div className="text-sm font-semibold text-[#f6ead7]">{title}</div>
         <div className="mt-1 text-sm text-stone-200/72">{body}</div>
       </div>
+    </div>
+  );
+}
+
+function BattleChip({
+  icon,
+  label,
+  detail,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-2.5 text-stone-200/72">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/60">
+        <span className="text-[#f0bf76]">{icon}</span>
+        {label}
+      </div>
+      <div className="mt-1 text-xs">{detail}</div>
     </div>
   );
 }
