@@ -33,6 +33,8 @@ import {
   matchEntryFeeWei,
   skillKeys,
   skillLabels,
+  toExplorerTxUrl,
+  winnerShareBasisPoints,
   type AgentProfile,
   type ArenaCommand,
   type MatchEvent,
@@ -179,6 +181,42 @@ export function GameShell() {
     const seconds = (totalSeconds % 60).toString().padStart(2, "0");
     return `${minutes}:${seconds}`;
   }, [clockNow, snapshot?.endsAt]);
+  const safeZoneLabel = useMemo(() => {
+    if (!snapshot) {
+      return "Dormant";
+    }
+
+    if (snapshot.status === "queued") {
+      return "Dust ring forms at showdown start";
+    }
+
+    const radius = Math.round(snapshot.safeZone.radius);
+    return `${radius}px safe zone`;
+  }, [snapshot]);
+  const matchEconomy = useMemo(() => {
+    if (!snapshot?.paid) {
+      return null;
+    }
+
+    const totalPot = matchEntryFeeWei * BigInt(snapshot.players.length);
+    const winnerPayout = (totalPot * winnerShareBasisPoints) / 10_000n;
+    const treasuryCut = totalPot - winnerPayout;
+    return {
+      totalPot,
+      winnerPayout,
+      treasuryCut,
+    };
+  }, [snapshot]);
+  const settlementExplorerUrl = useMemo(() => {
+    if (!snapshot?.settlementTxHash) {
+      return null;
+    }
+
+    return toExplorerTxUrl(
+      snapshot.settlementTxHash,
+      process.env.NEXT_PUBLIC_XLAYER_EXPLORER_URL,
+    );
+  }, [snapshot?.settlementTxHash]);
   const deployedContractAddress =
     contractAddress ?? process.env.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS ?? null;
 
@@ -1101,12 +1139,17 @@ export function GameShell() {
                 <BriefingCard
                   eyebrow="How To Play"
                   title="Move, aim, survive"
-                  body="WASD moves your rider, click fires at the nearest rival under your cursor, Space triggers a dodge, and R reloads when your chamber runs dry."
+                  body="WASD moves your rider, click fires at the nearest rival under your cursor, Space triggers a dodge, and R reloads when your chamber runs dry. Stay inside the shrinking dust ring."
                 />
                 <BriefingCard
                   eyebrow="Skill Impact"
                   title="Stats decide the duel"
                   body="Quickdraw increases pressure, Grit helps you tank hits, Trailcraft powers dodges, Tactics sharpens aim, and Fortune creates swing moments. Score comes from eliminations, damage, and survival."
+                />
+                <BriefingCard
+                  eyebrow="Objective"
+                  title="Control the circle"
+                  body="The frontier collapses into a final ring. Sweep ammo and tonic pickups, keep rotating toward the safe zone, and survive long enough to claim the pot."
                 />
               </div>
             )}
@@ -1174,6 +1217,45 @@ export function GameShell() {
                           </div>
                         ))}
                       </div>
+
+                      {matchEconomy && (
+                        <div className="mt-8 rounded-[22px] border border-[var(--panel-border)] bg-black/20 px-5 py-4 text-left">
+                          <div className="text-[10px] uppercase tracking-[0.24em] text-[var(--accent-soft)]/65">
+                            X Layer Settlement
+                          </div>
+                          <div className="mt-3 grid gap-2 text-sm text-[var(--foreground)]/78 md:grid-cols-3">
+                            <div>
+                              Pot:{" "}
+                              <span className="font-semibold text-[var(--foreground)]">
+                                {formatWeiToOkb(matchEconomy.totalPot)}
+                              </span>
+                            </div>
+                            <div>
+                              Winner:{" "}
+                              <span className="font-semibold text-[var(--accent-soft)]">
+                                {formatWeiToOkb(matchEconomy.winnerPayout)}
+                              </span>
+                            </div>
+                            <div>
+                              Treasury:{" "}
+                              <span className="font-semibold text-[var(--foreground)]">
+                                {formatWeiToOkb(matchEconomy.treasuryCut)}
+                              </span>
+                            </div>
+                          </div>
+                          {settlementExplorerUrl && snapshot.settlementTxHash && (
+                            <a
+                              href={settlementExplorerUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="pointer-events-auto mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[var(--accent-soft)] transition hover:text-[var(--foreground)]"
+                            >
+                              Settlement {truncateHash(snapshot.settlementTxHash)}
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1217,6 +1299,12 @@ export function GameShell() {
                     </div>
                     {/* HUD Bars */}
                     <div className="flex flex-col gap-3 pb-1">
+                      <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--accent-soft)]/75">
+                        Dust Ring
+                        <span className="rounded-full border border-[var(--panel-border)] px-2 py-1 text-[9px] text-[var(--foreground)]/72">
+                          {safeZoneLabel}
+                        </span>
+                      </div>
                       <div className="flex items-center gap-3">
                         <span className="w-10 text-[10px] font-bold uppercase tracking-widest text-[#7ed2b4]/70">Health</span>
                         <div className="relative h-3 w-48 overflow-hidden rounded bg-black/60 shadow-inner">
@@ -1298,6 +1386,8 @@ export function GameShell() {
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-stone-300/60">
                       <div>Phase: <span className="text-[#f6ead7]">{arenaPhaseLabel}</span></div>
                       <div>Clock: <span className="text-[#f6ead7]">{roundClockLabel}</span></div>
+                      <div>Zone: <span className="text-[#f6ead7]">{safeZoneLabel}</span></div>
+                      <div>Pot: <span className="text-[#f6ead7]">{matchEconomy ? formatWeiToOkb(matchEconomy.totalPot) : "Practice round"}</span></div>
                       <div>
                         Rider:{" "}
                         <span className="text-[#f6ead7]">
@@ -1316,12 +1406,7 @@ export function GameShell() {
                             : "—"}
                         </span>
                       </div>
-                      <div>
-                        Supplies:{" "}
-                        <span className="text-[#f6ead7]">
-                          {snapshot?.pickups.length ?? 0} live pickups
-                        </span>
-                      </div>
+                      <div>Supplies: <span className="text-[#f6ead7]">{snapshot?.pickups.length ?? 0} live pickups</span></div>
                       {snapshot?.status === "finished" && winnerDisplayName && (
                         <div className="col-span-2 mt-1 font-semibold text-[#f0bf76]">
                           Winner: {winnerDisplayName}
@@ -1694,6 +1779,15 @@ function ArenaMinimap({
     <div className="rounded-[22px] border border-white/8 bg-[#170f0b] p-3">
       <div className="relative aspect-[16/9] overflow-hidden rounded-[18px] border border-amber-300/10 bg-[radial-gradient(circle_at_top,_rgba(236,183,102,0.12),_transparent_48%),linear-gradient(180deg,_rgba(52,32,22,0.95),_rgba(19,11,8,0.98))]">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(244,227,199,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(244,227,199,0.06)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        <div
+          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--accent-soft)]/45 bg-[radial-gradient(circle,_rgba(244,200,133,0.08)_0%,_rgba(244,200,133,0.02)_55%,_transparent_72%)] shadow-[0_0_24px_rgba(244,200,133,0.12)]"
+          style={{
+            left: `${(snapshot.safeZone.centerX / 1600) * 100}%`,
+            top: `${(snapshot.safeZone.centerY / 900) * 100}%`,
+            width: `${(snapshot.safeZone.radius * 2 / 1600) * 100}%`,
+            height: `${(snapshot.safeZone.radius * 2 / 900) * 100}%`,
+          }}
+        />
         {snapshot.pickups.map((pickup) => {
           const left = `${(pickup.x / 1600) * 100}%`;
           const top = `${(pickup.y / 900) * 100}%`;

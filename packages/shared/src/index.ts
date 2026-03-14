@@ -26,6 +26,10 @@ export const gameConfig = {
   maxArenaPickups: 3,
   healthPickupValue: 25,
   ammoPickupValue: 3,
+  safeZoneStartRadius: 520,
+  safeZoneEndRadius: 150,
+  safeZoneShrinkDelayMs: 20 * 1000,
+  safeZoneDamagePerTick: 1,
   houseBotPrefix: "HouseBot",
 } as const;
 
@@ -149,6 +153,14 @@ export const arenaPickupSchema = z.object({
 
 export type ArenaPickup = z.infer<typeof arenaPickupSchema>;
 
+export const safeZoneSchema = z.object({
+  centerX: z.number(),
+  centerY: z.number(),
+  radius: z.number().positive(),
+});
+
+export type SafeZone = z.infer<typeof safeZoneSchema>;
+
 export const matchPlayerStateSchema = z.object({
   agentId: z.string(),
   displayName: z.string(),
@@ -194,10 +206,13 @@ export const matchSnapshotSchema = z.object({
   startedAt: z.string().nullable(),
   endsAt: z.string().nullable(),
   seed: z.number().int(),
+  paid: z.boolean(),
   players: z.array(matchPlayerStateSchema),
   pickups: z.array(arenaPickupSchema),
+  safeZone: safeZoneSchema,
   events: z.array(matchEventSchema),
   winnerAgentId: z.string().nullable(),
+  settlementTxHash: z.string().nullable(),
 });
 
 export type MatchSnapshot = z.infer<typeof matchSnapshotSchema>;

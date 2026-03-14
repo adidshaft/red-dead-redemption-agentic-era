@@ -31,6 +31,7 @@ function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Pa
     startedAt: new Date().toISOString(),
     endsAt: new Date(Date.now() + 60_000).toISOString(),
     seed: 42,
+    paid: false,
     winnerAgentId: null,
     players: [
       {
@@ -67,7 +68,13 @@ function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Pa
       },
     ],
     pickups: [],
+    safeZone: {
+      centerX: 800,
+      centerY: 450,
+      radius: 900,
+    },
     events: [],
+    settlementTxHash: null,
     ...snapshotOverrides,
   };
 
@@ -219,6 +226,58 @@ describe("chooseFallbackCommand", () => {
     expect(command.type).toBe("move");
     if (command.type === "move") {
       expect(command.dx).toBeGreaterThan(0);
+    }
+  });
+
+  it("rides back into the safe zone before doing anything else", () => {
+    const command = chooseFallbackCommand(
+      createContext(undefined, {
+        players: [
+          {
+            agentId: "agent-1",
+            displayName: "Marshal-ABC123",
+            health: 80,
+            ammo: 4,
+            isReloading: false,
+            kills: 0,
+            shotsFired: 0,
+            shotsHit: 0,
+            damageDealt: 0,
+            score: 0,
+            mode: "autonomous",
+            x: 1500,
+            y: 820,
+            alive: true,
+          },
+          {
+            agentId: "enemy-1",
+            displayName: "Enemy-1",
+            health: 80,
+            ammo: 6,
+            isReloading: false,
+            kills: 0,
+            shotsFired: 0,
+            shotsHit: 0,
+            damageDealt: 0,
+            score: 0,
+            mode: "manual",
+            x: 1320,
+            y: 760,
+            alive: true,
+          },
+        ],
+        safeZone: {
+          centerX: 800,
+          centerY: 450,
+          radius: 260,
+        },
+      }),
+    );
+
+    expect(command.type).toBe("move");
+    if (command.type === "move") {
+      expect(command.dx).toBeLessThan(0);
+      expect(command.dy).toBeLessThan(0);
     }
   });
 });

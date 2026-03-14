@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { applySkillUpgrade } from "@rdr/shared";
 
-import { computeDamage, createStarterSkills, generateAgentIdentity, resolveShot } from "./game.js";
+import { computeDamage, computeSafeZone, createStarterSkills, generateAgentIdentity, resolveShot } from "./game.js";
 
 describe("game helpers", () => {
   it("creates starter skills with a 10-point bonus budget and a 30-point cap", () => {
@@ -79,5 +79,14 @@ describe("game helpers", () => {
 
     expect(computeDamage(attacker as never, target as never, () => 0.99)).toBeGreaterThan(0);
     expect(resolveShot(attacker as never, target as never, () => 0.01).hit).toBe(true);
+  });
+
+  it("shrinks the safe zone over the course of a match", () => {
+    const openingZone = computeSafeZone(0);
+    const lateZone = computeSafeZone(160_000);
+
+    expect(openingZone.radius).toBeGreaterThan(lateZone.radius);
+    expect(openingZone.centerX).toBe(800);
+    expect(openingZone.centerY).toBe(450);
   });
 });

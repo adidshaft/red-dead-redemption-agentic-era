@@ -43,6 +43,19 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
   const centerDy = centerY - self.y;
   const atEdge =
     self.x < 180 || self.x > 1420 || self.y < 180 || self.y > 720;
+  const zoneDx = context.snapshot.safeZone.centerX - self.x;
+  const zoneDy = context.snapshot.safeZone.centerY - self.y;
+  const zoneDistance = Math.hypot(zoneDx, zoneDy);
+  const outsideSafeZone =
+    zoneDistance > Math.max(0, context.snapshot.safeZone.radius - 36);
+
+  if (outsideSafeZone) {
+    return {
+      type: "move",
+      dx: Math.max(-1, Math.min(1, zoneDx / Math.max(Math.abs(zoneDx), 1))),
+      dy: Math.max(-1, Math.min(1, zoneDy / Math.max(Math.abs(zoneDy), 1))),
+    };
+  }
 
   if (self.health < 30 && distance < 240) {
     return {

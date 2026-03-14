@@ -12,6 +12,7 @@ import {
   type MatchEvent,
   type MatchPlayerState,
   type MatchSnapshot,
+  type SafeZone,
   type SkillKey,
   type SkillSet,
 } from "@rdr/shared";
@@ -59,6 +60,7 @@ type MatchRuntime = {
   players: Map<string, RuntimePlayer>;
   pickups: Map<string, ArenaPickup>;
   lastPickupSpawnAt: number;
+  lastSafeZoneStage: number;
   timer: NodeJS.Timeout;
   paid: boolean;
 };
@@ -134,6 +136,51 @@ export function resolveShot(
 
 export function createCombatDigest(snapshot: MatchSnapshot): Hex {
   return keccak256(stringToHex(JSON.stringify(snapshot)));
+}
+
+export function computeSafeZone(elapsedMs: number): SafeZone {
+  const centerX = gameConfig.arenaSize.width / 2;
+  const centerY = gameConfig.arenaSize.height / 2;
+  const shrinkWindowMs = Math.max(
+    1,
+    gameConfig.matchDurationMs - gameConfig.safeZoneShrinkDelayMs,
+  );
+  const progress = Math.min(
+    1,
+    Math.max(0, elapsedMs - gameConfig.safeZoneShrinkDelayMs) / shrinkWindowMs,
+  );
+  const radius =
+    gameConfig.safeZoneStartRadius -
+    (gameConfig.safeZoneStartRadius - gameConfig.safeZoneEndRadius) * progress;
+
+  return {
+    centerX,
+    centerY,
+    radius,
+  };
+}
+
+function getSafeZoneStage(elapsedMs: number) {
+  if (elapsedMs < gameConfig.safeZoneShrinkDelayMs) {
+    return 0;
+  }
+
+  const shrinkWindowMs = Math.max(
+    1,
+    gameConfig.matchDurationMs - gameConfig.safeZoneShrinkDelayMs,
+  );
+  const progress = Math.min(
+    1,
+    Math.max(0, elapsedMs - gameConfig.safeZoneShrinkDelayMs) / shrinkWindowMs,
+  );
+
+  if (progress >= 0.85) {
+    return 3;
+  }
+  if (progress >= 0.55) {
+    return 2;
+  }
+  return 1;
 }
 
 function calculateScore(player: Pick<RuntimePlayer, "kills" | "damageDealt" | "health" | "alive">) {
@@ -593,10 +640,13 @@ export class ArenaCoordinator {
       startedAt,
       endsAt,
       seed,
+      paid,
       players: Array.from(players.values()).map(toSnapshotPlayer),
       pickups: [],
+      safeZone: computeSafeZone(0),
       events,
       winnerAgentId: null,
+      settlementTxHash: null,
     };
 
     const timer = setInterval(() => {
@@ -608,6 +658,7 @@ export class ArenaCoordinator {
       players,
       pickups,
       lastPickupSpawnAt: Date.now(),
+      lastSafeZoneStage: 0,
       timer,
       paid,
     };
@@ -648,6 +699,27 @@ export class ArenaCoordinator {
       runtime.lastPickupSpawnAt = now;
     }
 
+    const startedAtMs = runtime.snapshot.startedAt
+      ? new Date(runtime.snapshot.startedAt).getTime()
+      : now;
+    const elapsedMs = Math.max(0, now - startedAtMs);
+    runtime.snapshot.safeZone = computeSafeZone(elapsedMs);
+    const safeZoneStage = getSafeZoneStage(elapsedMs);
+    if (safeZoneStage > runtime.lastSafeZoneStage) {
+      runtime.lastSafeZoneStage = safeZoneStage;
+      events.push(
+        createEvent({
+          type: "announcement",
+          message:
+            safeZoneStage === 1
+              ? "The dust ring starts closing. Ride center."
+              : safeZoneStage === 2
+                ? "The frontier tightens. The outer dust burns."
+                : "Final circle. There is nowhere left to hide.",
+        }),
+      );
+    }
+
     for (const player of runtime.players.values()) {
       if (!player.alive) {
         continue;
@@ -673,6 +745,30 @@ export class ArenaCoordinator {
         60,
         gameConfig.arenaSize.height - 60,
       );
+
+      const safeZoneDistance = Math.hypot(
+        player.x - runtime.snapshot.safeZone.centerX,
+        player.y - runtime.snapshot.safeZone.centerY,
+      );
+      if (safeZoneDistance > runtime.snapshot.safeZone.radius) {
+        player.health = Math.max(
+          0,
+          player.health - gameConfig.safeZoneDamagePerTick,
+        );
+
+        if (player.health <= 0) {
+          player.alive = false;
+          player.moveVector = { dx: 0, dy: 0 };
+          events.push(
+            createEvent({
+              type: "elimination",
+              targetAgentId: player.agentId,
+              message: `${player.displayName} is swallowed by the dust ring.`,
+            }),
+          );
+          continue;
+        }
+      }
 
       if (
         player.mode === "autonomous" &&
@@ -1061,6 +1157,7 @@ export class ArenaCoordinator {
     }
 
     runtime.snapshot.status = "finished";
+    runtime.snapshot.settlementTxHash = settlementTxHash;
     const settlementEvent = createEvent({
       type: "settled",
       actorAgentId: runtime.snapshot.winnerAgentId ?? undefined,

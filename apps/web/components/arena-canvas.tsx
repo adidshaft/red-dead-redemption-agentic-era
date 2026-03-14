@@ -204,6 +204,7 @@ export function ArenaCanvas({
         private sprites = new Map<string, any>();
         private labels = new Map<string, any>();
         private pickupSprites = new Map<string, any>();
+        private safeZoneGraphics?: any;
         private processedEventIds = new Set<string>();
         private activeMatchId: string | null = null;
 
@@ -241,6 +242,7 @@ export function ArenaCanvas({
           cg.strokeCircle(800, 450, 120);
           cg.lineStyle(1, 0xe58d3c, 0.25);
           cg.strokeCircle(800, 450, 10);
+          this.safeZoneGraphics = this.add.graphics();
 
           this.input.on("pointermove", (pointer: any) => {
             pointerPositionRef.current = { x: pointer.worldX, y: pointer.worldY };
@@ -265,6 +267,28 @@ export function ArenaCanvas({
             if (this.activeMatchId !== nextSnapshot.matchId) {
               this.activeMatchId = nextSnapshot.matchId;
               this.processedEventIds.clear();
+            }
+
+            if (this.safeZoneGraphics) {
+              this.safeZoneGraphics.clear();
+              if (
+                nextSnapshot.status === "in_progress" ||
+                nextSnapshot.status === "finished" ||
+                nextSnapshot.status === "settling"
+              ) {
+                this.safeZoneGraphics.lineStyle(4, 0xf4c885, 0.48);
+                this.safeZoneGraphics.strokeCircle(
+                  nextSnapshot.safeZone.centerX,
+                  nextSnapshot.safeZone.centerY,
+                  nextSnapshot.safeZone.radius,
+                );
+                this.safeZoneGraphics.lineStyle(1, 0xe84a4a, 0.08);
+                this.safeZoneGraphics.strokeCircle(
+                  nextSnapshot.safeZone.centerX,
+                  nextSnapshot.safeZone.centerY,
+                  nextSnapshot.safeZone.radius + 16,
+                );
+              }
             }
 
             for (const player of nextSnapshot.players) {
@@ -412,7 +436,16 @@ export function ArenaCanvas({
 
           switch (event.type) {
             case "announcement":
-              this.flashBanner("DRAW");
+              if (
+                event.message.toLowerCase().includes("dust ring") ||
+                event.message.toLowerCase().includes("frontier tightens")
+              ) {
+                this.flashBanner("RING CLOSES");
+              } else if (event.message.toLowerCase().includes("final circle")) {
+                this.flashBanner("FINAL CIRCLE");
+              } else {
+                this.flashBanner("DRAW");
+              }
               break;
             case "spawn":
               if (actorPosition) {
