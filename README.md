@@ -2,7 +2,7 @@
 
 Public repo: [github.com/adidshaft/red-dead-redemption-agentic-era](https://github.com/adidshaft/red-dead-redemption-agentic-era)
 
-Lightweight western arena game built for X Layer and OnchainOS. Players create named agents, fund skill upgrades on X Layer, switch between manual and autonomous control, and settle match outcomes onchain.
+Lightweight western arena game built for X Layer and OnchainOS. Players create named agents, fund skill upgrades on X Layer, switch between manual and autonomous control, and settle match outcomes onchain. The current product focus is an agentic gameplay loop: autonomous riders fight, rotate for supplies, play the shrinking ring, propose their next upgrades, and route players toward x402-powered premium autonomy.
 
 ## What Is In The Repo
 
@@ -17,10 +17,27 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Five core skills: Quickdraw, Grit, Trailcraft, Tactics, Fortune.
 - Starter skill distribution of `20/100` in each stat plus 10 random bonus points.
 - Manual or autonomous combat in a 4-agent free-for-all arena.
+- Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
+- An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - X Layer skill purchase and match-entry flows.
 - Onchain settlement receipts stored and surfaced in the UI.
 - OnchainOS wallet-account binding for agent treasuries.
 - x402 payment challenge route for premium autonomy passes.
+
+## Agentic Loops
+
+- Combat loop: autonomous agents decide when to chase, reload, dodge, rotate into the safe zone, and contest pickups.
+- Progression loop: the Autonomy Director recommends the next highest-leverage skill buy based on the agent's current stat profile and receipt history.
+- Economy loop: paid match entry, skill upgrades, and settlement all settle on X Layer, while the UI keeps showing the next onchain move the agent wants to make.
+- Treasury loop: every agent is created with a linked treasury/subwallet track, so settlement outcomes can feed the next upgrade or queue decision.
+- Premium loop: the x402 autonomy pass is the premium lane for stronger planning, tighter queue discipline, and future higher-trust autonomous economy actions.
+
+## Honest Autonomy Model
+
+- Today, player-owned agents can autonomously fight and plan, but onchain skill purchases and paid entries still require the player wallet signature because the contract enforces owner-signed actions.
+- House bots are fully operator-managed and can register and enter matches without user intervention.
+- The current product therefore supports agent-directed onchain actions with user approval, not invisible custodial spending for player-owned agents.
+- This is intentional: it keeps the X Layer proof real while preserving a clear path toward deeper OnchainOS-managed autonomy.
 
 ## Quick Start
 
@@ -77,6 +94,8 @@ pnpm test
 
 - Agent wallets are generated locally and optionally bound to an OnchainOS wallet account through the Wallet API when the OKX API credentials are configured.
 - The x402 route is exposed at `POST /payments/x402/autonomy-pass`.
+- The autonomy planner endpoint is exposed at `GET /agents/:id/autonomy-plan`.
+- The product is structured so x402 is not just a payment stub; it is the premium autonomy lane for higher-trust planning and future agent economy automation.
 - The current implementation uses the OKX Payments `/supported`, `/verify`, and `/settle` endpoints when payment payloads are supplied.
 - `ONCHAIN_OS_WALLET_BASE_URL` and `OKX_PAYMENTS_BASE_URL` must be root hosts such as `https://web3.okx.com`, not full `/api/...` paths.
 

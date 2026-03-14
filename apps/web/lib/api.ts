@@ -1,5 +1,6 @@
 import type {
   AgentProfile,
+  AutonomyPlan,
   ArenaCommand,
   MatchSnapshot,
   OnchainReceipt,
@@ -115,6 +116,12 @@ export async function fetchTransactions(token: string, agentId: string) {
       token,
     },
   );
+}
+
+export async function fetchAutonomyPlan(token: string, agentId: string) {
+  return apiRequest<{ plan: AutonomyPlan }>(`/agents/${agentId}/autonomy-plan`, {
+    token,
+  });
 }
 
 export async function registerSkillPurchase(

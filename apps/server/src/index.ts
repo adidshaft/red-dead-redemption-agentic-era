@@ -26,6 +26,7 @@ import {
   readAddressFromToken,
   verifyWalletSignature,
 } from "./auth.js";
+import { buildAutonomyPlan } from "./autonomy-plan.js";
 import { config } from "./config.js";
 import { Database } from "./db.js";
 import {
@@ -202,6 +203,28 @@ app.get("/agents", async (request, reply) => {
   return {
     agents,
     contractAddress: config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS ?? null,
+  };
+});
+
+app.get("/agents/:id/autonomy-plan", async (request, reply) => {
+  const address = await requireAddress(request);
+  if (!address) {
+    return reply.status(401).send(unauthorizedReply().body);
+  }
+
+  const agentId = (request.params as { id: string }).id;
+  const agent = await db.getAgentById(agentId);
+  if (!agent || agent.ownerAddress !== address) {
+    return reply.status(404).send({ error: "Agent not found" });
+  }
+
+  const [receipts, autonomyPassActive] = await Promise.all([
+    db.listAgentTransactions(agent.id),
+    db.hasActiveAutonomyPass(agent.id),
+  ]);
+
+  return {
+    plan: buildAutonomyPlan(agent, receipts, autonomyPassActive),
   };
 });
 

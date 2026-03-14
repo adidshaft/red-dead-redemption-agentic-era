@@ -219,6 +219,25 @@ export type MatchSnapshot = z.infer<typeof matchSnapshotSchema>;
 export type MatchEvent = z.infer<typeof matchEventSchema>;
 export type MatchPlayerState = z.infer<typeof matchPlayerStateSchema>;
 
+export const autonomyPlanSchema = z.object({
+  agentId: z.string(),
+  mode: agentModeSchema,
+  doctrine: z.string(),
+  summary: z.string(),
+  nextSkill: z.enum(skillKeys),
+  nextSkillReason: z.string(),
+  upgradeQueue: z.array(z.enum(skillKeys)).min(1).max(5),
+  combatDirective: z.string(),
+  economyDirective: z.string(),
+  x402Directive: z.string(),
+  autonomyPassActive: z.boolean(),
+  skillPurchases: z.number().int().nonnegative(),
+  paidEntries: z.number().int().nonnegative(),
+  settlements: z.number().int().nonnegative(),
+});
+
+export type AutonomyPlan = z.infer<typeof autonomyPlanSchema>;
+
 export const createAgentInputSchema = z.object({
   baseName: z
     .string()

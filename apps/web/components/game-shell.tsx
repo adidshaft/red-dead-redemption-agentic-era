@@ -36,6 +36,7 @@ import {
   toExplorerTxUrl,
   winnerShareBasisPoints,
   type AgentProfile,
+  type AutonomyPlan,
   type ArenaCommand,
   type MatchEvent,
   type MatchSnapshot,
@@ -46,6 +47,7 @@ import {
 import {
   createAgent,
   fetchAgents,
+  fetchAutonomyPlan,
   fetchTransactions,
   fetchLiveMatches,
   fetchNonce,
@@ -90,6 +92,7 @@ export function GameShell() {
   const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(null);
   const [recentEvents, setRecentEvents] = useState<MatchEvent[]>([]);
   const [liveMatches, setLiveMatches] = useState<MatchSnapshot[]>([]);
+  const [autonomyPlan, setAutonomyPlan] = useState<AutonomyPlan | null>(null);
   const [baseName, setBaseName] = useState("Marshal");
   const [status, setStatus] = useState<string>(
     "Connect a wallet on X Layer testnet to enter the frontier.",
@@ -351,9 +354,11 @@ export function GameShell() {
 
   useEffect(() => {
     if (!authToken || !selectedAgent) {
+      setAutonomyPlan(null);
       return;
     }
     void loadTransactions(selectedAgent.id);
+    void loadAutonomyPlan(selectedAgent.id);
   }, [authToken, selectedAgent?.id]);
 
   useEffect(() => {
@@ -462,6 +467,7 @@ export function GameShell() {
     setQueueState(null);
     setSnapshot(null);
     setRecentEvents([]);
+    setAutonomyPlan(null);
     setTxReveals([]);
     seenTxHashesRef.current = new Set();
     txRevealTimersRef.current.forEach((timeoutId) => {
@@ -670,6 +676,14 @@ export function GameShell() {
     }
   }
 
+  async function loadAutonomyPlan(agentId: string) {
+    if (!authToken) {
+      return;
+    }
+    const response = await fetchAutonomyPlan(authToken, agentId);
+    setAutonomyPlan(response.plan);
+  }
+
   async function handleSignIn() {
     if (!address) {
       return;
@@ -749,6 +763,7 @@ export function GameShell() {
           agent.id === response.agent.id ? response.agent : agent,
         ),
       );
+      await loadAutonomyPlan(response.agent.id);
       setStatus(`${response.agent.displayName} is now ${mode}.`);
     } catch (error) {
       setStatus(normalizeUiError(error, "Unable to switch mode."));
@@ -799,6 +814,7 @@ export function GameShell() {
         ),
       );
       await loadTransactions(selectedAgent.id);
+      await loadAutonomyPlan(selectedAgent.id);
       setStatus(
         `${skillLabels[skill]} improved for ${selectedAgent.displayName}.`,
       );
@@ -892,6 +908,7 @@ export function GameShell() {
         setStatus("x402 payment is required for the autonomy pass.");
       } else {
         setAutonomyHint(JSON.stringify(response.payload, null, 2));
+        await loadAutonomyPlan(selectedAgent.id);
         setStatus("Autonomy pass activated.");
       }
     } catch (error) {
@@ -1280,6 +1297,83 @@ export function GameShell() {
                   </div>
                 </div>
               </div>
+
+              {autonomyPlan && (
+                <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(13,18,16,0.92),rgba(8,10,9,0.96))] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
+                        Autonomy Director
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                        {autonomyPlan.doctrine}
+                      </h3>
+                      <p className="mt-2 text-sm text-stone-200/72">
+                        {autonomyPlan.summary}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan.mode === "autonomous" ? "border-[#df6c39]/35 bg-[#df6c39]/10 text-[#ffd0ae]" : "border-[#7ed2b4]/30 bg-[#7ed2b4]/10 text-[#c5f4e9]"}`}>
+                        {autonomyPlan.mode}
+                      </span>
+                      <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan.autonomyPassActive ? "border-emerald-200/30 bg-emerald-200/10 text-emerald-100" : "border-white/10 bg-white/5 text-stone-200/65"}`}>
+                        {autonomyPlan.autonomyPassActive ? "x402 Active" : "x402 Locked"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 text-sm text-stone-200/74 xl:grid-cols-2">
+                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
+                        Next Onchain Move
+                      </div>
+                      <div className="mt-2 font-semibold text-[#f6ead7]">
+                        Buy {skillLabels[autonomyPlan.nextSkill]}
+                      </div>
+                      <div className="mt-1 text-sm text-stone-200/68">
+                        {autonomyPlan.nextSkillReason}
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
+                        Combat Directive
+                      </div>
+                      <div className="mt-2 text-sm text-stone-200/72">
+                        {autonomyPlan.combatDirective}
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
+                        Economy Loop
+                      </div>
+                      <div className="mt-2 text-sm text-stone-200/72">
+                        {autonomyPlan.economyDirective}
+                      </div>
+                    </div>
+                    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/62">
+                        x402 Lane
+                      </div>
+                      <div className="mt-2 text-sm text-stone-200/72">
+                        {autonomyPlan.x402Directive}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Queue: {autonomyPlan.upgradeQueue.map((skill) => skillLabels[skill]).join(" -> ")}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Upgrades: {autonomyPlan.skillPurchases}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Paid entries: {autonomyPlan.paidEntries}
+                    </span>
+                    <span className="rounded-full border border-white/8 px-2.5 py-1">
+                      Settlements: {autonomyPlan.settlements}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 {skillKeys.map((skill) => (
