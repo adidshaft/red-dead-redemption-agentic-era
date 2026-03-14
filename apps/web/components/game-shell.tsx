@@ -65,6 +65,13 @@ import { ArenaCanvas } from "./arena-canvas";
 const authStorageKey = "rdr-auth-token";
 const authAddressStorageKey = "rdr-auth-address";
 
+type TxReveal = {
+  id: string;
+  receipt: OnchainReceipt;
+  headline: string;
+  detail: string;
+};
+
 export function GameShell() {
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
@@ -93,12 +100,16 @@ export function GameShell() {
   const [arenaFullscreen, setArenaFullscreen] = useState(false);
   const [matchCountdown, setMatchCountdown] = useState<number | null>(null);
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const [txReveals, setTxReveals] = useState<TxReveal[]>([]);
 
   const socketRef = useRef<ReturnType<typeof connectGameSocket> | null>(null);
   const arenaFrameRef = useRef<HTMLDivElement | null>(null);
   const startedMatchIdRef = useRef<string | null>(null);
   const lastCountdownValueRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const selectedAgentRef = useRef<AgentProfile | null>(null);
+  const seenTxHashesRef = useRef<Set<string>>(new Set());
+  const txRevealTimersRef = useRef<Map<string, number>>(new Map());
 
   const selectedAgent = useMemo(
     () =>
@@ -221,12 +232,20 @@ export function GameShell() {
     contractAddress ?? process.env.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS ?? null;
 
   useEffect(() => {
+    selectedAgentRef.current = selectedAgent;
+  }, [selectedAgent]);
+
+  useEffect(() => {
     const existing = window.localStorage.getItem(authStorageKey);
     if (existing) {
       setAuthToken(existing);
     }
 
     return () => {
+      txRevealTimersRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      txRevealTimersRef.current.clear();
       if (audioContextRef.current) {
         void audioContextRef.current.close().catch(() => undefined);
         audioContextRef.current = null;
@@ -322,6 +341,9 @@ export function GameShell() {
             ? `${winnerName} won the showdown.`
             : "The showdown is over.",
       );
+      if (selectedAgentRef.current) {
+        void loadTransactions(selectedAgentRef.current.id, { revealNew: true });
+      }
     });
 
     socketRef.current = socket;
@@ -444,9 +466,49 @@ export function GameShell() {
     setQueueState(null);
     setSnapshot(null);
     setRecentEvents([]);
+    setTxReveals([]);
+    seenTxHashesRef.current = new Set();
+    txRevealTimersRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    txRevealTimersRef.current.clear();
     if (nextStatus) {
       setStatus(nextStatus);
     }
+  }
+
+  function dismissTxReveal(id: string) {
+    const timeoutId = txRevealTimersRef.current.get(id);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      txRevealTimersRef.current.delete(id);
+    }
+    setTxReveals((current) => current.filter((item) => item.id !== id));
+  }
+
+  function pushTxReveal(
+    receipt: OnchainReceipt,
+    headline = `${formatReceiptPurpose(receipt.purpose)} confirmed`,
+    detail = formatReceiptRevealDetail(receipt),
+  ) {
+    const id = receipt.txHash;
+    seenTxHashesRef.current.add(receipt.txHash);
+    setTxReveals((current) => {
+      if (current.some((item) => item.receipt.txHash === receipt.txHash)) {
+        return current;
+      }
+
+      return [{ id, receipt, headline, detail }, ...current].slice(0, 3);
+    });
+
+    const existingTimeout = txRevealTimersRef.current.get(id);
+    if (existingTimeout) {
+      window.clearTimeout(existingTimeout);
+    }
+    const timeoutId = window.setTimeout(() => {
+      dismissTxReveal(id);
+    }, 7_500);
+    txRevealTimersRef.current.set(id, timeoutId);
   }
 
   function playStartTone(frequency: number, durationSeconds: number) {
@@ -595,12 +657,21 @@ export function GameShell() {
     }
   }
 
-  async function loadTransactions(agentId: string) {
+  async function loadTransactions(
+    agentId: string,
+    options?: { revealNew?: boolean },
+  ) {
     if (!authToken) {
       return;
     }
     const response = await fetchTransactions(authToken, agentId);
     setTransactions(response.receipts);
+    for (const receipt of response.receipts) {
+      if (options?.revealNew && !seenTxHashesRef.current.has(receipt.txHash)) {
+        pushTxReveal(receipt);
+      }
+      seenTxHashesRef.current.add(receipt.txHash);
+    }
   }
 
   async function handleSignIn() {
@@ -648,7 +719,14 @@ export function GameShell() {
     try {
       const response = await createAgent(authToken, baseName);
       if (response.registrationRequired) {
-        await ensureAgentRegisteredOnchain(response.agent);
+        const receipt = await ensureAgentRegisteredOnchain(response.agent);
+        if (receipt) {
+          pushTxReveal(
+            receipt,
+            "Agent registered on X Layer",
+            `${response.agent.displayName} is now treasury-linked and ready for frontier actions.`,
+          );
+        }
       }
       setAgents((current) => [...current, response.agent]);
       setSelectedAgentId(response.agent.id);
@@ -714,6 +792,11 @@ export function GameShell() {
         skill,
         hash,
       );
+      pushTxReveal(
+        response.receipt,
+        `${skillLabels[skill]} upgrade confirmed`,
+        `${selectedAgent.displayName} gained +5 ${skillLabels[skill]} on X Layer.`,
+      );
       setAgents((current) =>
         current.map((agent) =>
           agent.id === response.agent.id ? response.agent : agent,
@@ -776,6 +859,13 @@ export function GameShell() {
           preparation.matchId,
           txHash,
         );
+        if (queued.entryReceipt) {
+          pushTxReveal(
+            queued.entryReceipt,
+            "Paid queue locked onchain",
+            `${selectedAgent.displayName} secured a paid showdown slot on X Layer.`,
+          );
+        }
         setQueueState({
           status: "queued",
           matchId: queued.matchId ?? preparation.matchId,
@@ -831,7 +921,7 @@ export function GameShell() {
     });
 
     if (registrationState[2]) {
-      return;
+      return null;
     }
 
     setStatus(`Registering ${agent.displayName} on X Layer...`);
@@ -844,7 +934,12 @@ export function GameShell() {
       args: [agentIdToBytes32(agent.id), agent.walletAddress as Address],
     });
     await publicClient.waitForTransactionReceipt({ hash: registrationTx });
-    await registerAgentOnServer(authToken, agent.id, registrationTx);
+    const response = await registerAgentOnServer(
+      authToken,
+      agent.id,
+      registrationTx,
+    );
+    return response.receipt;
   }
 
   function handleArenaCommand(command: ArenaCommand) {
@@ -1019,7 +1114,8 @@ export function GameShell() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)_360px]">
+        <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+          <div className="space-y-6">
           <section className="western-card rounded-[30px] border p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
@@ -1088,6 +1184,148 @@ export function GameShell() {
               )}
             </div>
           </section>
+
+          <section className="western-card rounded-[30px] border p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--accent-soft)]/60">
+                  Loadout
+                </p>
+                <h2 className="mt-1 font-[var(--font-heading)] text-3xl font-bold text-[var(--foreground)]">
+                  Skill Network
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleAutonomyPass}
+                disabled={!selectedAgent || busyAction !== null}
+                className="rounded-full border border-[#df6c39]/40 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/18 disabled:opacity-50"
+              >
+                x402 Autonomy Pass
+              </button>
+            </div>
+
+            {selectedAgent && liveAgentStats ? (
+            <div className="space-y-4">
+              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#f6ead7]">
+                      {selectedAgent.displayName}
+                    </h3>
+                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">
+                      {selectedAgent.walletAddress}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange("manual")}
+                      disabled={busyAction !== null}
+                      className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "manual" ? "bg-[#7ed2b4]/18 text-[#c5f4e9]" : "border border-white/12 text-white/70"}`}
+                    >
+                      Manual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange("autonomous")}
+                      disabled={busyAction !== null}
+                      className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "autonomous" ? "bg-[#df6c39]/18 text-[#ffd0ae]" : "border border-white/12 text-white/70"}`}
+                    >
+                      Autonomous
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {skillKeys.map((skill) => (
+                  <div
+                    key={skill}
+                    className="rounded-[24px] border border-white/8 bg-black/12 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-semibold text-[#f6ead7]">
+                          {skillLabels[skill]}
+                        </div>
+                        <div className="mt-1 text-xs text-stone-200/60">
+                          Current: {selectedAgent.skills[skill]} / 100
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleBuySkill(skill)}
+                        disabled={buyDisabled}
+                        className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
+                      >
+                        Buy +5 •{" "}
+                        {formatWeiToOkb(
+                          calculateSkillPurchasePrice(
+                            selectedAgent.skills[skill],
+                          ),
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
+                  Onchain History
+                </p>
+                <div className="scrollbar-thin max-h-56 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
+                  {transactions.length === 0 && (
+                    <EmptyState
+                      label="No confirmed X Layer receipts yet."
+                      compact
+                    />
+                  )}
+                  {transactions.map((receipt) => (
+                    <a
+                      key={receipt.txHash}
+                      href={receipt.explorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-2xl border border-white/8 bg-white/4 px-3 py-3 transition hover:border-white/14"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium text-[#f6ead7]">
+                          {formatReceiptPurpose(receipt.purpose)}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[11px] uppercase ${receipt.status === "confirmed" ? "bg-emerald-200/12 text-emerald-200" : "bg-stone-200/10 text-stone-200/70"}`}
+                        >
+                          {receipt.status}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-stone-200/62">
+                        {truncateHash(receipt.txHash)}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
+                        <span>{receipt.matchId ? `Match ${receipt.matchId.slice(-6)}` : "Agent action"}</span>
+                        <span className="inline-flex items-center gap-1 text-[#f0bf76]">
+                          Explorer
+                          <ExternalLink className="h-3 w-3" />
+                        </span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {autonomyHint && (
+                <pre className="scrollbar-thin max-h-64 overflow-auto rounded-[24px] border border-white/8 bg-black/14 p-4 text-xs text-stone-200/70">
+                  {autonomyHint}
+                </pre>
+              )}
+            </div>
+          ) : (
+            <EmptyState label="Select or create an agent to inspect skills, queue matches, and review receipts." />
+          )}
+        </section>
+        </div>
 
           <section className="western-card rounded-[30px] border p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -1371,10 +1609,10 @@ export function GameShell() {
                 onControlReadyChange={setArenaReadyForControls}
               />
             </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
               <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2 text-sm text-stone-200/72">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-3 text-sm text-stone-200/72">
                     <div className="flex items-center gap-2 text-stone-200/80">
                       <Crosshair className="h-4 w-4 shrink-0 text-[#f0bf76]" />
                       <span className="font-medium">
@@ -1383,39 +1621,24 @@ export function GameShell() {
                           : "Set agent to manual to take direct control"}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-stone-300/60">
+                    <div className="grid gap-2 text-xs text-stone-300/60 sm:grid-cols-2 xl:grid-cols-4">
                       <div>Phase: <span className="text-[#f6ead7]">{arenaPhaseLabel}</span></div>
                       <div>Clock: <span className="text-[#f6ead7]">{roundClockLabel}</span></div>
                       <div>Zone: <span className="text-[#f6ead7]">{safeZoneLabel}</span></div>
                       <div>Pot: <span className="text-[#f6ead7]">{matchEconomy ? formatWeiToOkb(matchEconomy.totalPot) : "Practice round"}</span></div>
-                      <div>
-                        Rider:{" "}
-                        <span className="text-[#f6ead7]">
-                          {selectedSnapshotPlayer
-                            ? selectedSnapshotPlayer.alive
-                              ? `${selectedSnapshotPlayer.displayName} alive`
-                              : `${selectedSnapshotPlayer.displayName} out`
-                            : "not in showdown"}
-                        </span>
-                      </div>
-                      <div>
-                        Combat:{" "}
-                        <span className="text-[#f6ead7]">
-                          {selectedSnapshotPlayer
-                            ? `${selectedSnapshotPlayer.health}HP · ${selectedSnapshotPlayer.ammo}rnd${selectedSnapshotPlayer.isReloading ? " · reloading" : ""}`
-                            : "—"}
-                        </span>
-                      </div>
+                      <div>Rider: <span className="text-[#f6ead7]">{selectedSnapshotPlayer ? selectedSnapshotPlayer.alive ? `${selectedSnapshotPlayer.displayName} alive` : `${selectedSnapshotPlayer.displayName} out` : "not in showdown"}</span></div>
+                      <div>Combat: <span className="text-[#f6ead7]">{selectedSnapshotPlayer ? `${selectedSnapshotPlayer.health}HP · ${selectedSnapshotPlayer.ammo}rnd${selectedSnapshotPlayer.isReloading ? " · reloading" : ""}` : "—"}</span></div>
                       <div>Supplies: <span className="text-[#f6ead7]">{snapshot?.pickups.length ?? 0} live pickups</span></div>
-                      {snapshot?.status === "finished" && winnerDisplayName && (
-                        <div className="col-span-2 mt-1 font-semibold text-[#f0bf76]">
-                          Winner: {winnerDisplayName}
-                        </div>
-                      )}
+                      <div>Feed: <span className="text-[#f6ead7]">{recentEvents.length} recent calls</span></div>
                     </div>
+                    {snapshot?.status === "finished" && winnerDisplayName && (
+                      <div className="font-semibold text-[#f0bf76]">
+                        Winner: {winnerDisplayName}
+                      </div>
+                    )}
                   </div>
-                  <div className="shrink-0">
-                    <div className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
+                  <div className="shrink-0 rounded-[20px] border border-white/8 bg-black/20 p-3">
+                    <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
                       D-Pad + Reload
                     </div>
                     <div className="grid w-[108px] grid-cols-3 gap-1.5">
@@ -1477,33 +1700,10 @@ export function GameShell() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
-                  Event Feed
-                </p>
-                <div className="scrollbar-thin max-h-44 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
-                  {recentEvents.length === 0 && (
-                    <EmptyState
-                      label="No events yet. Queue a match to start the duel."
-                      compact
-                    />
-                  )}
-                  {recentEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
-                    >
-                      {event.message}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
               <div className="rounded-[24px] border border-[var(--panel-border)] bg-black/20 p-5 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]">
                 <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
                   <p className="font-[var(--font-heading)] text-lg font-bold text-[var(--foreground)]">
-                    Local Ledger Map
+                    Field Intel
                   </p>
                   <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--circuit-line)]">
                     Active Grid
@@ -1516,176 +1716,36 @@ export function GameShell() {
                   />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-4 text-[10px] uppercase tracking-wider text-[var(--foreground)]/60">
-                   <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]"/> Your Rider</div>
-                   <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#7ed2b4]"/> Rival</div>
-                   <div className="flex items-center gap-1.5"><span className="flex h-2 w-2 items-center justify-center font-black text-[#7ed2b4]">+</span> Health</div>
-                   <div className="flex items-center gap-1.5"><span className="flex h-2 w-2 items-center justify-center font-black text-[var(--accent)]">A</span> Ammo</div>
+                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]"/> Your Rider</div>
+                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#7ed2b4]"/> Rival</div>
+                  <div className="flex items-center gap-1.5"><span className="flex h-2 w-2 items-center justify-center font-black text-[#7ed2b4]">+</span> Health</div>
+                  <div className="flex items-center gap-1.5"><span className="flex h-2 w-2 items-center justify-center font-black text-[var(--accent)]">A</span> Ammo</div>
                 </div>
-              </div>
-              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
-                  Event Feed
-                </p>
-                <div className="scrollbar-thin max-h-44 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
-                  {recentEvents.length === 0 && (
-                    <EmptyState
-                      label="No events yet. Queue a match to start the duel."
-                      compact
-                    />
-                  )}
-                  {recentEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
-                    >
-                      {event.message}
-                    </div>
-                  ))}
+                <div className="mt-4 border-t border-white/5 pt-4">
+                  <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
+                    Event Feed
+                  </p>
+                  <div className="scrollbar-thin max-h-52 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
+                    {recentEvents.length === 0 && (
+                      <EmptyState
+                        label="No events yet. Queue a match to start the duel."
+                        compact
+                      />
+                    )}
+                    {recentEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="rounded-2xl border border-white/7 bg-white/4 px-3 py-2"
+                      >
+                        {event.message}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="western-card rounded-[30px] border p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--accent-soft)]/60">
-                  Loadout
-                </p>
-                <h2 className="mt-1 font-[var(--font-heading)] text-3xl font-bold text-[var(--foreground)]">
-                  Skill Network
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={handleAutonomyPass}
-                disabled={!selectedAgent || busyAction !== null}
-                className="rounded-full border border-[#df6c39]/40 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/18 disabled:opacity-50"
-              >
-                x402 Autonomy Pass
-              </button>
-            </div>
-
-            {selectedAgent && liveAgentStats ? (
-            <div className="space-y-4">
-              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-semibold text-[#f6ead7]">
-                      {selectedAgent.displayName}
-                    </h3>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-stone-200/60">
-                      {selectedAgent.walletAddress}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleModeChange("manual")}
-                      disabled={busyAction !== null}
-                      className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "manual" ? "bg-[#7ed2b4]/18 text-[#c5f4e9]" : "border border-white/12 text-white/70"}`}
-                    >
-                      Manual
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleModeChange("autonomous")}
-                      disabled={busyAction !== null}
-                      className={`rounded-full px-3 py-2 text-xs ${selectedAgent.mode === "autonomous" ? "bg-[#df6c39]/18 text-[#ffd0ae]" : "border border-white/12 text-white/70"}`}
-                    >
-                      Autonomous
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {skillKeys.map((skill) => (
-                  <div
-                    key={skill}
-                    className="rounded-[24px] border border-white/8 bg-black/12 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-semibold text-[#f6ead7]">
-                          {skillLabels[skill]}
-                        </div>
-                        <div className="mt-1 text-xs text-stone-200/60">
-                          Current: {selectedAgent.skills[skill]} / 100
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleBuySkill(skill)}
-                        disabled={buyDisabled}
-                        className="rounded-full border border-amber-300/25 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/15 disabled:opacity-45"
-                      >
-                        Buy +5 •{" "}
-                        {formatWeiToOkb(
-                          calculateSkillPurchasePrice(
-                            selectedAgent.skills[skill],
-                          ),
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
-                <p className="mb-3 text-sm font-semibold text-[#f6ead7]">
-                  Onchain History
-                </p>
-                <div className="scrollbar-thin max-h-56 space-y-2 overflow-auto pr-1 text-sm text-stone-200/72">
-                  {transactions.length === 0 && (
-                    <EmptyState
-                      label="No confirmed X Layer receipts yet."
-                      compact
-                    />
-                  )}
-                  {transactions.map((receipt) => (
-                    <a
-                      key={receipt.txHash}
-                      href={receipt.explorerUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block rounded-2xl border border-white/8 bg-white/4 px-3 py-3 transition hover:border-white/14"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-medium text-[#f6ead7]">
-                          {formatReceiptPurpose(receipt.purpose)}
-                        </span>
-                        <span
-                          className={`rounded-full px-2 py-1 text-[11px] uppercase ${receipt.status === "confirmed" ? "bg-emerald-200/12 text-emerald-200" : "bg-stone-200/10 text-stone-200/70"}`}
-                        >
-                          {receipt.status}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-xs text-stone-200/62">
-                        {truncateHash(receipt.txHash)}
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-stone-300/55">
-                        <span>{receipt.matchId ? `Match ${receipt.matchId.slice(-6)}` : "Agent action"}</span>
-                        <span className="inline-flex items-center gap-1 text-[#f0bf76]">
-                          Explorer
-                          <ExternalLink className="h-3 w-3" />
-                        </span>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-
-              {autonomyHint && (
-                <pre className="scrollbar-thin max-h-64 overflow-auto rounded-[24px] border border-white/8 bg-black/14 p-4 text-xs text-stone-200/70">
-                  {autonomyHint}
-                </pre>
-              )}
-            </div>
-          ) : (
-            <EmptyState label="Select or create an agent to inspect skills, queue matches, and review receipts." />
-          )}
-        </section>
       </div>
 
       <section className="western-card rounded-[30px] border p-5">
@@ -1739,6 +1799,53 @@ export function GameShell() {
           ))}
         </div>
       </section>
+      {txReveals.length > 0 && (
+        <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-3">
+          {txReveals.map((item) => (
+            <div
+              key={item.id}
+              className="pointer-events-auto overflow-hidden rounded-[22px] border border-emerald-200/18 bg-[linear-gradient(180deg,rgba(16,24,20,0.96),rgba(8,10,9,0.98))] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur"
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-white/6 px-4 py-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.24em] text-emerald-200/65">
+                    X Layer Confirmed
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+                    {item.headline}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dismissTxReveal(item.id)}
+                  className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/60 transition hover:border-white/20 hover:text-white"
+                >
+                  Dismiss
+                </button>
+              </div>
+              <div className="space-y-3 px-4 py-3 text-sm text-stone-200/74">
+                <p>{item.detail}</p>
+                <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.18em] text-stone-300/52">
+                  <span>{truncateHash(item.receipt.txHash)}</span>
+                  {item.receipt.explorerUrl ? (
+                    <a
+                      href={item.receipt.explorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-emerald-200 transition hover:text-white"
+                    >
+                      Explorer
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    <span>Recorded</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   </main>
   );
@@ -1953,6 +2060,23 @@ function formatReceiptPurpose(value: OnchainReceipt["purpose"]) {
       return "Match Settlement";
     case "autonomy_pass":
       return "Autonomy Pass";
+  }
+}
+
+function formatReceiptRevealDetail(receipt: OnchainReceipt) {
+  switch (receipt.purpose) {
+    case "agent_registration":
+      return "Your agent identity is live on X Layer and ready for paid frontier actions.";
+    case "skill_purchase":
+      return "The skill upgrade has been recorded onchain and synced into the loadout.";
+    case "match_entry":
+      return receipt.matchId
+        ? `Paid entry for match ${receipt.matchId.slice(-6)} is confirmed onchain.`
+        : "Paid showdown entry is confirmed onchain.";
+    case "match_settlement":
+      return "Match rewards were settled on X Layer and the final ledger is locked.";
+    case "autonomy_pass":
+      return "Autonomous premium access has been confirmed.";
   }
 }
 
