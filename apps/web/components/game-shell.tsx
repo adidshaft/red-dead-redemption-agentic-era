@@ -837,6 +837,80 @@ export function GameShell() {
     }),
     [transactions],
   );
+  const campaignLoopSummary = useMemo(() => {
+    if (!selectedAgent) {
+      return null;
+    }
+
+    if (!campaignStats || campaignStats.matchesPlayed === 0) {
+      return {
+        title: "Log the first frontier finish",
+        detail:
+          "The rider needs one completed run before the campaign ledger has enough history to steer upgrades with confidence.",
+      };
+    }
+
+    if (transactionCounts.settlements === 0) {
+      return {
+        title: "Close the first paid settlement",
+        detail:
+          "You have campaign history, but the treasury loop is still waiting on its first paid win and settlement receipt.",
+      };
+    }
+
+    if (!autonomyPlan?.autonomyPassActive) {
+      return {
+        title: "Unlock premium autonomy",
+        detail:
+          "The next leverage move is x402 premium so the rider can route paid runs and upgrades with tighter discipline.",
+      };
+    }
+
+    return {
+      title: "Compound the treasury loop",
+      detail:
+        "The rider has enough history to keep cycling settlements into upgrades and higher-confidence paid queues.",
+    };
+  }, [autonomyPlan?.autonomyPassActive, campaignStats, selectedAgent, transactionCounts.settlements]);
+  const chainLoopSummary = useMemo(() => {
+    if (transactionCounts.registrations === 0) {
+      return {
+        title: "Register the rider on X Layer",
+        detail:
+          "The chain loop starts once the rider identity is registered and treasury-linked onchain.",
+      };
+    }
+
+    if (transactionCounts.upgrades === 0) {
+      return {
+        title: "Record the first skill upgrade",
+        detail:
+          "The next onchain proof should be a skill purchase so the rider’s growth starts compounding on X Layer.",
+      };
+    }
+
+    if (transactionCounts.entries === 0) {
+      return {
+        title: "Enter a paid frontier run",
+        detail:
+          "The rider has growth proof, but still needs a paid match entry receipt to complete the economic loop.",
+      };
+    }
+
+    if (transactionCounts.settlements === 0) {
+      return {
+        title: "Finish with a settlement receipt",
+        detail:
+          "The remaining proof step is a confirmed match settlement that shows the treasury payout on X Layer.",
+      };
+    }
+
+    return {
+      title: "The onchain loop is active",
+      detail:
+        "Registration, upgrades, paid entry, and settlement are all proven. The next job is compounding that loop cleanly.",
+    };
+  }, [transactionCounts]);
   const lastConfirmedReceipt = transactions[0] ?? null;
   const operationQueue = useMemo<AgentOperation[]>(() => {
     if (!selectedAgent || !autonomyPlan) {
@@ -2183,6 +2257,19 @@ export function GameShell() {
                   </div>
                 </div>
                 <div className="space-y-4">
+                  {campaignLoopSummary && (
+                    <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[linear-gradient(180deg,rgba(14,24,20,0.92),rgba(10,12,11,0.96))] p-4">
+                      <div className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
+                        Campaign Loop
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                        {campaignLoopSummary.title}
+                      </div>
+                      <div className="mt-2 text-sm text-stone-200/72">
+                        {campaignLoopSummary.detail}
+                      </div>
+                    </div>
+                  )}
                   {campaignStats ? (
                     <div className="rounded-[24px] border border-amber-200/12 bg-[linear-gradient(180deg,rgba(26,18,12,0.92),rgba(14,10,8,0.96))] p-4">
                       <div className="text-[10px] uppercase tracking-[0.24em] text-amber-200/58">
@@ -2413,7 +2500,13 @@ export function GameShell() {
               <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
                 <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-[#7ed2b4]/68">
-                    Chain Summary
+                    Onchain Loop
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                    {chainLoopSummary.title}
+                  </div>
+                  <div className="mt-2 text-sm text-stone-200/72">
+                    {chainLoopSummary.detail}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
                     <span className="rounded-full border border-white/8 px-2.5 py-1">
@@ -2429,6 +2522,11 @@ export function GameShell() {
                       Settlements {transactionCounts.settlements}
                     </span>
                   </div>
+                  {deployedContractAddress && (
+                    <div className="mt-3 text-xs text-stone-300/58">
+                      Contract {truncateAddress(deployedContractAddress)}
+                    </div>
+                  )}
                   {lastConfirmedReceipt ? (
                     <div className="mt-4 rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
                       <div className="font-semibold text-[#f6ead7]">

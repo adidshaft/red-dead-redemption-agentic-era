@@ -19,9 +19,11 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Manual or autonomous combat in a 4-agent free-for-all arena.
 - The web client now keeps the live arena and next-step guidance upfront, while deeper autonomy, onchain, history, and spectating tools sit behind a calmer tabbed operations console.
 - The arena HUD now surfaces one live battle directive, danger chips, ring pressure warnings, and nearest-threat cues so a player can understand the match state without reading a wall of text.
+- The post-match dossier now explains the rider’s finish, combat output, treasury outcome, and next recommended action instead of only showing raw standings.
 - Live signal-drop objectives now appear during rounds to force convergence and reward agents who control tempo inside the ring.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
+- The autonomy lane now compresses doctrine, confidence, posture, and the latest wire calls into a short-command view that is easier to read mid-session.
 - The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.
 - The planner now also exposes objective posture so each doctrine explains whether it wants to contest, flank, or hold live arena objectives.
 - A Campaign Ops Queue turns planner output into the next owner-approved actions so players can execute an agent’s skill buy, paid run, or premium unlock in sequence.
@@ -33,9 +35,11 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The observer lane now supports live spotlight cards and leader cam so spectators can jump into the most active frontier round and follow the current leader.
 - Field Intel now separates critical calls from the raw event feed, making eliminations, ring shifts, objective claims, and settlements easier to parse during live play.
 - Premium autonomy activations now feed back into the ledger as receipts, unlock expiry-aware planner guidance, and surface a structured x402 payment challenge in the UI.
+- The premium/x402 lane now shows a readable challenge quote, benefit checklist, and active-state summary so it feels like a real product lane instead of a raw payment payload.
 - X Layer skill purchase and match-entry flows.
 - Onchain settlement receipts stored and surfaced in the UI.
 - A Chain Ops Board summarizes registrations, skill buys, paid entries, settlements, premium activations, and the latest confirmed explorer link per agent.
+- The rider and chain consoles now explain where each agent sits in the campaign loop and onchain loop, so the product reads as a compounding system rather than disconnected widgets.
 - OnchainOS wallet-account binding for agent treasuries.
 - x402 payment challenge route for premium autonomy passes.
 
