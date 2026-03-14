@@ -8,6 +8,7 @@ import {
   Expand,
   ExternalLink,
   Gem,
+  Landmark,
   LoaderCircle,
   Minimize,
   PlugZap,
@@ -633,6 +634,21 @@ export function GameShell() {
         };
       }
 
+      if (snapshot.caravan) {
+        const caravanDistance = Math.round(
+          Math.hypot(
+            selectedSnapshotPlayer.x - snapshot.caravan.x,
+            selectedSnapshotPlayer.y - snapshot.caravan.y,
+          ),
+        );
+        return {
+          eyebrow: "Caravan",
+          title: `Intercept ${snapshot.caravan.label}`,
+          detail: `${snapshot.caravan.rewardLabel}. It’s ${caravanDistance}px away and moving through town now.`,
+          tone: "accent",
+        };
+      }
+
       if (snapshot.bounty) {
         if (snapshot.bounty.targetAgentId === selectedSnapshotPlayer.agentId) {
           return {
@@ -753,6 +769,14 @@ export function GameShell() {
         label: `${snapshot.objective.label}${objectiveTimerLabel ? ` • ${objectiveTimerLabel}` : ""}`,
         tone: "accent",
         icon: <Gem className="h-3.5 w-3.5" />,
+      });
+    }
+
+    if (snapshot.caravan) {
+      signals.push({
+        label: `${snapshot.caravan.label} • moving`,
+        tone: "accent",
+        icon: <Landmark className="h-3.5 w-3.5" />,
       });
     }
 
@@ -3190,6 +3214,8 @@ export function GameShell() {
                               ? `${selectedThreat.player.displayName} • ${Math.round(selectedThreat.distance)}px`
                               : snapshot?.objective
                                 ? `${snapshot.objective.label}${objectiveTimerLabel ? ` • ${objectiveTimerLabel}` : ""}`
+                                : snapshot?.caravan
+                                  ? `${snapshot.caravan.label} • moving target`
                                 : "No live threat tagged"}
                         </span>
                       </div>
@@ -3638,6 +3664,19 @@ function ArenaMinimap({
           >
             <div className="flex h-5 w-5 items-center justify-center rounded-full border border-[#ffd0ae]/80 bg-[#df6c39]/85 text-[9px] font-black text-[#1b0f0a] shadow-[0_0_18px_rgba(223,108,57,0.45)]">
               !
+            </div>
+          </div>
+        )}
+        {snapshot.caravan && (
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: `${(snapshot.caravan.x / 1600) * 100}%`,
+              top: `${(snapshot.caravan.y / 900) * 100}%`,
+            }}
+          >
+            <div className="flex h-5.5 w-5.5 items-center justify-center rounded-md border border-[#f6c27a]/80 bg-[#5a3826]/92 text-[9px] font-black text-[#f6ead7] shadow-[0_0_14px_rgba(240,191,118,0.28)]">
+              $
             </div>
           </div>
         )}

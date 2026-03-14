@@ -152,6 +152,7 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
   const outsideSafeZone =
     zoneDistance > Math.max(0, context.snapshot.safeZone.radius - 36);
   const activeObjective = context.snapshot.objective;
+  const activeCaravan = context.snapshot.caravan;
   const frontierAnchor = pickFrontierAnchor(context, self, nearestEnemy);
   const nearestCover = pickNearestCover(context, self, nearestEnemy);
   const activeBounty = context.snapshot.bounty;
@@ -234,6 +235,23 @@ export function chooseFallbackCommand(context: AutonomyContext): ArenaCommand {
       self.health >= 55
     ) {
       return moveToward(self.x, self.y, activeObjective.x, activeObjective.y);
+    }
+  }
+
+  if (
+    activeCaravan &&
+    self.health >= 45 &&
+    self.ammo >= 2 &&
+    !selfIsMarked
+  ) {
+    const caravanDistance = distanceBetween(
+      self.x,
+      self.y,
+      activeCaravan.x,
+      activeCaravan.y,
+    );
+    if (caravanDistance > 96 && caravanDistance < 520) {
+      return moveToward(self.x, self.y, activeCaravan.x, activeCaravan.y);
     }
   }
 

@@ -209,6 +209,7 @@ export function ArenaCanvas({
         private labels = new Map<string, any>();
         private pickupSprites = new Map<string, any>();
         private objectiveSprite?: any;
+        private caravanSprite?: any;
         private safeZoneGraphics?: any;
         private guidanceGraphics?: any;
         private reticle?: any;
@@ -730,6 +731,45 @@ export function ArenaCanvas({
               this.objectiveSprite = undefined;
             }
 
+            if (nextSnapshot.caravan) {
+              if (!this.caravanSprite) {
+                const body = this.add.rectangle(0, 0, 54, 24, 0x6a422d, 0.96);
+                body.setStrokeStyle(2, 0x1b0f0a, 0.78);
+                const roof = this.add.rectangle(0, -18, 40, 10, 0x8e5b39, 0.96);
+                roof.setStrokeStyle(1, 0x1b0f0a, 0.7);
+                const wheelLeft = this.add.circle(-18, 14, 8, 0x24140e, 1);
+                const wheelRight = this.add.circle(18, 14, 8, 0x24140e, 1);
+                const lamp = this.add.circle(24, -6, 4, 0xf4c885, 0.95);
+                const trail = this.add.ellipse(-28, 4, 22, 10, 0xd99a63, 0.18);
+                const label = this.add.text(0, -34, "STAGECOACH", {
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "12px",
+                  color: "#f4c885",
+                  align: "center",
+                }).setOrigin(0.5);
+                this.caravanSprite = this.add.container(0, 0, [
+                  trail,
+                  body,
+                  roof,
+                  wheelLeft,
+                  wheelRight,
+                  lamp,
+                  label,
+                ]);
+              }
+
+              this.caravanSprite.setPosition(
+                nextSnapshot.caravan.x,
+                nextSnapshot.caravan.y,
+              );
+              const movingRight =
+                nextSnapshot.caravan.destinationX >= nextSnapshot.caravan.x;
+              this.caravanSprite.setScale(movingRight ? 1 : -1, 1);
+            } else if (this.caravanSprite) {
+              this.caravanSprite.destroy(true);
+              this.caravanSprite = undefined;
+            }
+
             for (const event of nextSnapshot.events) {
               if (this.processedEventIds.has(event.id)) {
                 continue;
@@ -1017,6 +1057,9 @@ export function ArenaCanvas({
               } else {
                 this.flashBanner("SUPPLY DROP");
               }
+              break;
+            case "caravan":
+              this.flashBanner("STAGECOACH");
               break;
             case "bounty":
               if (targetPosition) {

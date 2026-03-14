@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import {
   type ArenaBounty,
+  type ArenaCaravan,
   gameConfig,
   type ArenaObjective,
   baseSkillValue,
@@ -69,7 +70,9 @@ type MatchRuntime = {
   pickups: Map<string, ArenaPickup>;
   objective: ArenaObjective | null;
   bounty: ArenaBounty | null;
+  caravan: ArenaCaravan | null;
   nextBountyAt: number;
+  nextCaravanAt: number;
   nextObjectiveAt: number;
   lastPickupSpawnAt: number;
   lastSafeZoneStage: number;
@@ -262,6 +265,25 @@ export function createArenaBounty(
     targetAgentId: target.agentId,
     displayName: target.displayName,
     bonusScore: gameConfig.bountyScoreValue,
+  };
+}
+
+export function createArenaCaravan(
+  now = Date.now(),
+  random = Math.random,
+): ArenaCaravan {
+  const southLane = random() > 0.5;
+  const leftToRight = random() > 0.5;
+
+  return {
+    id: crypto.randomUUID(),
+    label: "Stagecoach Run",
+    rewardLabel: `+${gameConfig.caravanAmmoValue} ammo • +${gameConfig.caravanScoreValue} score`,
+    x: leftToRight ? -140 : gameConfig.arenaSize.width + 140,
+    y: southLane ? 640 : 282,
+    destinationX: leftToRight ? gameConfig.arenaSize.width + 140 : -140,
+    destinationY: southLane ? 640 : 282,
+    expiresAt: new Date(now + gameConfig.caravanDurationMs).toISOString(),
   };
 }
 
@@ -768,6 +790,7 @@ export class ArenaCoordinator {
       pickups: [],
       objective: null,
       bounty: null,
+      caravan: null,
       safeZone: computeSafeZone(0),
       events,
       winnerAgentId: null,
@@ -784,7 +807,9 @@ export class ArenaCoordinator {
       pickups,
       objective: null,
       bounty: null,
+      caravan: null,
       nextBountyAt: gameConfig.bountyFirstSpawnMs,
+      nextCaravanAt: gameConfig.caravanFirstSpawnMs,
       nextObjectiveAt: gameConfig.objectiveFirstSpawnMs,
       lastPickupSpawnAt: Date.now(),
       lastSafeZoneStage: 0,
@@ -868,6 +893,21 @@ export class ArenaCoordinator {
     }
 
     if (
+      !runtime.caravan &&
+      elapsedMs >= runtime.nextCaravanAt &&
+      runtime.snapshot.status === "in_progress"
+    ) {
+      runtime.caravan = createArenaCaravan(now);
+      runtime.snapshot.caravan = runtime.caravan;
+      events.push(
+        createEvent({
+          type: "caravan",
+          message: `${runtime.caravan.label} cuts across the ${runtime.caravan.y > 450 ? "south" : "north"} street. Intercept it for score and cartridges.`,
+        }),
+      );
+    }
+
+    if (
       runtime.objective &&
       new Date(runtime.objective.expiresAt).getTime() <= now
     ) {
@@ -879,6 +919,31 @@ export class ArenaCoordinator {
           message: "The signal supply drop burns out before anyone can claim it.",
         }),
       );
+    }
+
+    if (runtime.caravan) {
+      const expiresAt = new Date(runtime.caravan.expiresAt).getTime();
+      if (expiresAt <= now) {
+        runtime.caravan = null;
+        runtime.snapshot.caravan = null;
+        runtime.nextCaravanAt = elapsedMs + gameConfig.caravanRespawnMs;
+        events.push(
+          createEvent({
+            type: "caravan",
+            message: "The stagecoach clears town before anyone can crack it open.",
+          }),
+        );
+      } else {
+        const remainingTicks = Math.max(
+          1,
+          Math.round((expiresAt - now) / (1000 / gameConfig.ticksPerSecond)),
+        );
+        runtime.caravan.x +=
+          (runtime.caravan.destinationX - runtime.caravan.x) / remainingTicks;
+        runtime.caravan.y +=
+          (runtime.caravan.destinationY - runtime.caravan.y) / remainingTicks;
+        runtime.snapshot.caravan = runtime.caravan;
+      }
     }
 
     const safeZoneStage = getSafeZoneStage(elapsedMs);
@@ -1044,6 +1109,30 @@ export class ArenaCoordinator {
           );
         }
       }
+
+      if (runtime.caravan) {
+        const caravanDistance = Math.hypot(
+          player.x - runtime.caravan.x,
+          player.y - runtime.caravan.y,
+        );
+        if (caravanDistance <= 86) {
+          player.ammo = Math.min(
+            gameConfig.maxAmmo,
+            player.ammo + gameConfig.caravanAmmoValue,
+          );
+          player.objectiveBonus += gameConfig.caravanScoreValue;
+          runtime.caravan = null;
+          runtime.snapshot.caravan = null;
+          runtime.nextCaravanAt = elapsedMs + gameConfig.caravanRespawnMs;
+          events.push(
+            createEvent({
+              type: "caravan",
+              actorAgentId: player.agentId,
+              message: `${player.displayName} cracks the stagecoach run for cartridges and +${gameConfig.caravanScoreValue} score.`,
+            }),
+          );
+        }
+      }
     }
 
     if (
@@ -1060,6 +1149,7 @@ export class ArenaCoordinator {
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     runtime.snapshot.objective = runtime.objective;
     runtime.snapshot.bounty = runtime.bounty;
+    runtime.snapshot.caravan = runtime.caravan;
     const alivePlayers = runtime.snapshot.players.filter(
       (player) => player.alive,
     );
@@ -1320,6 +1410,7 @@ export class ArenaCoordinator {
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     runtime.snapshot.objective = runtime.objective;
     runtime.snapshot.bounty = runtime.bounty;
+    runtime.snapshot.caravan = runtime.caravan;
     return events;
   }
 
@@ -1391,6 +1482,7 @@ export class ArenaCoordinator {
     runtime.snapshot.pickups = Array.from(runtime.pickups.values());
     runtime.snapshot.objective = runtime.objective;
     runtime.snapshot.bounty = runtime.bounty;
+    runtime.snapshot.caravan = runtime.caravan;
     void this.db.appendMatchEvents(runtime.snapshot.matchId, events);
     void this.db.createOrUpdateMatch(runtime.snapshot);
     this.broadcasts.emitEvents(runtime.snapshot.matchId, events);

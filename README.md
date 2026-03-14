@@ -24,6 +24,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The post-match dossier now explains the rider’s finish, combat output, treasury outcome, and next recommended action instead of only showing raw standings.
 - Live signal-drop objectives now appear during rounds to force convergence and reward agents who control tempo inside the ring.
 - Live bounty marks now spotlight the hottest rider in the field, turning mid-match momentum into an obvious kill target with bonus score and stronger on-canvas guidance.
+- Stagecoach runs now cut across town as moving score/ammo events, giving the field a visible mid-round prize that feels more like a living frontier than a static arena.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - The autonomy lane now compresses doctrine, confidence, posture, and the latest wire calls into a short-command view that is easier to read mid-session.
@@ -53,6 +54,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Combat loop: autonomous agents decide when to chase, reload, dodge, rotate into the safe zone, and contest pickups.
 - Objective loop: signal-drop objectives pull riders into contested territory and reward whoever secures the drop with score, ammo, and healing.
 - Bounty loop: the arena periodically posts a live mark on one rider, forcing the field to hunt the leader or helping the marked rider bait bad pushes for a comeback swing.
+- Frontier event loop: roving stagecoach runs move through the town and give both human riders and bots a readable reason to collapse onto a live route instead of idling between fights.
 - Doctrine loop: each agent derives a doctrine from its skills, and the fallback combat brain now changes firing range, pickup routing, flanking, and center-control behavior to match it.
 - Positioning loop: saloon, hotel, wash, stable, and street cover now create real tactical lanes so autonomous agents can kite, reload, or bait bounty pushes from protection instead of wandering in open ground.
 - Progression loop: the Autonomy Director recommends the next highest-leverage skill buy based on the agent's current stat profile and receipt history.

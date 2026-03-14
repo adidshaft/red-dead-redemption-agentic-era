@@ -36,6 +36,11 @@ export const gameConfig = {
   bountyFirstSpawnMs: 12_000,
   bountyRespawnMs: 24_000,
   bountyScoreValue: 90,
+  caravanFirstSpawnMs: 42_000,
+  caravanRespawnMs: 45_000,
+  caravanDurationMs: 18_000,
+  caravanScoreValue: 120,
+  caravanAmmoValue: 2,
   coverRadius: 108,
   coverMaxBonus: 18,
   safeZoneStartRadius: 520,
@@ -206,6 +211,19 @@ export const arenaBountySchema = z.object({
 
 export type ArenaBounty = z.infer<typeof arenaBountySchema>;
 
+export const arenaCaravanSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  rewardLabel: z.string(),
+  x: z.number(),
+  y: z.number(),
+  destinationX: z.number(),
+  destinationY: z.number(),
+  expiresAt: z.string(),
+});
+
+export type ArenaCaravan = z.infer<typeof arenaCaravanSchema>;
+
 export const matchPlayerStateSchema = z.object({
   agentId: z.string(),
   displayName: z.string(),
@@ -234,6 +252,7 @@ export const matchEventSchema = z.object({
     "autonomy",
     "objective",
     "bounty",
+    "caravan",
     "move",
     "fire",
     "reload",
@@ -261,6 +280,7 @@ export const matchSnapshotSchema = z.object({
   pickups: z.array(arenaPickupSchema),
   objective: arenaObjectiveSchema.nullable(),
   bounty: arenaBountySchema.nullable(),
+  caravan: arenaCaravanSchema.nullable().optional(),
   safeZone: safeZoneSchema,
   events: z.array(matchEventSchema),
   winnerAgentId: z.string().nullable(),
