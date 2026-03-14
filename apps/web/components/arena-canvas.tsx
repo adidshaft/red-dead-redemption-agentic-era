@@ -62,6 +62,44 @@ export function ArenaCanvas({
   }, [onControlReadyChange]);
 
   useEffect(() => {
+    function isEditableTarget(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+
+      return Boolean(
+        target.closest(
+          'input, textarea, select, [contenteditable="true"], [role="textbox"]',
+        ),
+      );
+    }
+
+    function shouldTrapArenaKeys(event: KeyboardEvent) {
+      const nextSnapshot = snapshotRef.current;
+      const nextSelectedAgentId = selectedAgentIdRef.current;
+      const key = event.key.toLowerCase();
+      const isActionKey =
+        key === "w" ||
+        key === "a" ||
+        key === "s" ||
+        key === "d" ||
+        key === "r" ||
+        event.code === "Space" ||
+        key === " ";
+
+      if (!isActionKey || isEditableTarget(event.target)) {
+        return false;
+      }
+
+      return Boolean(
+        nextSelectedAgentId &&
+          nextSnapshot &&
+          (nextSnapshot.status === "queued" ||
+            nextSnapshot.status === "in_progress" ||
+            nextSnapshot.status === "settling"),
+      );
+    }
+
     function selectedPlayerIsControllable() {
       const nextSnapshot = snapshotRef.current;
       const nextSelectedAgentId = selectedAgentIdRef.current;
@@ -123,11 +161,12 @@ export function ArenaCanvas({
     function handleKeyChange(event: KeyboardEvent, isPressed: boolean) {
       const key = event.key.toLowerCase();
       const isSpace = event.code === "Space" || key === " ";
+      const trapArenaKeys = shouldTrapArenaKeys(event);
+      if (trapArenaKeys) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       if (key === "w" || key === "a" || key === "s" || key === "d") {
-        if (selectedPlayerIsControllable()) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
         pressedKeysRef.current[key] = isPressed;
         emitMovement(true);
         return;
@@ -455,13 +494,13 @@ export function ArenaCanvas({
               if (!this.sprites.has(player.agentId)) {
                 const isSelected = player.agentId === selectedAgentIdRef.current;
                 const baseColor = isSelected
-                  ? 0xf4c885
+                  ? 0x9ce9ff
                   : player.mode === "autonomous"
                     ? 0xb53c1e
                     : 0x7ed2b4;
                 const glowGfx = this.add.graphics();
-                glowGfx.fillStyle(baseColor, isSelected ? 0.28 : 0.12);
-                glowGfx.fillCircle(0, 0, isSelected ? 44 : 32);
+                glowGfx.fillStyle(baseColor, isSelected ? 0.34 : 0.12);
+                glowGfx.fillCircle(0, 0, isSelected ? 52 : 32);
                 glowGfx.setBlendMode(Phaser.BlendModes.ADD);
                 const shadow = this.add.ellipse(
                   0,
@@ -555,6 +594,18 @@ export function ArenaCanvas({
                   })
                   .setOrigin(0.5)
                   .setVisible(false);
+                const youBadge = this.add
+                  .text(0, -72, "YOU", {
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "11px",
+                    color: "#09120f",
+                    backgroundColor: "#9ce9ff",
+                    align: "center",
+                    padding: { x: 8, y: 3 },
+                    letterSpacing: 1,
+                  })
+                  .setOrigin(0.5)
+                  .setVisible(false);
 
                 const container = this.add.container(player.x, player.y, [
                   glowGfx,
@@ -563,6 +614,7 @@ export function ArenaCanvas({
                   figure,
                   hpBg,
                   hp,
+                  youBadge,
                   bountyBadge,
                   labelBg,
                   label,
@@ -583,6 +635,7 @@ export function ArenaCanvas({
                   hatBrim,
                   hatTop,
                   weapon,
+                  youBadge,
                   bountyBadge,
                 });
               }
@@ -594,7 +647,7 @@ export function ArenaCanvas({
                 const isSelected = player.agentId === selectedAgentIdRef.current;
                 const isBounty =
                   nextSnapshot.bounty?.targetAgentId === player.agentId;
-                const baseColor = isSelected ? 0xf4c885 : player.mode === "autonomous" ? 0xb53c1e : 0x7ed2b4;
+                const baseColor = isSelected ? 0x9ce9ff : player.mode === "autonomous" ? 0xb53c1e : 0x7ed2b4;
 
                 spriteData.mount.setFillStyle(baseColor, player.alive ? 0.95 : 0.25);
                 spriteData.riderCoat.setFillStyle(baseColor, player.alive ? 0.94 : 0.25);
@@ -603,8 +656,8 @@ export function ArenaCanvas({
                 spriteData.hatTop.setFillStyle(0x3a2218, player.alive ? 0.95 : 0.25);
                 spriteData.weapon.setFillStyle(0xf0bf76, player.alive ? 0.8 : 0.2);
                 spriteData.glowGfx.clear();
-                spriteData.glowGfx.fillStyle(baseColor, isSelected ? 0.28 : 0.12);
-                spriteData.glowGfx.fillCircle(0, 0, isSelected ? 44 : 32);
+                spriteData.glowGfx.fillStyle(baseColor, isSelected ? 0.34 : 0.12);
+                spriteData.glowGfx.fillCircle(0, 0, isSelected ? 52 : 32);
                 
                 if (isSelected && player.alive) {
                     spriteData.ring.rotation += 0.05;
@@ -639,6 +692,8 @@ export function ArenaCanvas({
                 spriteData.label.setAlpha(player.alive ? 1 : 0.45);
                 spriteData.labelBg.setAlpha(player.alive ? 1 : 0.15);
                 spriteData.labelBg.width = spriteData.label.width + 12;
+                spriteData.youBadge.setVisible(isSelected && player.alive);
+                spriteData.youBadge.setAlpha(player.alive ? 0.95 : 0);
                 spriteData.bountyBadge.setVisible(isBounty && player.alive);
                 spriteData.bountyBadge.setAlpha(player.alive ? 0.95 : 0);
               }

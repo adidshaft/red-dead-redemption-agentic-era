@@ -382,11 +382,17 @@ export function GameShell() {
     () =>
       recentEvents
         .filter((event) =>
-          ["announcement", "objective", "elimination", "timeout", "settled"].includes(
-            event.type,
-          ),
+          [
+            "announcement",
+            "objective",
+            "bounty",
+            "caravan",
+            "elimination",
+            "timeout",
+            "settled",
+          ].includes(event.type),
         )
-        .slice(-3),
+        .slice(-4),
     [recentEvents],
   );
   const arenaPhaseLabel = useMemo(() => {
@@ -2838,7 +2844,7 @@ export function GameShell() {
                 </div>
               )}
               {(snapshot || queueState?.status === "queued" || selectedAgent || authToken) && (
-                <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-[min(460px,calc(100%-2rem))]">
+                <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-[min(380px,calc(100%-2rem))]">
                   <div
                     className={`rounded-[24px] border px-4 py-4 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-md ${getDirectiveToneClasses(
                       battleDirective.tone,
@@ -2886,8 +2892,9 @@ export function GameShell() {
                 </div>
               )}
               {snapshot?.status === "finished" && (
-                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[#0d0a08]/85 backdrop-blur-md">
-                  <div className="relative w-[760px] max-w-[94%] overflow-hidden rounded-[32px] border border-[var(--panel-border)] bg-[var(--panel)] px-8 py-10 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)]">
+                <div className="pointer-events-auto absolute inset-0 z-30 overflow-y-auto bg-[#0d0a08]/85 p-4 backdrop-blur-md sm:p-6">
+                  <div className="flex min-h-full items-start justify-center">
+                  <div className="relative w-[min(1120px,100%)] max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[32px] border border-[var(--panel-border)] bg-[var(--panel)] px-6 py-8 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)] sm:px-8 sm:py-10">
                     <div className="absolute inset-0 circuit-bg opacity-10" />
                     <div className="relative">
                       <div className="flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.4em] text-[var(--accent)]/80">
@@ -2909,7 +2916,7 @@ export function GameShell() {
                         </div>
                       )}
 
-                      <div className="mt-8 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+                      <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
                         <div className="space-y-2 text-left">
                           {scoreboardPlayers.map((player, i) => (
                             <div
@@ -2918,7 +2925,7 @@ export function GameShell() {
                                 player.agentId === snapshot.winnerAgentId
                                   ? "bg-[var(--accent)]/15 border border-[var(--accent-soft)]/30"
                                   : player.agentId === selectedAgent?.id
-                                    ? "bg-[var(--onchain-glow)]/15 border border-[var(--onchain-glow)]/30"
+                                    ? "bg-[#9ce9ff]/10 border border-[#9ce9ff]/28"
                                     : "bg-white/5 border border-transparent"
                               }`}
                             >
@@ -3114,6 +3121,7 @@ export function GameShell() {
                       </div>
                     </div>
                   </div>
+                  </div>
                 </div>
               )}
               {snapshot?.status === "in_progress" && scoreboardPlayers.length > 0 && (
@@ -3129,7 +3137,7 @@ export function GameShell() {
                         <div
                           className={`h-2 w-2 shrink-0 rounded-full ${
                             player.agentId === selectedAgent?.id
-                              ? "bg-[#f0bf76]"
+                              ? "bg-[#9ce9ff]"
                               : player.alive
                                 ? "bg-[#7ed2b4]"
                                 : "bg-white/18"
@@ -3362,6 +3370,9 @@ export function GameShell() {
                     <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
                       Quick controls
                     </div>
+                    <div className="mb-3 text-[11px] leading-relaxed text-stone-200/68">
+                      Your rider is the bright cyan marker tagged <span className="font-semibold text-[#9ce9ff]">YOU</span>.
+                    </div>
                     <div className="grid w-[96px] grid-cols-3 gap-1">
                       <span />
                       <button
@@ -3434,26 +3445,36 @@ export function GameShell() {
                   snapshot={snapshot}
                   selectedAgentId={arenaFocusAgentId}
                 />
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   <BattleChip
                     icon={<Gem className="h-3.5 w-3.5" />}
                     label="Supply Drop"
-                    detail="Orange beacon gives health, ammo, and score."
+                    detail="Ride through the orange flare for health, ammo, and score."
+                  />
+                  <BattleChip
+                    icon={<Landmark className="h-3.5 w-3.5" />}
+                    label="Stagecoach"
+                    detail="Ride through the moving coach for ammo and score."
+                  />
+                  <BattleChip
+                    icon={<Sword className="h-3.5 w-3.5" />}
+                    label="Bounty"
+                    detail="Drop the marked rider for bonus score. If marked, kite and survive."
                   />
                   <BattleChip
                     icon={<ShieldPlus className="h-3.5 w-3.5" />}
                     label="Dust Ring"
-                    detail="Stay inside the safe circle or burn out fast."
+                    detail="Stay inside the circle or the dust burns your health away."
                   />
                 </div>
                 <div className="mt-3 space-y-2">
                   {criticalEvents.length === 0 ? (
                     <EmptyState
-                      label="Ring shifts and eliminations will surface here."
+                      label="Stagecoach runs, signal drops, bounty calls, and eliminations will surface here."
                       compact
                     />
                   ) : (
-                    criticalEvents.slice(-2).map((event) => (
+                    criticalEvents.slice(-3).map((event) => (
                       <div
                         key={event.id}
                         className={`rounded-[16px] border px-3 py-2 ${getEventToneClasses(event.type)}`}
@@ -3788,9 +3809,14 @@ function ArenaMinimap({
                       ? "h-4 w-4 border-[#ffd0ae] bg-[#df6c39] shadow-[0_0_16px_rgba(223,108,57,0.4)]"
                     : player.alive
                       ? "h-3 w-3 border-white/30 bg-[#7ed2b4]"
-                      : "h-3 w-3 border-white/10 bg-white/20"
+                    : "h-3 w-3 border-white/10 bg-white/20"
                 }`}
               />
+              {isSelected && (
+                <div className="absolute left-1/2 top-full mt-1 -translate-x-1/2 rounded-full border border-[#9ce9ff]/40 bg-[#9ce9ff]/16 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#dff9ff]">
+                  You
+                </div>
+              )}
             </div>
           );
         })}
@@ -4004,6 +4030,10 @@ function formatEventTypeLabel(value: MatchEvent["type"]) {
       return "Directive";
     case "objective":
       return "Objective";
+    case "bounty":
+      return "Bounty";
+    case "caravan":
+      return "Stagecoach";
     case "elimination":
       return "Elimination";
     case "timeout":
@@ -4032,6 +4062,10 @@ function getEventToneClasses(value: MatchEvent["type"]) {
     case "announcement":
     case "objective":
       return "border-[#df6c39]/20 bg-[#df6c39]/8 text-[#ffd9c8]";
+    case "bounty":
+      return "border-[#f0bf76]/20 bg-[#f0bf76]/8 text-[#ffe6c7]";
+    case "caravan":
+      return "border-[#9ce9ff]/20 bg-[#9ce9ff]/8 text-[#dcf7ff]";
     case "elimination":
     case "timeout":
       return "border-amber-300/20 bg-amber-100/8 text-[#f6ead7]";

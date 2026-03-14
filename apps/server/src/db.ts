@@ -41,6 +41,12 @@ function normalizeStoredMatchSnapshot(payload: unknown) {
         }
 
         return {
+          isReloading: false,
+          kills: 0,
+          shotsFired: 0,
+          shotsHit: 0,
+          damageDealt: 0,
+          score: 0,
           coverLabel: null,
           coverBonus: 0,
           ...player,
@@ -49,6 +55,7 @@ function normalizeStoredMatchSnapshot(payload: unknown) {
     : [];
 
   return {
+    paid: false,
     pickups: [],
     objective: null,
     bounty: null,

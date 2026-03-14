@@ -726,12 +726,12 @@ export class ArenaCoordinator {
     const players = new Map<string, RuntimePlayer>();
     const pickups = new Map<string, ArenaPickup>();
     const spawnPoints = [
-      { x: 160, y: 160 },
-      { x: gameConfig.arenaSize.width - 160, y: 160 },
-      { x: 160, y: gameConfig.arenaSize.height - 160 },
+      { x: 320, y: 280 },
+      { x: gameConfig.arenaSize.width - 320, y: 280 },
+      { x: 320, y: gameConfig.arenaSize.height - 240 },
       {
-        x: gameConfig.arenaSize.width - 160,
-        y: gameConfig.arenaSize.height - 160,
+        x: gameConfig.arenaSize.width - 320,
+        y: gameConfig.arenaSize.height - 240,
       },
     ];
 
