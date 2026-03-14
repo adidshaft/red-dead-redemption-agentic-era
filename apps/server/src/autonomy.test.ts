@@ -70,6 +70,7 @@ function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Pa
     pickups: [],
     objective: null,
     bounty: null,
+    caravan: null,
     safeZone: {
       centerX: 800,
       centerY: 450,

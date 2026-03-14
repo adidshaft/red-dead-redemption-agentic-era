@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 import { Pool } from "pg";
 
-import { matchSnapshotSchema } from "@rdr/shared";
+import { gameConfig, matchSnapshotSchema } from "@rdr/shared";
 import type { AgentMode, AgentProfile, MatchEvent, MatchSnapshot, OnchainReceipt, SkillSet } from "@rdr/shared";
 
 type DbAgentRow = {
@@ -27,6 +27,44 @@ export type MatchRecord = {
   winnerAgentId: string | null;
   combatDigest: string | null;
 };
+
+function normalizeStoredMatchSnapshot(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  const snapshot = payload as Record<string, unknown>;
+  const players = Array.isArray(snapshot.players)
+    ? snapshot.players.map((player) => {
+        if (!player || typeof player !== "object") {
+          return player;
+        }
+
+        return {
+          coverLabel: null,
+          coverBonus: 0,
+          ...player,
+        };
+      })
+    : [];
+
+  return {
+    pickups: [],
+    objective: null,
+    bounty: null,
+    caravan: null,
+    safeZone: {
+      centerX: gameConfig.arenaSize.width / 2,
+      centerY: gameConfig.arenaSize.height / 2,
+      radius: gameConfig.safeZoneStartRadius,
+    },
+    events: [],
+    winnerAgentId: null,
+    settlementTxHash: null,
+    ...snapshot,
+    players,
+  };
+}
 
 export class Database {
   public readonly pool: Pool;
@@ -324,7 +362,9 @@ export class Database {
       [agentId],
     );
 
-    return result.rows.map((row) => matchSnapshotSchema.parse(row.payload));
+    return result.rows.map((row) =>
+      matchSnapshotSchema.parse(normalizeStoredMatchSnapshot(row.payload)),
+    );
   }
 
   async createAutonomyPass(agentId: string, validUntil: Date, paymentTxHash?: string | null) {
