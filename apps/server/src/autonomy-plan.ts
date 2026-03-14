@@ -99,6 +99,71 @@ function pickNextSkill(agent: AgentProfile, queue: SkillKey[]) {
   return queue[0] ?? "quickdraw";
 }
 
+function buildMissionFrame(
+  campaignPriority: AutonomyPlan["campaignPriority"],
+  nextSkill: SkillKey,
+  autonomyPassActive: boolean,
+  recommendedQueue: AutonomyPlan["recommendedQueue"],
+  doctrine: DoctrineProfile,
+) {
+  if (campaignPriority === "buy_skill") {
+    return {
+      missionTitle: `Approve ${skillLabels[nextSkill]}`,
+      missionDetail: `${skillLabels[nextSkill]} is the cleanest leverage point for the ${doctrine.doctrine} doctrine right now.`,
+      campaignHook:
+        "One good upgrade turns the next paid run from a gamble into a compounding move.",
+      nextMoves: [
+        `Buy ${skillLabels[nextSkill]}`,
+        recommendedQueue === "paid" ? "Queue a paid showdown" : "Run one more practice round",
+        autonomyPassActive ? "Recycle any win into the next skill" : "Consider the x402 premium lane",
+      ],
+    };
+  }
+
+  if (campaignPriority === "queue_paid") {
+    return {
+      missionTitle: "Push the treasury",
+      missionDetail:
+        "The rider has enough readiness to convert another run into a real payout attempt on X Layer.",
+      campaignHook:
+        "The next clean finish is the one that starts to feel like a real economy loop.",
+      nextMoves: [
+        "Queue a paid showdown",
+        `Protect the treasury with ${doctrine.objectivePosture} objective play`,
+        `Reinvest into ${skillLabels[nextSkill]}`,
+      ],
+    };
+  }
+
+  if (campaignPriority === "buy_autonomy_pass") {
+    return {
+      missionTitle: "Open premium autonomy",
+      missionDetail:
+        "The premium lane is the next multiplier because the rider already knows how to enter and settle the frontier.",
+      campaignHook:
+        "Premium is where the agent starts to feel like it is running a real frontier operation, not just a single match.",
+      nextMoves: [
+        "Unlock the x402 autonomy pass",
+        "Run a premium-guided paid showdown",
+        `Compound the next ${skillLabels[nextSkill]} upgrade`,
+      ],
+    };
+  }
+
+  return {
+    missionTitle: "Sharpen the doctrine",
+    missionDetail:
+      "One more low-risk round gives the planner better footing before it asks for more economic risk.",
+    campaignHook:
+      "A cheap practice win is still bait if it tees up the next paid push at the right moment.",
+    nextMoves: [
+      "Run a practice round",
+      `Buy ${skillLabels[nextSkill]} when ready`,
+      autonomyPassActive ? "Promote into paid runs" : "Unlock premium when the loop feels stable",
+    ],
+  };
+}
+
 export function buildAutonomyPlan(
   agent: AgentProfile,
   receipts: OnchainReceipt[],
@@ -146,8 +211,15 @@ export function buildAutonomyPlan(
       : skillPurchases === 0
         ? "buy_skill"
         : recommendedQueue === "paid"
-          ? "queue_paid"
-          : "run_practice";
+      ? "queue_paid"
+      : "run_practice";
+  const missionFrame = buildMissionFrame(
+    campaignPriority,
+    nextSkill,
+    autonomyPassActive,
+    recommendedQueue,
+    doctrine,
+  );
 
   return {
     agentId: agent.id,
@@ -165,6 +237,10 @@ export function buildAutonomyPlan(
     x402Directive: autonomyPassActive
       ? "Premium autonomy is active: queue discipline, upgrade timing, and economy routing are all tighter now."
       : "Buy the x402 autonomy pass to unlock stronger planning and a tighter autonomous loop.",
+    missionTitle: missionFrame.missionTitle,
+    missionDetail: missionFrame.missionDetail,
+    campaignHook: missionFrame.campaignHook,
+    nextMoves: missionFrame.nextMoves,
     autonomyPassActive,
     autonomyPassValidUntil,
     campaignPriority,

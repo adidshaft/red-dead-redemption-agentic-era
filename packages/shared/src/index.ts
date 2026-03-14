@@ -303,6 +303,10 @@ export const autonomyPlanSchema = z.object({
   objectiveDirective: z.string(),
   economyDirective: z.string(),
   x402Directive: z.string(),
+  missionTitle: z.string(),
+  missionDetail: z.string(),
+  campaignHook: z.string(),
+  nextMoves: z.array(z.string()).min(3).max(3),
   autonomyPassActive: z.boolean(),
   autonomyPassValidUntil: z.string().nullable(),
   campaignPriority: z.enum([

@@ -2507,16 +2507,43 @@ export function GameShell() {
                           </span>
                         ))}
                       </div>
+                      <div className="mt-4 rounded-[18px] border border-[#7ed2b4]/16 bg-[#7ed2b4]/[0.06] px-4 py-4">
+                        <div className="text-[10px] uppercase tracking-[0.18em] text-[#7ed2b4]/58">
+                          Agent agenda
+                        </div>
+                        <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                          {autonomyPlan.missionTitle}
+                        </div>
+                        <div className="mt-1 text-sm text-stone-200/72">
+                          {autonomyPlan.missionDetail}
+                        </div>
+                        <div className="mt-3 rounded-[14px] border border-white/8 bg-black/18 px-3 py-3 text-sm text-[#f6ead7]">
+                          {autonomyPlan.campaignHook}
+                        </div>
+                        <div className="mt-3 grid gap-2 md:grid-cols-3">
+                          {autonomyPlan.nextMoves.map((move, index) => (
+                            <div
+                              key={move}
+                              className="rounded-[14px] border border-white/8 bg-black/16 px-3 py-3 text-sm text-stone-200/72"
+                            >
+                              <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+                                Step {index + 1}
+                              </div>
+                              <div className="mt-1 text-[#f6ead7]">{move}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                       <div className="mt-4 grid gap-3 lg:grid-cols-2">
                         <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">
                           <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
                             Right now
                           </div>
                           <div className="mt-2 font-semibold text-[#f6ead7]">
-                            {operationQueue[0]?.label ?? `Approve ${skillLabels[autonomyPlan.nextSkill]}`}
+                            {operationQueue[0]?.label ?? autonomyPlan.missionTitle}
                           </div>
                           <div className="mt-1 text-xs text-stone-300/60">
-                            {operationQueue[0]?.detail ?? autonomyPlan.nextSkillReason}
+                            {operationQueue[0]?.detail ?? autonomyPlan.missionDetail}
                           </div>
                         </div>
                         <div className="rounded-[18px] border border-white/8 bg-black/16 px-4 py-3 text-sm text-stone-200/72">

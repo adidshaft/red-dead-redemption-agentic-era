@@ -28,6 +28,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Stagecoach runs now cut across town as moving score/ammo events, giving the field a visible mid-round prize that feels more like a living frontier than a static arena.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
+- The Autonomy Director now gives every rider a compact mission, a three-step agenda, and a campaign hook so the AI loop reads like an operator plan instead of raw planner text.
 - The autonomy lane now compresses doctrine, confidence, posture, and the latest wire calls into a short-command view that is easier to read mid-session.
 - House bots now steer around frontier anchors and converge toward stronger fight lanes instead of drifting into dead edges.
 - The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.
