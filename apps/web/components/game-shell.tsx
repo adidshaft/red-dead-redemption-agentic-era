@@ -150,6 +150,10 @@ export function GameShell() {
         right.health - left.health,
     );
   }, [snapshot]);
+  const autonomyEvents = useMemo(
+    () => recentEvents.filter((event) => event.type === "autonomy").slice(-4),
+    [recentEvents],
+  );
   const arenaPhaseLabel = useMemo(() => {
     if (snapshot?.status === "queued") {
       return "Waiting for showdown";
@@ -342,6 +346,7 @@ export function GameShell() {
       );
       if (selectedAgentRef.current) {
         void loadTransactions(selectedAgentRef.current.id, { revealNew: true });
+        void loadAutonomyPlan(selectedAgentRef.current.id);
       }
     });
 
@@ -572,6 +577,9 @@ export function GameShell() {
 
   function playMatchEventTone(event: MatchEvent) {
     switch (event.type) {
+      case "autonomy":
+        playStartTone(580, 0.07);
+        break;
       case "fire":
         playStartTone(350, 0.06);
         break;
@@ -1372,8 +1380,64 @@ export function GameShell() {
                       Settlements: {autonomyPlan.settlements}
                     </span>
                   </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleBuySkill(autonomyPlan.nextSkill)}
+                      disabled={buyDisabled}
+                      className="rounded-full border border-amber-300/22 bg-amber-100/10 px-3 py-2 text-xs text-[#f6ead7] transition hover:bg-amber-100/16 disabled:opacity-50"
+                    >
+                      Approve {skillLabels[autonomyPlan.nextSkill]}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQueue(true)}
+                      disabled={!selectedAgent || queueLocked}
+                      className="rounded-full border border-[#7ed2b4]/25 bg-[#7ed2b4]/10 px-3 py-2 text-xs text-[#c5f4e9] transition hover:bg-[#7ed2b4]/16 disabled:opacity-50"
+                    >
+                      Deploy Paid Run
+                    </button>
+                    {!autonomyPlan.autonomyPassActive && (
+                      <button
+                        type="button"
+                        onClick={handleAutonomyPass}
+                        disabled={busyAction !== null}
+                        className="rounded-full border border-[#df6c39]/30 bg-[#df6c39]/10 px-3 py-2 text-xs text-[#ffd0ae] transition hover:bg-[#df6c39]/16 disabled:opacity-50"
+                      >
+                        Unlock x402 Premium
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
+
+              <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[#f6ead7]">
+                    Autonomy Wire
+                  </p>
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-stone-300/50">
+                    live directives
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm text-stone-200/72">
+                  {autonomyEvents.length === 0 ? (
+                    <EmptyState
+                      label="Autonomous riders will post live directives here during matches."
+                      compact
+                    />
+                  ) : (
+                    autonomyEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="rounded-2xl border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-3 py-2"
+                      >
+                        {event.message}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
 
               <div className="space-y-3">
                 {skillKeys.map((skill) => (
@@ -1452,11 +1516,37 @@ export function GameShell() {
                 </div>
               </div>
 
-              {autonomyHint && (
-                <pre className="scrollbar-thin max-h-64 overflow-auto rounded-[24px] border border-white/8 bg-black/14 p-4 text-xs text-stone-200/70">
-                  {autonomyHint}
-                </pre>
-              )}
+              <div className="rounded-[24px] border border-[#df6c39]/18 bg-[#df6c39]/6 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#ffd0ae]/68">
+                      Premium Autonomy
+                    </p>
+                    <h3 className="mt-1 text-base font-semibold text-[#f6ead7]">
+                      x402 control lane
+                    </h3>
+                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${autonomyPlan?.autonomyPassActive ? "border-emerald-200/30 bg-emerald-200/10 text-emerald-100" : "border-[#df6c39]/30 bg-[#df6c39]/10 text-[#ffd0ae]"}`}>
+                    {autonomyPlan?.autonomyPassActive ? "Active" : "Optional"}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-stone-200/72">
+                  Premium autonomy is the payment-gated lane for stronger planning, cleaner paid-run discipline, and future higher-trust agent economy flows on top of OnchainOS and x402.
+                </p>
+                {autonomyHint && (
+                  <div className="mt-3 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3 text-xs text-stone-200/68">
+                    Latest payment response captured. Open the raw payload if you need to inspect the gateway details.
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
+                        Raw x402 payload
+                      </summary>
+                      <pre className="scrollbar-thin mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-[14px] border border-white/8 bg-black/20 p-3 text-[11px] text-stone-200/72">
+                        {autonomyHint}
+                      </pre>
+                    </details>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <EmptyState label="Select or create an agent to inspect skills, queue matches, and review receipts." />

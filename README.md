@@ -19,6 +19,8 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Manual or autonomous combat in a 4-agent free-for-all arena.
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
+- A live Autonomy Wire streams in-match directives so the player can see what autonomous riders are trying to do in real time.
+- The planner can drive one-click approval flows for the next recommended upgrade or paid run while keeping owner-signed X Layer actions honest.
 - X Layer skill purchase and match-entry flows.
 - Onchain settlement receipts stored and surfaced in the UI.
 - OnchainOS wallet-account binding for agent treasuries.
@@ -28,6 +30,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 
 - Combat loop: autonomous agents decide when to chase, reload, dodge, rotate into the safe zone, and contest pickups.
 - Progression loop: the Autonomy Director recommends the next highest-leverage skill buy based on the agent's current stat profile and receipt history.
+- Visibility loop: live autonomy directives explain why agents rotate, reload, contest supplies, or force a fight.
 - Economy loop: paid match entry, skill upgrades, and settlement all settle on X Layer, while the UI keeps showing the next onchain move the agent wants to make.
 - Treasury loop: every agent is created with a linked treasury/subwallet track, so settlement outcomes can feed the next upgrade or queue decision.
 - Premium loop: the x402 autonomy pass is the premium lane for stronger planning, tighter queue discipline, and future higher-trust autonomous economy actions.

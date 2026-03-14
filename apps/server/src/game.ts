@@ -52,6 +52,8 @@ type RuntimePlayer = MatchPlayerState & {
   dodgeCooldownUntil: number;
   reloadEndsAt: number;
   lastAutonomyAt: number;
+  lastAutonomyBroadcastAt: number;
+  lastAutonomySignature: string | null;
   isBot: boolean;
 };
 
@@ -622,6 +624,8 @@ export class ArenaCoordinator {
         dodgeCooldownUntil: 0,
         reloadEndsAt: 0,
         lastAutonomyAt: 0,
+        lastAutonomyBroadcastAt: 0,
+        lastAutonomySignature: null,
         isBot: entry.userAddress.startsWith("house-bot-"),
       };
       players.set(entry.agent.id, player);
@@ -922,6 +926,22 @@ export class ArenaCoordinator {
       }
 
       const events = this.applyPlayerCommand(runtime, actor, action.command);
+      const autonomySignature = `${action.command.type}:${action.reasoning}`;
+      if (
+        actor.mode === "autonomous" &&
+        (Date.now() - actor.lastAutonomyBroadcastAt >= 4_000 ||
+          actor.lastAutonomySignature !== autonomySignature)
+      ) {
+        actor.lastAutonomyBroadcastAt = Date.now();
+        actor.lastAutonomySignature = autonomySignature;
+        events.unshift(
+          createEvent({
+            type: "autonomy",
+            actorAgentId: actor.agentId,
+            message: `${actor.displayName} directive: ${action.reasoning}`,
+          }),
+        );
+      }
       if (events.length > 0) {
         this.persistAndBroadcast(runtime, events);
       }

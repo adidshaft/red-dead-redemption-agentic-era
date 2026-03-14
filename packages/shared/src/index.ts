@@ -184,6 +184,7 @@ export const matchEventSchema = z.object({
   type: z.enum([
     "spawn",
     "announcement",
+    "autonomy",
     "move",
     "fire",
     "reload",

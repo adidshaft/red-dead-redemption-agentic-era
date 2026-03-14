@@ -447,6 +447,13 @@ export function ArenaCanvas({
                 this.flashBanner("DRAW");
               }
               break;
+            case "autonomy":
+              if (actorPosition) {
+                this.pulseAt(actorPosition.x, actorPosition.y, 0x7ed2b4, 0.22, 20);
+              } else {
+                this.flashBanner("DIRECTIVE");
+              }
+              break;
             case "spawn":
               if (actorPosition) {
                 this.pulseAt(actorPosition.x, actorPosition.y, 0xe9c58d, 0.16, 26);
