@@ -1962,6 +1962,68 @@ export function GameShell() {
       },
     ];
   }, [autonomyPlan, selectedAgent?.mode]);
+  const autopilotOwnershipCards = useMemo(() => {
+    if (!selectedAgent) {
+      return [];
+    }
+
+    return [
+      {
+        label: "You still do",
+        value: "Choose, upgrade, approve",
+        detail:
+          "You pick the rider, decide manual vs Autopilot, buy skills, and approve paid queue entry.",
+      },
+      {
+        label: "Agent does",
+        value:
+          selectedAgent.mode === "autonomous"
+            ? "Fight after DRAW"
+            : "Ready if switched on",
+        detail:
+          "Once the match starts it can move, shoot, dodge, reload, rotate through the ring, and chase drops on its own.",
+      },
+      {
+        label: "Watch for",
+        value:
+          selectedAgent.mode === "autonomous"
+            ? "Cyan YOU + live call"
+            : "Mode switch to arm it",
+        detail:
+          "The live Autopilot call under the arena tells you when the rider changes its immediate plan.",
+      },
+    ];
+  }, [selectedAgent]);
+  const chainProofSteps = useMemo(
+    () => [
+      {
+        label: "Register",
+        done: transactionCounts.registrations > 0,
+        detail: "Link the rider identity and treasury on X Layer.",
+      },
+      {
+        label: "Upgrade",
+        done: transactionCounts.upgrades > 0,
+        detail: "Write at least one skill purchase onchain.",
+      },
+      {
+        label: "Queue paid",
+        done: transactionCounts.entries > 0,
+        detail: "Prove paid frontier entry against the live contract.",
+      },
+      {
+        label: "Settle",
+        done: transactionCounts.settlements > 0,
+        detail: "Close a paid run with a treasury payout receipt.",
+      },
+    ],
+    [
+      transactionCounts.entries,
+      transactionCounts.registrations,
+      transactionCounts.settlements,
+      transactionCounts.upgrades,
+    ],
+  );
   const settlementExplorerUrl = useMemo(() => {
     if (!snapshot?.settlementTxHash) {
       return null;
@@ -3757,18 +3819,17 @@ export function GameShell() {
                 <div className="space-y-4">
                   <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                      What this means
+                      Autopilot at a glance
                     </div>
-                    <div className="mt-3 space-y-2 text-sm text-stone-200/72">
-                      <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        Autopilot starts only after DRAW. It does not play the lobby or spend money by itself.
-                      </div>
-                      <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        In the fight, it moves, shoots, dodges, reloads, reacts to the dust ring, and chases drops on its own.
-                      </div>
-                      <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        The live Autopilot call under the arena tells you what the rider is trying to do right now.
-                      </div>
+                    <div className="mt-3 grid gap-2">
+                      {autopilotOwnershipCards.map((card) => (
+                        <ObserverPulseCard
+                          key={card.label}
+                          label={card.label}
+                          value={card.value}
+                          detail={card.detail}
+                        />
+                      ))}
                     </div>
                   </div>
                   <div className="rounded-[24px] border border-[#df6c39]/18 bg-[#df6c39]/6 p-4">
@@ -3848,7 +3909,7 @@ export function GameShell() {
                   </div>
                   <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                      Recommended click
+                      Next approval
                     </div>
                     <div className="mt-3 grid gap-2">
                       {operationQueue.length > 0 ? (
@@ -3883,19 +3944,22 @@ export function GameShell() {
                   <div className="mt-2 text-sm text-stone-200/72">
                     {chainLoopSummary.detail}
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Registrations {transactionCounts.registrations}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Upgrades {transactionCounts.upgrades}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Entries {transactionCounts.entries}
-                    </span>
-                    <span className="rounded-full border border-white/8 px-2.5 py-1">
-                      Settlements {transactionCounts.settlements}
-                    </span>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {chainProofSteps.map((step) => (
+                      <div
+                        key={step.label}
+                        className={`rounded-[16px] border px-3 py-3 ${
+                          step.done
+                            ? "border-[#7ed2b4]/18 bg-[#7ed2b4]/8 text-[#daf8ef]"
+                            : "border-white/8 bg-black/14 text-stone-200/72"
+                        }`}
+                      >
+                        <div className="text-[10px] uppercase tracking-[0.16em] opacity-70">
+                          {step.label}
+                        </div>
+                        <div className="mt-1 text-xs leading-relaxed">{step.detail}</div>
+                      </div>
+                    ))}
                   </div>
                   {deployedContractAddress && (
                     <div className="mt-3 text-xs text-stone-300/58">
@@ -3958,6 +4022,20 @@ export function GameShell() {
 	                        </a>
                       ))
                     )}
+                  </div>
+                  <div className="mt-4 rounded-[18px] border border-white/8 bg-black/14 px-4 py-4">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                      Public chain pulse
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {frontierChainActivity.length === 0 ? (
+                        <EmptyState label="Public chain motion will surface here too." compact />
+                      ) : (
+                        frontierChainActivity.slice(0, 2).map((activity) => (
+                          <ChainPulseRow key={`${activity.txHash}-chain-tab`} activity={activity} />
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

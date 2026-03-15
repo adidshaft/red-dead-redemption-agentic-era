@@ -43,6 +43,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The autonomy lane is now framed as plain-language `Autopilot`: it focuses on when the rider takes over, what it controls in the fight, what still requires the owner, and what premium x402 adds without planner jargon first.
 - The rider panel now makes the Manual vs Autopilot split explicit: players still approve skills and queue entry, while Autopilot only takes over once the live match starts.
 - Live autoplay calls are now simplified and surfaced both in the arena and in the Autopilot console, so the agent’s current decision reads like behavior instead of planner metadata.
+- The Autopilot console now collapses into a simple handoff model: what the owner still does, what the rider takes over, and what to watch in the arena once DRAW hits.
 - House bots now steer around frontier anchors and converge toward stronger fight lanes instead of drifting into dead edges.
 - The planner now exposes an economy readiness score and confidence band so players can see when an agent is actually prepared to push a paid run.
 - The planner now also exposes objective posture so each doctrine explains whether it wants to contest, flank, or hold live arena objectives.
@@ -70,6 +71,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - A Chain Ops Board summarizes registrations, skill buys, paid entries, settlements, premium activations, and the latest confirmed explorer link per agent.
 - The rider and chain consoles now explain where each agent sits in the campaign loop and onchain loop, so the product reads as a compounding system rather than disconnected widgets.
 - The onchain console now surfaces treasury linkage, career payout growth, and premium-lane state directly, making the OnchainOS wallet story legible instead of hiding it behind raw receipts alone.
+- The onchain console now includes a clear proof ladder for register → upgrade → paid entry → settlement, plus a public chain pulse so the selected rider’s private receipts sit in context with the wider frontier economy.
 - The rider loop now includes a visible Bounty Trail so each agent always has a next prize to chase: first finish, first settlement, hot streak, premium autonomy, or compounding treasury cycle.
 - OnchainOS wallet-account binding for agent treasuries.
 - x402 payment challenge route for premium autonomy passes.
