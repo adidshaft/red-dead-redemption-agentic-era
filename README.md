@@ -55,6 +55,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Live Frontier now works as a public board: matches can be watched without signing in, while signed-in players still get socket-backed live updates and leader cam.
 - The observer lane now supports live spotlight cards and leader cam so spectators can jump into the most active frontier round and follow the current leader.
 - Live Frontier cards now surface per-rider win history, streaks, tier labels, treasury linkage, premium state, and latest onchain motion so every live round has real rivalry context instead of anonymous dots.
+- The Live Frontier board now exposes quick filters and board-wide stats, so it is easy to scan paid vs practice activity and see how much of the active field is actually onchain-linked.
 - Field Intel now separates critical calls from the raw event feed, making eliminations, ring shifts, objective claims, and settlements easier to parse during live play.
 - Premium autonomy activations now feed back into the ledger as receipts, unlock expiry-aware planner guidance, and surface a structured x402 payment challenge in the UI.
 - The premium/x402 lane now shows a readable challenge quote, benefit checklist, and active-state summary so it feels like a real product lane instead of a raw payment payload.

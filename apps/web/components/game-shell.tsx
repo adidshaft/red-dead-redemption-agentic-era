@@ -105,6 +105,7 @@ type AgentOperation = {
 };
 
 type ConsoleTab = "overview" | "autonomy" | "onchain";
+type LiveFrontierFilter = "all" | "paid" | "practice";
 type BattleTone = "neutral" | "accent" | "warning" | "danger" | "success";
 type BattleDirective = {
   eyebrow: string;
@@ -209,6 +210,8 @@ export function GameShell() {
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [txReveals, setTxReveals] = useState<TxReveal[]>([]);
   const [activeConsoleTab, setActiveConsoleTab] = useState<ConsoleTab>("overview");
+  const [liveFrontierFilter, setLiveFrontierFilter] =
+    useState<LiveFrontierFilter>("all");
   const [recentSkillUpgrade, setRecentSkillUpgrade] = useState<RecentSkillUpgrade | null>(
     null,
   );
@@ -292,11 +295,29 @@ export function GameShell() {
       }),
     [liveMatches],
   );
-  const spotlightMatch = sortedLiveMatches[0] ?? null;
+  const filteredLiveMatches = useMemo(() => {
+    if (liveFrontierFilter === "all") {
+      return sortedLiveMatches;
+    }
+
+    return sortedLiveMatches.filter((match) =>
+      liveFrontierFilter === "paid" ? match.paid : !match.paid,
+    );
+  }, [liveFrontierFilter, sortedLiveMatches]);
+  const spotlightMatch = filteredLiveMatches[0] ?? null;
   const liveRiderProfilesById = useMemo(
     () => new Map(liveRiderProfiles.map((profile) => [profile.agentId, profile])),
     [liveRiderProfiles],
   );
+  const liveFrontierStats = useMemo(() => {
+    const publicRiders = liveRiderProfiles.filter((profile) => profile.kind === "player");
+    return {
+      matches: sortedLiveMatches.length,
+      riders: sortedLiveMatches.reduce((total, match) => total + match.players.length, 0),
+      linked: publicRiders.filter((profile) => profile.onchainLinked).length,
+      premium: publicRiders.filter((profile) => profile.premiumPassActive).length,
+    };
+  }, [liveRiderProfiles, sortedLiveMatches]);
   const arenaFocusAgentId =
     selectedSnapshotPlayer?.alive
       ? selectedAgent?.id
@@ -4783,7 +4804,7 @@ export function GameShell() {
 
 
       <section className="western-card order-3 rounded-[30px] border p-5">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-amber-100/55">
               Observer
@@ -4794,18 +4815,48 @@ export function GameShell() {
             <p className="mt-1 text-sm text-stone-200/68">
               Public frontier board with live rounds, rider history, and linked onchain footing.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
+              <span className="rounded-full border border-white/10 px-2.5 py-1">
+                {liveFrontierStats.matches} matches
+              </span>
+              <span className="rounded-full border border-white/10 px-2.5 py-1">
+                {liveFrontierStats.riders} riders live
+              </span>
+              <span className="rounded-full border border-white/10 px-2.5 py-1">
+                {liveFrontierStats.linked} linked treasuries
+              </span>
+              <span className="rounded-full border border-white/10 px-2.5 py-1">
+                {liveFrontierStats.premium} premium riders
+              </span>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={async () => {
-              const response = await fetchLiveMatches();
-              setLiveMatches(response.matches);
-              setLiveRiderProfiles(response.riderProfiles);
-            }}
-            className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/75 transition hover:border-white/22 hover:text-white"
-          >
-            Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {(["all", "paid", "practice"] as const).map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setLiveFrontierFilter(filter)}
+                className={`rounded-full border px-3 py-2 text-[10px] uppercase tracking-[0.18em] transition ${
+                  liveFrontierFilter === filter
+                    ? "border-[#7ed2b4]/24 bg-[#7ed2b4]/10 text-[#d9f7ee]"
+                    : "border-white/10 bg-black/12 text-stone-200/68 hover:border-white/20 hover:text-white"
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={async () => {
+                const response = await fetchLiveMatches();
+                setLiveMatches(response.matches);
+                setLiveRiderProfiles(response.riderProfiles);
+              }}
+              className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/75 transition hover:border-white/22 hover:text-white"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
         {spotlightMatch && (
           <div className="mb-4 rounded-[24px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-4 py-4">
@@ -4850,10 +4901,10 @@ export function GameShell() {
           </div>
         )}
         <div className="space-y-3">
-          {sortedLiveMatches.length === 0 && (
+          {filteredLiveMatches.length === 0 && (
             <EmptyState label="No public matches are live right now." />
           )}
-          {sortedLiveMatches.map((match, index) => (
+          {filteredLiveMatches.map((match, index) => (
             <div
               key={match.matchId}
               className={`rounded-[22px] border p-4 ${
