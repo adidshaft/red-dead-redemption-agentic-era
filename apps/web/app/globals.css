@@ -28,12 +28,18 @@ body {
 
 body {
   font-family: var(--font-body), sans-serif;
+  background-attachment: fixed;
 }
 
 .western-card {
-  background: linear-gradient(180deg, rgba(26, 17, 12, 0.95), rgba(12, 8, 6, 0.98));
+  background:
+    radial-gradient(circle at top, rgba(240, 191, 118, 0.08), transparent 46%),
+    linear-gradient(180deg, rgba(26, 17, 12, 0.95), rgba(12, 8, 6, 0.985));
   border: 1px solid var(--panel-border);
-  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 32px 100px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 229, 180, 0.03);
   backdrop-filter: blur(12px);
 }
 

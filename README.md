@@ -19,13 +19,14 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Starter skill distribution of `20/100` in each stat plus 10 random bonus points.
 - Manual or autonomous combat in a 4-agent free-for-all arena.
 - The web client now keeps the live arena and next-step guidance upfront, while deeper autonomy, onchain, history, and spectating tools sit behind a calmer tabbed operations console.
-- Queueing now has a live safety net: the client polls queue status and active match snapshots so local play is less likely to feel stuck if a websocket update is missed.
+- Queueing now has a live safety net: the client polls queue status, recovers missed live matches, and syncs active match snapshots so local play is less likely to feel stuck if a websocket update is missed.
 - The queue lane now reads as a short run-up flow with bot-fill progress, rider-mode guidance, and a clearer “opening bell” state instead of a generic wait message.
 - Queue fill now resolves faster and exposes live slot/ETA context, so a player can actually tell how many riders are locked and when house bots are due.
 - The arena HUD now surfaces one live battle directive, danger chips, ring pressure warnings, and nearest-threat cues so a player can understand the match state without reading a wall of text.
-- Field Intel is now centered on one “right now” call plus compact objective legend chips, so the minimap panel stays readable instead of turning into a text wall.
+- Field Intel is now centered on one “what matters now” call, a compact minimap, and a short plain-language legend so the panel stays readable instead of turning into a text wall.
 - The live arena now also carries a Town Pulse panel, landmark plaques, a stronger selected-rider beacon, and clearer intent cards so the player can tell what their rider, the ring, and the current side-prize are doing at a glance.
 - The arena now supports a rider-follow camera as well as a wide town camera, making the selected cyan `YOU` rider much easier to track during live fights.
+- The selected rider marker now stays consistently cyan on both the arena and the minimap, reducing “where am I?” confusion once the fight opens.
 - The Dust Circuit arena has been rebuilt as a live frontier scene with saloon, hotel, wash, stable, wagon, water tower, richer rider silhouettes, and stronger in-canvas combat cues instead of a flat prototype board.
 - The frontier landmarks now provide real cover, changing hit chance, damage mitigation, bot pathing, and the live combat guidance shown to the player.
 - Dust Circuit props are now physically solid, so riders cannot phase through saloon fronts, wagons, fences, crates, towers, or corral structures.
@@ -39,7 +40,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Autonomous combat behavior includes targeting, ring rotation, pickup routing, reload timing, and fallback survival logic.
 - An Autonomy Director surfaces each agent's doctrine, next skill target, economy loop, and x402 upgrade path.
 - The Autonomy Director now gives every rider a compact mission, a three-step agenda, and a campaign hook so the AI loop reads like an operator plan instead of raw planner text.
-- The autonomy lane is now framed as plain-language `Autopilot`: it explains what the rider will do next, whether it wants practice or paid runs, and what premium x402 adds without exposing planner jargon first.
+- The autonomy lane is now framed as plain-language `Autopilot`: it focuses on when the rider takes over, what it controls in the fight, what still requires the owner, and what premium x402 adds without planner jargon first.
 - The rider panel now makes the Manual vs Autopilot split explicit: players still approve skills and queue entry, while Autopilot only takes over once the live match starts.
 - Live autoplay calls are now simplified and surfaced both in the arena and in the Autopilot console, so the agent’s current decision reads like behavior instead of planner metadata.
 - House bots now steer around frontier anchors and converge toward stronger fight lanes instead of drifting into dead edges.

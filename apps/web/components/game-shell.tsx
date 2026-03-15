@@ -541,23 +541,23 @@ export function GameShell() {
     () => [
       {
         label: "Cover",
-        detail: "Named landmarks cut incoming damage.",
+        detail: "Hide near a named landmark to take less damage.",
         icon: <ShieldPlus className="h-3.5 w-3.5" />,
       },
       {
-        label: "Drop",
-        detail: "Orange flare = heal + ammo + score.",
+        label: "Signal Drop",
+        detail: "Orange flare. Grab it for health, ammo, and score.",
         icon: <Gem className="h-3.5 w-3.5" />,
       },
       {
-        label: "Coach",
-        detail: "Moving target = ammo + score.",
+        label: "Stagecoach",
+        detail: "Shoot the moving coach itself for ammo and score.",
         icon: <Landmark className="h-3.5 w-3.5" />,
       },
       {
-        label: "Ring",
-        detail: "Outside circle = storm damage.",
-        icon: <ShieldPlus className="h-3.5 w-3.5" />,
+        label: "Bounty + Ring",
+        detail: "Marked rider pays bonus score. Outside the ring burns HP.",
+        icon: <AlertTriangle className="h-3.5 w-3.5" />,
       },
     ],
     [],
@@ -830,7 +830,7 @@ export function GameShell() {
     if (snapshot.objective) {
       return {
         title: snapshot.objective.label,
-        detail: `${snapshot.objective.rewardLabel}${objectiveTimerLabel ? ` • closes in ${objectiveTimerLabel}` : ""}.`,
+        detail: `Ride into the flare to claim it. ${snapshot.objective.rewardLabel}${objectiveTimerLabel ? ` • closes in ${objectiveTimerLabel}` : ""}.`,
         chips: ["Signal drop live", "Fastest tempo swing"],
       };
     }
@@ -838,7 +838,7 @@ export function GameShell() {
     if (snapshot.caravan) {
       return {
         title: snapshot.caravan.label,
-        detail: `${snapshot.caravan.rewardLabel}. Cut across its line instead of chasing from behind.`,
+        detail: `Shoot the coach itself. ${snapshot.caravan.rewardLabel}. Cut across its line instead of chasing from behind.`,
         chips: ["Moving objective", "Intercept for ammo"],
       };
     }
@@ -1343,7 +1343,7 @@ export function GameShell() {
       return {
         eyebrow: "Signal Drop",
         title: snapshot.objective.label,
-        detail: `${snapshot.objective.rewardLabel}${objectiveTimerLabel ? ` • ${objectiveTimerLabel} left` : ""}`,
+        detail: `Ride into the flare to claim it. ${snapshot.objective.rewardLabel}${objectiveTimerLabel ? ` • ${objectiveTimerLabel} left` : ""}`,
         tone: "accent" as const,
       };
     }
@@ -1352,7 +1352,7 @@ export function GameShell() {
       return {
         eyebrow: "Stagecoach Run",
         title: snapshot.caravan.label,
-        detail: `${snapshot.caravan.rewardLabel}. Intercept the route instead of chasing behind it.`,
+        detail: `Shoot the moving coach itself. ${snapshot.caravan.rewardLabel}. Intercept the route instead of chasing behind it.`,
         tone: "warning" as const,
       };
     }
@@ -1786,31 +1786,35 @@ export function GameShell() {
 
     return [
       {
-        label: "What it handles",
+        label: "What it does",
         value:
           selectedAgent.mode === "autonomous"
-            ? "Move • Aim • Dodge • Reload"
-            : "Ready to take over at DRAW",
+            ? "Fights on its own"
+            : "Available if you want it",
         detail:
           selectedAgent.mode === "autonomous"
-            ? "It also chases drops, reacts to the ring, uses cover, and pressures bounties."
-            : "Switch this rider to Autopilot if you want the fight handled automatically.",
+            ? "Moves, aims, dodges, reloads, takes cover, and reacts to drops, bounty calls, and the dust ring."
+            : "Switch this rider to Autopilot if you want the match played for you after DRAW.",
       },
       {
         label: "When it starts",
         value:
-          queueLocked && selectedAgent.mode === "autonomous"
-            ? "At the live opening bell"
-            : "Once you queue the rider",
+          selectedAgent.mode === "autonomous"
+            ? "Right after DRAW"
+            : "Only if you switch it on",
         detail:
-          "Autopilot only runs inside the live arena. Outside the arena, you still approve skills and queue actions.",
+          "Autopilot does not play the lobby. You still sign in, buy skills, and approve paid queue entry yourself.",
       },
       {
-        label: "What it wants next",
-        value: operationQueue[0]?.label ?? autonomyPlan.missionTitle,
+        label: "What happens next",
+        value:
+          selectedAgent.mode === "autonomous"
+            ? "Watch the cyan YOU rider"
+            : "Manual stays in your hands",
         detail:
-          operationQueue[0]?.detail ??
-          autonomyPlan.missionDetail,
+          selectedAgent.mode === "autonomous"
+            ? "The live call updates whenever the rider changes its immediate plan."
+            : "You control movement, shots, dodge, and reload until you change modes.",
       },
     ];
   }, [autonomyPlan, operationQueue, queueLocked, selectedAgent]);
@@ -1821,22 +1825,22 @@ export function GameShell() {
 
     return [
       {
-        label: "1. You decide",
+        label: "Before match",
         detail:
-          "Pick the rider, choose Manual or Autopilot, and approve skill buys or paid queue entry.",
+          "You pick the rider, choose Manual or Autopilot, and approve skill buys or paid queue entry.",
       },
       {
-        label: "2. It fights",
+        label: "At DRAW",
         detail:
           selectedAgent?.mode === "autonomous"
-            ? "After DRAW, the rider handles movement, shooting, dodge, reload, ring pressure, and pickups."
-            : "Switch to Autopilot if you want the rider to handle the full fight alone.",
+            ? "The rider takes over movement, shooting, dodge, reload, ring pressure, and pickups."
+            : "You stay in control of the full fight unless you switch this rider to Autopilot.",
       },
       {
-        label: "3. You review",
+        label: "After run",
         detail: autonomyPlan.autonomyPassActive
-          ? `Read the live call, then review the result and the next ${skillLabels[autonomyPlan.nextSkill]} upgrade target.`
-          : `Review the result, then decide whether to buy ${skillLabels[autonomyPlan.nextSkill]} or unlock the premium x402 planning lane.`,
+          ? `Review the result, then decide whether to buy ${skillLabels[autonomyPlan.nextSkill]} next.`
+          : `Review the result, then decide whether to buy ${skillLabels[autonomyPlan.nextSkill]} or unlock premium planning.`,
       },
     ];
   }, [autonomyPlan, selectedAgent?.mode]);
@@ -2046,6 +2050,49 @@ export function GameShell() {
             socketRef.current?.emit("match:join", {
               matchId: nextQueueState.matchId,
             });
+          }
+        }
+
+        const shouldAttemptRecovery =
+          !snapshot &&
+          (nextQueueState.status === "ready" ||
+            (nextQueueState.status === "queued" &&
+              typeof nextQueueState.etaSeconds === "number" &&
+              nextQueueState.etaSeconds <= 1));
+
+        if (shouldAttemptRecovery) {
+          try {
+            const live = await fetchLiveMatches();
+            if (cancelled) {
+              return;
+            }
+
+            const focusedAgentId = selectedAgentRef.current?.id;
+            const recoveredMatch = live.matches.find(
+              (match) =>
+                (nextQueueState.matchId &&
+                  match.matchId === nextQueueState.matchId) ||
+                (focusedAgentId
+                  ? match.players.some((player) => player.agentId === focusedAgentId)
+                  : false),
+            );
+
+            if (recoveredMatch) {
+              queuedMatchIdRef.current = recoveredMatch.matchId;
+              socketRef.current?.emit("match:join", {
+                matchId: recoveredMatch.matchId,
+              });
+              setSnapshot(recoveredMatch);
+              setRecentEvents(recoveredMatch.events.slice(-8));
+              setQueueState({
+                ...nextQueueState,
+                status: "ready",
+                matchId: recoveredMatch.matchId,
+              });
+              setStatus("Match found. Showdown is about to begin.");
+            }
+          } catch {
+            // Recovery remains best-effort.
           }
         }
 
@@ -2342,24 +2389,29 @@ export function GameShell() {
     }
 
     frontierCueMatchIdRef.current = matchId;
-    playToneSweep(660, 320, 0.65, {
-      gain: 0.038,
-      type: "sine",
-    });
-    playStartTone(220, 0.1, {
-      delaySeconds: 0.12,
-      gain: 0.03,
+    playToneSweep(540, 210, 0.62, {
+      gain: 0.04,
       type: "triangle",
     });
-    playStartTone(330, 0.1, {
-      delaySeconds: 0.24,
-      gain: 0.028,
+    playStartTone(196, 0.18, {
+      delaySeconds: 0.08,
+      gain: 0.04,
+      type: "square",
+    });
+    playStartTone(294, 0.16, {
+      delaySeconds: 0.22,
+      gain: 0.032,
       type: "triangle",
     });
-    playStartTone(440, 0.16, {
+    playStartTone(392, 0.14, {
       delaySeconds: 0.36,
       gain: 0.03,
       type: "triangle",
+    });
+    playToneSweep(860, 520, 0.2, {
+      delaySeconds: 0.22,
+      gain: 0.016,
+      type: "sine",
     });
   }
 
@@ -2735,6 +2787,11 @@ export function GameShell() {
     setSnapshot(null);
     setRecentEvents([]);
     setSpectatorFollowLeader(false);
+    setMatchCountdown(null);
+    queuedMatchIdRef.current = null;
+    startedMatchIdRef.current = null;
+    frontierCueMatchIdRef.current = null;
+    lastCountdownValueRef.current = null;
     try {
       if (paid) {
         await ensureAgentRegisteredOnchain(selectedAgent);
@@ -3495,22 +3552,22 @@ export function GameShell() {
                       <>
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                          <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
+                            <p className="text-[10px] uppercase tracking-[0.24em] text-[#7ed2b4]/60">
                               Autopilot
                             </p>
                             <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
                               {selectedAgent?.mode === "autonomous"
-                                ? "Your rider can run the fight on its own"
+                                ? "This rider is set to fight for you"
                                 : "Autopilot is available for this rider"}
                             </h3>
                             <p className="mt-2 max-w-2xl text-sm text-stone-200/72">
                               {selectedAgent?.mode === "autonomous"
-                                ? "Queue this rider, stay on the match screen, and watch the cyan YOU marker. Once DRAW happens, the agent handles movement, aim, dodge, reload, cover, and pickups."
-                                : "Manual keeps you in control. Switch to Autopilot if you want the rider to take over once the match starts."}
+                                ? "Stay on the match screen, watch the cyan YOU marker, and the rider will take over right after DRAW."
+                                : "Manual keeps you in control. Switch this rider to Autopilot if you want the fight handled automatically after DRAW."}
                             </p>
                           </div>
                           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-stone-200/72">
-                            {autonomyPlan.readinessScore}% ready
+                            {autonomyPlan.readinessScore}% confidence
                           </span>
                         </div>
                         <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -3525,22 +3582,22 @@ export function GameShell() {
                               <div className="mt-2 font-semibold text-[#f6ead7]">
                                 {card.value}
                               </div>
-                              <div className="mt-1 text-xs text-stone-300/60">
+                              <div className="mt-1 text-xs leading-relaxed text-stone-300/60">
                                 {card.detail}
                               </div>
                             </div>
                           ))}
                         </div>
-                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <div className="mt-4 grid gap-2 md:grid-cols-3">
                           {autopilotLoopSteps.map((step) => (
                             <div
                               key={step.label}
-                              className="rounded-[18px] border border-[#7ed2b4]/16 bg-[#7ed2b4]/[0.05] px-4 py-3"
+                              className="rounded-[16px] border border-[#7ed2b4]/16 bg-[#7ed2b4]/[0.05] px-3 py-3"
                             >
                               <div className="text-[10px] uppercase tracking-[0.18em] text-[#bfeee0]/70">
                                 {step.label}
                               </div>
-                              <div className="mt-2 text-sm text-stone-200/74">
+                              <div className="mt-1 text-[12px] leading-relaxed text-stone-200/74">
                                 {step.detail}
                               </div>
                             </div>
@@ -3548,7 +3605,7 @@ export function GameShell() {
                         </div>
                         <div className="mt-4 rounded-[18px] border border-white/8 bg-black/14 px-4 py-4">
                           <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                            Live autopilot calls
+                            Live calls from the rider
                           </div>
                           <div className="mt-3 grid gap-2">
                             {autonomyWireFeed.length > 0 ? (
@@ -3574,17 +3631,17 @@ export function GameShell() {
                 <div className="space-y-4">
                   <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                      Simple answer
+                      What this means
                     </div>
                     <div className="mt-3 space-y-2 text-sm text-stone-200/72">
                       <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        If this rider is set to Autopilot, it only takes over after DRAW. Before that, you still handle sign-in, skill buys, and queue entry.
+                        Autopilot starts only after DRAW. It does not play the lobby or spend money by itself.
                       </div>
                       <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        In the fight, it moves, shoots, dodges, reloads, reacts to the dust ring, and chases drops without extra clicks from you.
+                        In the fight, it moves, shoots, dodges, reloads, reacts to the dust ring, and chases drops on its own.
                       </div>
                       <div className="rounded-[18px] border border-white/8 bg-black/14 px-4 py-3">
-                        The live Autopilot call below the arena is the proof line. It updates when the rider changes its immediate plan.
+                        The live Autopilot call under the arena tells you what the rider is trying to do right now.
                       </div>
                     </div>
                   </div>
@@ -3665,11 +3722,11 @@ export function GameShell() {
                   </div>
                   <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                      Next actions
+                      Recommended click
                     </div>
                     <div className="mt-3 grid gap-2">
                       {operationQueue.length > 0 ? (
-                        operationQueue.slice(0, 3).map((operation) => (
+                        operationQueue.slice(0, 2).map((operation) => (
                           <button
                             type="button"
                             key={operation.id}
@@ -4668,7 +4725,7 @@ export function GameShell() {
                 />
                 <div className="mt-3 rounded-[18px] border border-[#7ed2b4]/12 bg-[#7ed2b4]/8 px-3 py-3">
                   <div className="text-[10px] uppercase tracking-[0.18em] text-[#bfeee0]/70">
-                    Right now
+                    What matters now
                   </div>
                   <div className="mt-1 font-semibold text-[#f6ead7]">
                     {intelPrimaryFocus.title}
@@ -4687,7 +4744,11 @@ export function GameShell() {
                     ))}
                   </div>
                 </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="mt-3 rounded-[18px] border border-white/8 bg-black/14 px-3 py-3">
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                    What these systems do
+                  </div>
+                  <div className="mt-2 space-y-2">
                   {intelLegendCards.map((card) => (
                     <IntelLegendRow
                       key={card.label}
@@ -4697,13 +4758,11 @@ export function GameShell() {
                       compact
                     />
                   ))}
+                  </div>
                 </div>
                 <div className="mt-3 space-y-2">
                   {criticalEvents.length === 0 ? (
-                    <EmptyState
-                      label="Live calls will land here as soon as the first drop, bounty, coach, or elimination happens."
-                      compact
-                    />
+                    <EmptyState label="Live calls land here when the first drop, bounty, coach, or elimination hits." compact />
                   ) : (
                     criticalEvents.slice(-2).map((event) => (
                       <div
@@ -5105,12 +5164,12 @@ function ArenaMinimap({
               <div
                 className={`rounded-full border ${
                   isSelected
-                    ? "h-4 w-4 border-[#f8e3b4] bg-[#f0bf76] shadow-[0_0_18px_rgba(240,191,118,0.45)]"
+                    ? "h-4.5 w-4.5 border-[#dff9ff] bg-[#9ce9ff] shadow-[0_0_18px_rgba(156,233,255,0.45)]"
                     : isBounty
                       ? "h-4 w-4 border-[#ffd0ae] bg-[#df6c39] shadow-[0_0_16px_rgba(223,108,57,0.4)]"
                     : player.alive
                       ? "h-3 w-3 border-white/30 bg-[#7ed2b4]"
-                    : "h-3 w-3 border-white/10 bg-white/20"
+                      : "h-3 w-3 border-white/10 bg-white/20"
                 }`}
               />
               {isSelected && (

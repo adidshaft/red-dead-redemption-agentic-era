@@ -633,7 +633,7 @@ export function ArenaCanvas({
                   .circle(0, 0, isSelected ? 34 : 26, 0x000000, 0)
                   .setStrokeStyle(
                     isSelected ? 4 : 2,
-                    isSelected ? 0xffe6b3 : 0xffffff,
+                    isSelected ? 0x9ce9ff : 0xffffff,
                     isSelected ? 0.8 : 0.25,
                   );
                 const maxBar = isSelected ? 46 : 32;
@@ -647,7 +647,7 @@ export function ArenaCanvas({
                 const label = this.add.text(0, 32, player.displayName, {
                   fontFamily: "var(--font-heading)",
                   fontSize: isSelected ? "15px" : "12px",
-                  color: isSelected ? "#f4c885" : "#f2e3cd",
+                  color: isSelected ? "#dff9ff" : "#f2e3cd",
                   align: "center",
                   letterSpacing: isSelected ? 1 : 0,
                 }).setOrigin(0.5);
@@ -733,7 +733,7 @@ export function ArenaCanvas({
                 }
                 spriteData.ring.setStrokeStyle(
                   isSelected ? 4 : isBounty ? 4 : 2,
-                  isSelected ? 0xffe6b3 : isBounty ? 0xdf6c39 : 0xffffff,
+                  isSelected ? 0x9ce9ff : isBounty ? 0xdf6c39 : 0xffffff,
                   isSelected ? 0.8 : isBounty ? 0.78 : 0.25,
                 );
                 const facing =
@@ -787,7 +787,7 @@ export function ArenaCanvas({
                   this.cameras.main.startFollow(focusSprite, true, 0.08, 0.08);
                   this.activeCameraFocusId = focusPlayer.agentId;
                 }
-                this.cameras.main.setZoom(1.12);
+                this.cameras.main.setZoom(1.16);
               }
             } else {
               if (this.activeCameraFocusId) {
