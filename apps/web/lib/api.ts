@@ -4,6 +4,7 @@ import type {
   AgentProfile,
   AutonomyPlan,
   ArenaCommand,
+  FrontierRecentResult,
   FrontierRiderProfile,
   MatchSnapshot,
   OnchainReceipt,
@@ -205,6 +206,7 @@ export async function fetchLiveMatches() {
   return apiRequest<{
     matches: MatchSnapshot[];
     riderProfiles: FrontierRiderProfile[];
+    recentResults: FrontierRecentResult[];
   }>("/matches/live");
 }
 

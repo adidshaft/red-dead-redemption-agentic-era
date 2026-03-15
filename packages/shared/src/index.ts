@@ -905,9 +905,24 @@ export const frontierRiderProfileSchema = z.object({
 
 export type FrontierRiderProfile = z.infer<typeof frontierRiderProfileSchema>;
 
+export const frontierRecentResultSchema = z.object({
+  matchId: z.string(),
+  winnerAgentId: z.string().nullable(),
+  winnerDisplayName: z.string(),
+  mapId: z.enum(frontierMapIds),
+  paid: z.boolean(),
+  endedAt: z.string().nullable(),
+  players: z.number().int().positive(),
+  settlementTxHash: z.string().nullable(),
+  payoutWei: z.string(),
+});
+
+export type FrontierRecentResult = z.infer<typeof frontierRecentResultSchema>;
+
 export const liveFrontierResponseSchema = z.object({
   matches: z.array(matchSnapshotSchema),
   riderProfiles: z.array(frontierRiderProfileSchema),
+  recentResults: z.array(frontierRecentResultSchema),
 });
 
 export type LiveFrontierResponse = z.infer<typeof liveFrontierResponseSchema>;

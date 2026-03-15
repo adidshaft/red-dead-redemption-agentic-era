@@ -374,6 +374,23 @@ export class Database {
     );
   }
 
+  async listRecentFinishedMatches(limit = 8) {
+    const result = await this.pool.query<{ payload: unknown }>(
+      `
+        SELECT payload
+        FROM matches
+        WHERE status = 'finished'
+        ORDER BY COALESCE(ended_at, created_at) DESC
+        LIMIT $1
+      `,
+      [limit],
+    );
+
+    return result.rows.map((row) =>
+      matchSnapshotSchema.parse(normalizeStoredMatchSnapshot(row.payload)),
+    );
+  }
+
   async createAutonomyPass(agentId: string, validUntil: Date, paymentTxHash?: string | null) {
     await this.pool.query(
       `

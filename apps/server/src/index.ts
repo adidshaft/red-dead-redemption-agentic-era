@@ -22,8 +22,10 @@ import {
   calculateSkillPurchasePrice,
   createAgentInputSchema,
   createNonceInputSchema,
+  type FrontierRecentResult,
   type FrontierRiderProfile,
   gameConfig,
+  matchEntryFeeWei,
   type MatchPlayerState,
   queueForMatchInputSchema,
   registerAgentInputSchema,
@@ -31,6 +33,7 @@ import {
   settleWebhookInputSchema,
   toExplorerTxUrl,
   verifySignatureInputSchema,
+  winnerShareBasisPoints,
   x402AutonomyPassInputSchema,
 } from "@rdr/shared";
 
@@ -288,6 +291,32 @@ async function buildFrontierRiderProfile(
         : `Placed #${latestRecord.placement} last run`
       : "No closed run yet",
     lastReceiptPurpose: receipts[0]?.purpose ?? null,
+  };
+}
+
+function buildFrontierRecentResult(match: Awaited<ReturnType<Database["listRecentFinishedMatches"]>>[number]): FrontierRecentResult {
+  const winner =
+    match.winnerAgentId
+      ? match.players.find((player) => player.agentId === match.winnerAgentId)
+      : null;
+  const payoutWei =
+    match.paid && match.winnerAgentId
+      ? (
+          (matchEntryFeeWei * BigInt(match.players.length) * winnerShareBasisPoints) /
+          10_000n
+        ).toString()
+      : "0";
+
+  return {
+    matchId: match.matchId,
+    winnerAgentId: match.winnerAgentId,
+    winnerDisplayName: winner?.displayName ?? "No winner logged",
+    mapId: match.mapId ?? "dust_circuit",
+    paid: match.paid,
+    endedAt: match.endsAt,
+    players: match.players.length,
+    settlementTxHash: match.settlementTxHash,
+    payoutWei,
   };
 }
 
@@ -740,10 +769,14 @@ app.get("/matches/live", async () => {
       buildFrontierRiderProfile(player),
     ),
   );
+  const recentResults = (await db.listRecentFinishedMatches(8)).map(
+    buildFrontierRecentResult,
+  );
 
   return {
     matches,
     riderProfiles,
+    recentResults,
   };
 });
 

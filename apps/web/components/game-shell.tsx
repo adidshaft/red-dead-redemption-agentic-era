@@ -46,6 +46,7 @@ import {
   type AgentProfile,
   type AutonomyPlan,
   type ArenaCommand,
+  type FrontierRecentResult,
   type FrontierRiderProfile,
   type MatchEvent,
   type MatchSnapshot,
@@ -191,6 +192,9 @@ export function GameShell() {
   const [liveMatches, setLiveMatches] = useState<MatchSnapshot[]>([]);
   const [liveRiderProfiles, setLiveRiderProfiles] = useState<
     FrontierRiderProfile[]
+  >([]);
+  const [recentFrontierResults, setRecentFrontierResults] = useState<
+    FrontierRecentResult[]
   >([]);
   const [autonomyPlan, setAutonomyPlan] = useState<AutonomyPlan | null>(null);
   const [campaignStats, setCampaignStats] = useState<AgentCampaignStats | null>(null);
@@ -1675,6 +1679,43 @@ export function GameShell() {
         "Registration, upgrades, paid entry, and settlement are all proven. The next job is compounding that loop cleanly.",
     };
   }, [transactionCounts]);
+  const treasuryStatusCards = useMemo(() => {
+    if (!selectedAgent) {
+      return [];
+    }
+
+    return [
+      {
+        label: "OnchainOS treasury",
+        value: truncateAddress(selectedAgent.walletAddress),
+        detail:
+          "Every rider is minted with a linked treasury wallet for payout routing and future autonomous economy actions.",
+      },
+      {
+        label: "Career payout",
+        value: campaignStats
+          ? formatWeiToOkb(BigInt(campaignStats.careerPayoutWei))
+          : "0 OKB",
+        detail:
+          transactionCounts.settlements > 0
+            ? `${transactionCounts.settlements} settlement${transactionCounts.settlements === 1 ? "" : "s"} confirmed on X Layer testnet.`
+            : "No settlement receipt yet. The first paid win completes the treasury loop.",
+      },
+      {
+        label: "Premium lane",
+        value: autonomyPlan?.autonomyPassActive ? "x402 active" : "Available",
+        detail: autonomyPlan?.autonomyPassActive
+          ? autonomyPassRemainingLabel ?? "Premium autonomy is live on X Layer mainnet."
+          : "Unlock x402 premium if you want a stronger planning lane layered over the core testnet game economy.",
+      },
+    ];
+  }, [
+    autonomyPassRemainingLabel,
+    autonomyPlan?.autonomyPassActive,
+    campaignStats,
+    selectedAgent,
+    transactionCounts.settlements,
+  ]);
   const bountyTrail = useMemo(() => {
     if (!selectedAgent) {
       return null;
@@ -1950,6 +1991,7 @@ export function GameShell() {
         if (!cancelled) {
           setLiveMatches(response.matches);
           setLiveRiderProfiles(response.riderProfiles);
+          setRecentFrontierResults(response.recentResults);
         }
       } catch {
         // Live frontier remains best-effort in the background.
@@ -2086,6 +2128,7 @@ export function GameShell() {
 
             setLiveMatches(live.matches);
             setLiveRiderProfiles(live.riderProfiles);
+            setRecentFrontierResults(live.recentResults);
 
             const focusedAgentId = selectedAgentRef.current?.id;
             const recoveredMatch = live.matches.find(
@@ -3810,6 +3853,16 @@ export function GameShell() {
                   ) : (
                     <EmptyState label="No confirmed receipts yet." compact />
                   )}
+                  <div className="mt-4 grid gap-2">
+                    {treasuryStatusCards.map((card) => (
+                      <ObserverPulseCard
+                        key={card.label}
+                        label={card.label}
+                        value={card.value}
+                        detail={card.detail}
+                      />
+                    ))}
+                  </div>
                 </div>
                 <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
                   <div className="mb-3 text-sm font-semibold text-[#f6ead7]">
@@ -4851,6 +4904,7 @@ export function GameShell() {
                 const response = await fetchLiveMatches();
                 setLiveMatches(response.matches);
                 setLiveRiderProfiles(response.riderProfiles);
+                setRecentFrontierResults(response.recentResults);
               }}
               className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/75 transition hover:border-white/22 hover:text-white"
             >
@@ -4897,6 +4951,25 @@ export function GameShell() {
                   Leader Cam
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {recentFrontierResults.length > 0 && (
+          <div className="mb-4 rounded-[24px] border border-white/8 bg-black/12 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                  Recent winners
+                </div>
+                <div className="mt-1 text-sm text-stone-200/70">
+                  Closed frontier runs with map, payout, and settlement proof.
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {recentFrontierResults.slice(0, 4).map((result) => (
+                <FrontierResultCard key={result.matchId} result={result} />
+              ))}
             </div>
           </div>
         )}
@@ -5420,6 +5493,39 @@ function ObserverPulseCard({
       </div>
       <div className="mt-1 font-semibold text-[#f6ead7]">{value}</div>
       <div className="mt-1 text-xs text-stone-200/66">{detail}</div>
+    </div>
+  );
+}
+
+function FrontierResultCard({
+  result,
+}: {
+  result: FrontierRecentResult;
+}) {
+  return (
+    <div className="rounded-[18px] border border-white/8 bg-black/14 px-3 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+          {result.paid ? "Paid showdown" : "Practice run"}
+        </div>
+        <div className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/62">
+          {getFrontierMap(result.mapId).name}
+        </div>
+      </div>
+      <div className="mt-2 text-sm font-semibold text-[#f6ead7]">
+        {result.winnerDisplayName}
+      </div>
+      <div className="mt-1 text-xs text-stone-200/68">
+        Match {result.matchId.slice(-6)} • {result.players} riders
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-300/58">
+        <span className="rounded-full border border-white/10 px-2 py-1">
+          Winner {formatWeiToOkb(BigInt(result.payoutWei))}
+        </span>
+        <span className="rounded-full border border-white/10 px-2 py-1">
+          {result.settlementTxHash ? "settled" : "no settle"}
+        </span>
+      </div>
     </div>
   );
 }
