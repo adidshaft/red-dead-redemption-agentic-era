@@ -5308,7 +5308,7 @@ export function GameShell() {
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
                       Frontier riders
                     </div>
-                    <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-2 grid gap-2 xl:grid-cols-2">
                       {[...match.players]
                         .sort((left, right) => right.score - left.score)
                         .map((player) => (
@@ -5788,81 +5788,79 @@ function FrontierRiderCard({
 
   return (
     <div
-      className={`rounded-[18px] border px-3 py-3 ${
+      className={`rounded-[16px] border px-3 py-3 ${
         active
           ? "border-[#7ed2b4]/22 bg-[#7ed2b4]/10"
           : "border-white/8 bg-black/14"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-[#f6ead7]">
-            {player.displayName}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                active
+                  ? "bg-[#9ce9ff] shadow-[0_0_14px_rgba(156,233,255,0.5)]"
+                  : player.alive
+                    ? "bg-[#7ed2b4]"
+                    : "bg-white/25"
+              }`}
+            />
+            <div className="truncate text-sm font-semibold text-[#f6ead7]">
+              {player.displayName}
+            </div>
+            <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/62">
+              {player.mode === "autonomous" ? "auto" : "manual"}
+            </span>
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
-            {profile?.campaignTierLabel ?? "LIVE"}
+          <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
+            <span className="rounded-full border border-white/10 px-2 py-1">
+              {profile?.campaignTierLabel ?? "LIVE"}
+            </span>
+            <span className="rounded-full border border-white/10 px-2 py-1">
+              {profile?.wins ?? 0} wins
+            </span>
+            <span className="rounded-full border border-white/10 px-2 py-1">
+              {profile?.currentStreak ?? 0} streak
+            </span>
+            {!isHouseBot && (
+              <span className="rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/8 px-2 py-1 text-[#d9f7ee]">
+                {profile?.onchainLinked ? "treasury linked" : "treasury pending"}
+              </span>
+            )}
           </div>
         </div>
-        <div className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/65">
-          {player.mode === "autonomous" ? "auto" : "manual"}
+        <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
+          <span className="rounded-full border border-white/10 px-2 py-1">
+            Score {player.score}
+          </span>
+          <span className="rounded-full border border-white/10 px-2 py-1">
+            HP {player.health}
+          </span>
+          <span className="rounded-full border border-white/10 px-2 py-1">
+            {player.alive ? "alive" : "out"}
+          </span>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] uppercase tracking-[0.14em] text-stone-300/56">
-        <div>
-          <div>Score</div>
-          <div className="mt-1 text-sm font-semibold text-[#f0bf76]">
-            {player.score}
-          </div>
-        </div>
-        <div>
-          <div>HP</div>
-          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
-            {player.health}
-          </div>
-        </div>
-        <div>
-          <div>Wins</div>
-          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
-            {profile?.wins ?? 0}
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 text-xs leading-relaxed text-stone-200/70">
+      <div className="mt-2 text-xs leading-relaxed text-stone-200/66">
         {profile?.latestResultLabel ??
           "Live round in progress. Frontier record will show up after the first closed run."}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-300/58">
-        <span className="rounded-full border border-white/10 px-2 py-1">
-          {profile?.currentStreak ?? 0} streak
-        </span>
-        <span className="rounded-full border border-white/10 px-2 py-1">
-          {profile?.settlements ?? 0} settles
-        </span>
-        <span className="rounded-full border border-white/10 px-2 py-1">
-          {profile?.skillPurchases ?? 0} upgrades
-        </span>
-        <span className="rounded-full border border-white/10 px-2 py-1">
-          {isHouseBot
-            ? "bot"
-            : profile?.premiumPassActive
-              ? "premium on"
-              : "premium off"}
-        </span>
       </div>
       {!isHouseBot && (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
-            <span className="rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/8 px-2 py-1 text-[#d9f7ee]">
-              {profile?.onchainLinked ? "treasury linked" : "treasury pending"}
+            <span className="rounded-full border border-white/10 px-2 py-1">
+              {profile?.settlements ?? 0} settles
+            </span>
+            <span className="rounded-full border border-white/10 px-2 py-1">
+              {profile?.skillPurchases ?? 0} upgrades
+            </span>
+            <span className="rounded-full border border-white/10 px-2 py-1">
+              {profile?.premiumPassActive ? "premium on" : "premium off"}
             </span>
             {profile?.lastReceiptPurpose && (
               <span className="rounded-full border border-white/10 px-2 py-1">
                 {formatReceiptPurpose(profile.lastReceiptPurpose)}
-              </span>
-            )}
-            {profile?.walletAddress && (
-              <span className="rounded-full border border-white/10 px-2 py-1">
-                {truncateAddress(profile.walletAddress)}
               </span>
             )}
           </div>
