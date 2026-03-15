@@ -919,10 +919,34 @@ export const frontierRecentResultSchema = z.object({
 
 export type FrontierRecentResult = z.infer<typeof frontierRecentResultSchema>;
 
+export const frontierChainActivitySchema = z.object({
+  txHash: z.string(),
+  purpose: transactionPurposeSchema,
+  agentId: z.string().nullable(),
+  agentDisplayName: z.string().nullable(),
+  matchId: z.string().nullable(),
+  explorerUrl: z.string().nullable(),
+  createdAt: z.string(),
+  laneLabel: z.string(),
+  summary: z.string(),
+});
+
+export type FrontierChainActivity = z.infer<typeof frontierChainActivitySchema>;
+
+export const frontierRiderDossierSchema = z.object({
+  profile: frontierRiderProfileSchema,
+  recentMatches: z.array(agentMatchRecordSchema),
+  recentReceipts: z.array(onchainReceiptSchema),
+});
+
+export type FrontierRiderDossier = z.infer<typeof frontierRiderDossierSchema>;
+
 export const liveFrontierResponseSchema = z.object({
   matches: z.array(matchSnapshotSchema),
   riderProfiles: z.array(frontierRiderProfileSchema),
   recentResults: z.array(frontierRecentResultSchema),
+  leaders: z.array(frontierRiderProfileSchema),
+  chainActivity: z.array(frontierChainActivitySchema),
 });
 
 export type LiveFrontierResponse = z.infer<typeof liveFrontierResponseSchema>;

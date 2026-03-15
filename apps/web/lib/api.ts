@@ -4,7 +4,9 @@ import type {
   AgentProfile,
   AutonomyPlan,
   ArenaCommand,
+  FrontierChainActivity,
   FrontierRecentResult,
+  FrontierRiderDossier,
   FrontierRiderProfile,
   MatchSnapshot,
   OnchainReceipt,
@@ -207,7 +209,13 @@ export async function fetchLiveMatches() {
     matches: MatchSnapshot[];
     riderProfiles: FrontierRiderProfile[];
     recentResults: FrontierRecentResult[];
+    leaders: FrontierRiderProfile[];
+    chainActivity: FrontierChainActivity[];
   }>("/matches/live");
+}
+
+export async function fetchFrontierRiderDossier(agentId: string) {
+  return apiRequest<{ dossier: FrontierRiderDossier }>(`/frontier/riders/${agentId}`);
 }
 
 export async function requestAutonomyPass(

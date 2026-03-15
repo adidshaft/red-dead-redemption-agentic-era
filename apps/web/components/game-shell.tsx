@@ -46,7 +46,9 @@ import {
   type AgentProfile,
   type AutonomyPlan,
   type ArenaCommand,
+  type FrontierChainActivity,
   type FrontierRecentResult,
+  type FrontierRiderDossier,
   type FrontierRiderProfile,
   type MatchEvent,
   type MatchSnapshot,
@@ -60,6 +62,7 @@ import {
   fetchAgentMatches,
   fetchAutonomyPlan,
   fetchCampaignStats,
+  fetchFrontierRiderDossier,
   fetchMatchSnapshot,
   fetchQueueStatus,
   fetchTransactions,
@@ -196,6 +199,15 @@ export function GameShell() {
   const [recentFrontierResults, setRecentFrontierResults] = useState<
     FrontierRecentResult[]
   >([]);
+  const [frontierLeaders, setFrontierLeaders] = useState<FrontierRiderProfile[]>([]);
+  const [frontierChainActivity, setFrontierChainActivity] = useState<
+    FrontierChainActivity[]
+  >([]);
+  const [selectedFrontierDossier, setSelectedFrontierDossier] =
+    useState<FrontierRiderDossier | null>(null);
+  const [frontierDossierBusyId, setFrontierDossierBusyId] = useState<string | null>(
+    null,
+  );
   const [autonomyPlan, setAutonomyPlan] = useState<AutonomyPlan | null>(null);
   const [campaignStats, setCampaignStats] = useState<AgentCampaignStats | null>(null);
   const [matchHistory, setMatchHistory] = useState<AgentMatchRecord[]>([]);
@@ -322,6 +334,17 @@ export function GameShell() {
       premium: publicRiders.filter((profile) => profile.premiumPassActive).length,
     };
   }, [liveRiderProfiles, sortedLiveMatches]);
+  const selectedFrontierLiveMatch = useMemo(
+    () =>
+      selectedFrontierDossier
+        ? sortedLiveMatches.find((match) =>
+            match.players.some(
+              (player) => player.agentId === selectedFrontierDossier.profile.agentId,
+            ),
+          ) ?? null
+        : null,
+    [selectedFrontierDossier, sortedLiveMatches],
+  );
   const arenaFocusAgentId =
     selectedSnapshotPlayer?.alive
       ? selectedAgent?.id
@@ -1992,6 +2015,8 @@ export function GameShell() {
           setLiveMatches(response.matches);
           setLiveRiderProfiles(response.riderProfiles);
           setRecentFrontierResults(response.recentResults);
+          setFrontierLeaders(response.leaders);
+          setFrontierChainActivity(response.chainActivity);
         }
       } catch {
         // Live frontier remains best-effort in the background.
@@ -2129,6 +2154,8 @@ export function GameShell() {
             setLiveMatches(live.matches);
             setLiveRiderProfiles(live.riderProfiles);
             setRecentFrontierResults(live.recentResults);
+            setFrontierLeaders(live.leaders);
+            setFrontierChainActivity(live.chainActivity);
 
             const focusedAgentId = selectedAgentRef.current?.id;
             const recoveredMatch = live.matches.find(
@@ -3023,6 +3050,18 @@ export function GameShell() {
           ? `Spectating live match ${match.matchId.slice(-6)}.`
           : `Public spectate active for match ${match.matchId.slice(-6)}.`,
     );
+  }
+
+  async function handleOpenFrontierDossier(agentId: string) {
+    try {
+      setFrontierDossierBusyId(agentId);
+      const response = await fetchFrontierRiderDossier(agentId);
+      setSelectedFrontierDossier(response.dossier);
+    } catch (error) {
+      setStatus(normalizeUiError(error, "Could not load that rider dossier."));
+    } finally {
+      setFrontierDossierBusyId(null);
+    }
   }
 
   async function ensureAgentRegisteredOnchain(agent: AgentProfile) {
@@ -4905,6 +4944,8 @@ export function GameShell() {
                 setLiveMatches(response.matches);
                 setLiveRiderProfiles(response.riderProfiles);
                 setRecentFrontierResults(response.recentResults);
+                setFrontierLeaders(response.leaders);
+                setFrontierChainActivity(response.chainActivity);
               }}
               className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/75 transition hover:border-white/22 hover:text-white"
             >
@@ -4954,6 +4995,173 @@ export function GameShell() {
             </div>
           </div>
         )}
+        <div className="mb-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                  Frontier leaders
+                </div>
+                <div className="mt-1 text-sm text-stone-200/70">
+                  The riders currently setting the pace across wins, streaks, and treasury pressure.
+                </div>
+              </div>
+              <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/60">
+                Top {frontierLeaders.length}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {frontierLeaders.length === 0 ? (
+                <div className="md:col-span-3">
+                  <EmptyState label="Leaders show up once riders start closing runs." compact />
+                </div>
+              ) : (
+                frontierLeaders.slice(0, 3).map((profile, index) => (
+                  <FrontierLeaderCard
+                    key={profile.agentId}
+                    profile={profile}
+                    rank={index + 1}
+                    busy={frontierDossierBusyId === profile.agentId}
+                    onOpen={() => handleOpenFrontierDossier(profile.agentId)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+          <div className="rounded-[24px] border border-white/8 bg-black/12 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                  Chain pulse
+                </div>
+                <div className="mt-1 text-sm text-stone-200/70">
+                  Recent X Layer and x402 activity from riders currently shaping the frontier.
+                </div>
+              </div>
+              <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/60">
+                {frontierChainActivity.length} moves
+              </span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {frontierChainActivity.length === 0 ? (
+                <EmptyState label="New chain confirmations land here." compact />
+              ) : (
+                frontierChainActivity.slice(0, 4).map((activity) => (
+                  <ChainPulseRow key={activity.txHash} activity={activity} />
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+        {selectedFrontierDossier && (
+          <div className="mb-4 rounded-[24px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-[#c8f6ea]/72">
+                  Rider dossier
+                </div>
+                <div className="mt-1 text-lg font-semibold text-[#f6ead7]">
+                  {selectedFrontierDossier.profile.displayName}
+                </div>
+                <div className="mt-1 text-sm text-stone-200/72">
+                  {selectedFrontierDossier.profile.campaignTierLabel} tier •{" "}
+                  {selectedFrontierDossier.profile.wins} wins •{" "}
+                  {selectedFrontierDossier.profile.currentStreak} streak •{" "}
+                  {selectedFrontierDossier.profile.latestResultLabel}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedFrontierLiveMatch && (
+                  <button
+                    type="button"
+                    onClick={() => handleSpectateMatch(selectedFrontierLiveMatch, { followLeader: true })}
+                    disabled={!canSpectateLiveMatch}
+                    className="rounded-full border border-[#7ed2b4]/22 bg-[#7ed2b4]/10 px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#d9f7ee] transition hover:bg-[#7ed2b4]/16 disabled:opacity-50"
+                  >
+                    Watch live rider
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedFrontierDossier(null)}
+                  className="rounded-full border border-white/12 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white/78 transition hover:border-white/24 hover:text-white"
+                >
+                  Close dossier
+                </button>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <ObserverPulseCard
+                  label="Treasury"
+                  value={
+                    selectedFrontierDossier.profile.onchainLinked
+                      ? truncateAddress(selectedFrontierDossier.profile.walletAddress ?? "0x0000")
+                      : "Pending"
+                  }
+                  detail={
+                    selectedFrontierDossier.profile.onchainLinked
+                      ? `${formatWeiToOkb(BigInt(selectedFrontierDossier.profile.careerPayoutWei))} career payout routed`
+                      : "This rider has not completed the onchain loop yet."
+                  }
+                />
+                <ObserverPulseCard
+                  label="Premium lane"
+                  value={
+                    selectedFrontierDossier.profile.premiumPassActive
+                      ? "x402 live"
+                      : "Core loop only"
+                  }
+                  detail={
+                    selectedFrontierDossier.profile.premiumPassActive
+                      ? "Premium autonomy is active right now."
+                      : "This rider is still operating on the base frontier loop."
+                  }
+                />
+                <ObserverPulseCard
+                  label="Best score"
+                  value={`${selectedFrontierDossier.profile.bestScore} pts`}
+                  detail={`${selectedFrontierDossier.profile.matchesPlayed} logged runs`}
+                />
+                <ObserverPulseCard
+                  label="Chain history"
+                  value={`${selectedFrontierDossier.profile.settlements} settles`}
+                  detail={`${selectedFrontierDossier.profile.skillPurchases} upgrades • ${selectedFrontierDossier.profile.paidEntries} paid entries`}
+                />
+              </div>
+              <div className="grid gap-3 lg:grid-cols-2">
+                <div className="rounded-[18px] border border-white/8 bg-black/14 px-3 py-3">
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                    Recent frontier tape
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {selectedFrontierDossier.recentMatches.length === 0 ? (
+                      <EmptyState label="No closed runs are logged for this rider yet." compact />
+                    ) : (
+                      selectedFrontierDossier.recentMatches.map((record) => (
+                        <FrontierTapeRow key={record.matchId} record={record} />
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-[18px] border border-white/8 bg-black/14 px-3 py-3">
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                    Recent chain receipts
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {selectedFrontierDossier.recentReceipts.length === 0 ? (
+                      <EmptyState label="This rider has no confirmed receipts yet." compact />
+                    ) : (
+                      selectedFrontierDossier.recentReceipts.map((receipt) => (
+                        <DossierReceiptRow key={receipt.txHash} receipt={receipt} />
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {recentFrontierResults.length > 0 && (
           <div className="mb-4 rounded-[24px] border border-white/8 bg-black/12 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -4968,7 +5176,19 @@ export function GameShell() {
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {recentFrontierResults.slice(0, 4).map((result) => (
-                <FrontierResultCard key={result.matchId} result={result} />
+                <FrontierResultCard
+                  key={result.matchId}
+                  result={result}
+                  busy={
+                    Boolean(result.winnerAgentId) &&
+                    frontierDossierBusyId === result.winnerAgentId
+                  }
+                  onOpen={
+                    result.winnerAgentId
+                      ? () => handleOpenFrontierDossier(result.winnerAgentId!)
+                      : undefined
+                  }
+                />
               ))}
             </div>
           </div>
@@ -5097,6 +5317,12 @@ export function GameShell() {
                             player={player}
                             profile={liveRiderProfilesById.get(player.agentId)}
                             active={snapshot?.matchId === match.matchId && selectedAgent?.id === player.agentId}
+                            busy={frontierDossierBusyId === player.agentId}
+                            onOpen={
+                              player.agentId.toLowerCase().startsWith("house-bot-")
+                                ? undefined
+                                : () => handleOpenFrontierDossier(player.agentId)
+                            }
                           />
                         ))}
                     </div>
@@ -5499,8 +5725,12 @@ function ObserverPulseCard({
 
 function FrontierResultCard({
   result,
+  onOpen,
+  busy = false,
 }: {
   result: FrontierRecentResult;
+  onOpen?: () => void;
+  busy?: boolean;
 }) {
   return (
     <div className="rounded-[18px] border border-white/8 bg-black/14 px-3 py-3">
@@ -5526,6 +5756,17 @@ function FrontierResultCard({
           {result.settlementTxHash ? "settled" : "no settle"}
         </span>
       </div>
+      {onOpen && (
+        <button
+          type="button"
+          onClick={onOpen}
+          disabled={busy}
+          className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/12 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] text-white/76 transition hover:border-white/22 hover:text-white disabled:opacity-60"
+        >
+          {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
+          Open dossier
+        </button>
+      )}
     </div>
   );
 }
@@ -5534,10 +5775,14 @@ function FrontierRiderCard({
   player,
   profile,
   active = false,
+  onOpen,
+  busy = false,
 }: {
   player: MatchSnapshot["players"][number];
   profile?: FrontierRiderProfile;
   active?: boolean;
+  onOpen?: () => void;
+  busy?: boolean;
 }) {
   const isHouseBot = profile?.kind === "house_bot" || !profile;
 
@@ -5605,22 +5850,214 @@ function FrontierRiderCard({
         </span>
       </div>
       {!isHouseBot && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
-          <span className="rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/8 px-2 py-1 text-[#d9f7ee]">
-            {profile?.onchainLinked ? "treasury linked" : "treasury pending"}
-          </span>
-          {profile?.lastReceiptPurpose && (
-            <span className="rounded-full border border-white/10 px-2 py-1">
-              {formatReceiptPurpose(profile.lastReceiptPurpose)}
+        <>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
+            <span className="rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/8 px-2 py-1 text-[#d9f7ee]">
+              {profile?.onchainLinked ? "treasury linked" : "treasury pending"}
             </span>
+            {profile?.lastReceiptPurpose && (
+              <span className="rounded-full border border-white/10 px-2 py-1">
+                {formatReceiptPurpose(profile.lastReceiptPurpose)}
+              </span>
+            )}
+            {profile?.walletAddress && (
+              <span className="rounded-full border border-white/10 px-2 py-1">
+                {truncateAddress(profile.walletAddress)}
+              </span>
+            )}
+          </div>
+          {onOpen && (
+            <button
+              type="button"
+              onClick={onOpen}
+              disabled={busy}
+              className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/12 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] text-white/76 transition hover:border-white/22 hover:text-white disabled:opacity-60"
+            >
+              {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
+              Rider dossier
+            </button>
           )}
-          {profile?.walletAddress && (
-            <span className="rounded-full border border-white/10 px-2 py-1">
-              {truncateAddress(profile.walletAddress)}
-            </span>
-          )}
-        </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function FrontierLeaderCard({
+  profile,
+  rank,
+  onOpen,
+  busy = false,
+}: {
+  profile: FrontierRiderProfile;
+  rank: number;
+  onOpen: () => void;
+  busy?: boolean;
+}) {
+  return (
+    <div className="rounded-[18px] border border-white/8 bg-black/14 px-3 py-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+            Rank {rank}
+          </div>
+          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+            {profile.displayName}
+          </div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-stone-300/56">
+            {profile.campaignTierLabel}
+          </div>
+        </div>
+        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/62">
+          {profile.premiumPassActive ? "premium" : "core"}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] uppercase tracking-[0.14em] text-stone-300/56">
+        <div>
+          <div>Wins</div>
+          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">{profile.wins}</div>
+        </div>
+        <div>
+          <div>Streak</div>
+          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+            {profile.currentStreak}
+          </div>
+        </div>
+        <div>
+          <div>Payout</div>
+          <div className="mt-1 text-sm font-semibold text-[#f0bf76]">
+            {formatWeiToOkb(BigInt(profile.careerPayoutWei))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 text-xs leading-relaxed text-stone-200/68">
+        {profile.latestResultLabel}
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={busy}
+        className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/8 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] text-[#d9f7ee] transition hover:bg-[#7ed2b4]/14 disabled:opacity-60"
+      >
+        {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
+        Open dossier
+      </button>
+    </div>
+  );
+}
+
+function ChainPulseRow({
+  activity,
+}: {
+  activity: FrontierChainActivity;
+}) {
+  return (
+    <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+            {activity.laneLabel}
+          </div>
+          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+            {activity.agentDisplayName ?? formatReceiptPurpose(activity.purpose)}
+          </div>
+        </div>
+        {activity.explorerUrl ? (
+          <a
+            href={activity.explorerUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-[#d9f7ee] transition hover:text-white"
+          >
+            Explorer
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        ) : null}
+      </div>
+      <div className="mt-2 text-xs leading-relaxed text-stone-200/70">
+        {activity.summary}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
+        <span className="rounded-full border border-white/10 px-2 py-1">
+          {formatReceiptPurpose(activity.purpose)}
+        </span>
+        {activity.matchId && (
+          <span className="rounded-full border border-white/10 px-2 py-1">
+            Match {activity.matchId.slice(-6)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FrontierTapeRow({
+  record,
+}: {
+  record: AgentMatchRecord;
+}) {
+  return (
+    <div className="rounded-[14px] border border-white/8 bg-black/16 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+          Match {record.matchId.slice(-6)}
+        </div>
+        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/62">
+          {record.paid ? "paid" : "practice"}
+        </span>
+      </div>
+      <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+        {record.won ? "Showdown win" : `Placed ${ordinal(record.placement)}`}
+      </div>
+      <div className="mt-1 text-xs text-stone-200/68">
+        {record.kills} kills • {record.damageDealt} damage • {record.score} score
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
+        <span className="rounded-full border border-white/10 px-2 py-1">
+          {formatWeiToOkb(BigInt(record.payoutWei))} payout
+        </span>
+        {record.settlementTxHash && (
+          <span className="rounded-full border border-white/10 px-2 py-1">
+            settled
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DossierReceiptRow({
+  receipt,
+}: {
+  receipt: OnchainReceipt;
+}) {
+  return (
+    <div className="rounded-[14px] border border-white/8 bg-black/16 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+          {formatReceiptLaneLabel(receipt)}
+        </div>
+        {receipt.explorerUrl ? (
+          <a
+            href={receipt.explorerUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-[#d9f7ee] transition hover:text-white"
+          >
+            Explorer
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        ) : null}
+      </div>
+      <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+        {formatReceiptPurpose(receipt.purpose)}
+      </div>
+      <div className="mt-1 text-xs text-stone-200/68">
+        {formatReceiptRevealDetail(receipt)}
+      </div>
+      <div className="mt-2 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
+        {truncateHash(receipt.txHash)}
+      </div>
     </div>
   );
 }

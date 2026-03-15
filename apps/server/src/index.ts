@@ -22,11 +22,13 @@ import {
   calculateSkillPurchasePrice,
   createAgentInputSchema,
   createNonceInputSchema,
+  type FrontierChainActivity,
   type FrontierRecentResult,
   type FrontierRiderProfile,
   gameConfig,
   matchEntryFeeWei,
   type MatchPlayerState,
+  type OnchainReceipt,
   queueForMatchInputSchema,
   registerAgentInputSchema,
   setAgentModeInputSchema,
@@ -197,51 +199,66 @@ function unauthorizedReply() {
   };
 }
 
-async function buildFrontierRiderProfile(
-  player: MatchPlayerState,
+function buildHouseBotProfile(
+  player: Pick<MatchPlayerState, "agentId" | "displayName" | "mode" | "score">,
+): FrontierRiderProfile {
+  return {
+    agentId: player.agentId,
+    displayName: player.displayName,
+    kind: "house_bot",
+    mode: player.mode,
+    walletAddress: null,
+    onchainLinked: false,
+    campaignTierLabel: "HOUSE BOT",
+    wins: 0,
+    matchesPlayed: 0,
+    currentStreak: 0,
+    bestScore: player.score,
+    careerPayoutWei: "0",
+    skillPurchases: 0,
+    paidEntries: 0,
+    settlements: 0,
+    premiumPassActive: false,
+    latestPlacement: null,
+    latestResultLabel: "Operator-managed sparring bot",
+    lastReceiptPurpose: null,
+  };
+}
+
+async function buildFrontierRiderProfileForAgentId(
+  agentId: string,
+  livePlayer?: MatchPlayerState | null,
 ): Promise<FrontierRiderProfile> {
+  const liveDisplayName = livePlayer?.displayName ?? agentId;
+  const liveMode = livePlayer?.mode ?? "manual";
+  const liveScore = livePlayer?.score ?? 0;
   const isHouseBot =
-    player.agentId.toLowerCase().startsWith("house-bot-") ||
-    player.displayName.startsWith(gameConfig.houseBotPrefix);
+    agentId.toLowerCase().startsWith("house-bot-") ||
+    liveDisplayName.startsWith(gameConfig.houseBotPrefix);
 
   if (isHouseBot) {
-    return {
-      agentId: player.agentId,
-      displayName: player.displayName,
-      kind: "house_bot",
-      mode: player.mode,
-      walletAddress: null,
-      onchainLinked: false,
-      campaignTierLabel: "HOUSE BOT",
-      wins: 0,
-      matchesPlayed: 0,
-      currentStreak: 0,
-      bestScore: player.score,
-      careerPayoutWei: "0",
-      skillPurchases: 0,
-      paidEntries: 0,
-      settlements: 0,
-      premiumPassActive: false,
-      latestPlacement: null,
-      latestResultLabel: "Operator-managed sparring bot",
-      lastReceiptPurpose: null,
-    };
+    return buildHouseBotProfile({
+      agentId,
+      displayName: liveDisplayName,
+      mode: liveMode,
+      score: liveScore,
+    });
   }
 
-  const agent = await db.getAgentById(player.agentId);
+  const agent = await db.getAgentById(agentId);
   if (!agent) {
     return {
-      agentId: player.agentId,
-      displayName: player.displayName,
+      agentId,
+      displayName: liveDisplayName,
       kind: "player",
-      mode: player.mode,
+      mode: liveMode,
       walletAddress: null,
       onchainLinked: false,
       campaignTierLabel: "UNSYNCED",
       wins: 0,
       matchesPlayed: 0,
       currentStreak: 0,
-      bestScore: player.score,
+      bestScore: liveScore,
       careerPayoutWei: "0",
       skillPurchases: 0,
       paidEntries: 0,
@@ -283,15 +300,41 @@ async function buildFrontierRiderProfile(
       .length,
     settlements: receipts.filter((receipt) => receipt.purpose === "match_settlement")
       .length,
-    premiumPassActive,
-    latestPlacement: latestRecord?.placement ?? null,
-    latestResultLabel: latestRecord
-      ? latestRecord.won
-        ? "Won last showdown"
+      premiumPassActive,
+      latestPlacement: latestRecord?.placement ?? null,
+      latestResultLabel: latestRecord
+        ? latestRecord.won
+          ? "Won last showdown"
         : `Placed #${latestRecord.placement} last run`
       : "No closed run yet",
     lastReceiptPurpose: receipts[0]?.purpose ?? null,
   };
+}
+
+async function buildFrontierRiderProfile(
+  player: MatchPlayerState,
+): Promise<FrontierRiderProfile> {
+  return buildFrontierRiderProfileForAgentId(player.agentId, player);
+}
+
+function sortFrontierProfiles(
+  left: FrontierRiderProfile,
+  right: FrontierRiderProfile,
+) {
+  if (left.kind !== right.kind) {
+    return left.kind === "player" ? -1 : 1;
+  }
+
+  const leftPayout = BigInt(left.careerPayoutWei);
+  const rightPayout = BigInt(right.careerPayoutWei);
+
+  return (
+    right.wins - left.wins ||
+    right.currentStreak - left.currentStreak ||
+    (rightPayout > leftPayout ? 1 : rightPayout < leftPayout ? -1 : 0) ||
+    right.bestScore - left.bestScore ||
+    right.matchesPlayed - left.matchesPlayed
+  );
 }
 
 function buildFrontierRecentResult(match: Awaited<ReturnType<Database["listRecentFinishedMatches"]>>[number]): FrontierRecentResult {
@@ -317,6 +360,41 @@ function buildFrontierRecentResult(match: Awaited<ReturnType<Database["listRecen
     players: match.players.length,
     settlementTxHash: match.settlementTxHash,
     payoutWei,
+  };
+}
+
+async function buildFrontierChainActivity(
+  receipt: OnchainReceipt,
+): Promise<FrontierChainActivity> {
+  const agent = receipt.agentId ? await db.getAgentById(receipt.agentId) : null;
+  return {
+    txHash: receipt.txHash,
+    purpose: receipt.purpose,
+    agentId: receipt.agentId ?? null,
+    agentDisplayName: agent?.displayName ?? null,
+    matchId: receipt.matchId ?? null,
+    explorerUrl: receipt.explorerUrl ?? null,
+    createdAt: receipt.createdAt,
+    laneLabel:
+      receipt.purpose === "autonomy_pass"
+        ? "X Layer mainnet x402"
+        : "X Layer testnet frontier",
+    summary: (() => {
+      switch (receipt.purpose) {
+        case "agent_registration":
+          return `${agent?.displayName ?? "A rider"} linked a treasury wallet onchain.`;
+        case "skill_purchase":
+          return `${agent?.displayName ?? "A rider"} leveled up a combat skill on X Layer.`;
+        case "match_entry":
+          return receipt.matchId
+            ? `${agent?.displayName ?? "A rider"} entered paid match ${receipt.matchId.slice(-6)}.`
+            : `${agent?.displayName ?? "A rider"} entered a paid showdown.`;
+        case "match_settlement":
+          return `${agent?.displayName ?? "A rider"} closed a paid run and locked the payout ledger.`;
+        case "autonomy_pass":
+          return `${agent?.displayName ?? "A rider"} unlocked premium autonomy through x402.`;
+      }
+    })(),
   };
 }
 
@@ -769,14 +847,53 @@ app.get("/matches/live", async () => {
       buildFrontierRiderProfile(player),
     ),
   );
-  const recentResults = (await db.listRecentFinishedMatches(8)).map(
-    buildFrontierRecentResult,
-  );
+  const [recentResults, leaders, chainActivity] = await Promise.all([
+    db.listRecentFinishedMatches(8).then((matches) =>
+      matches.map(buildFrontierRecentResult),
+    ),
+    db.listFrontierAgents(12).then(async (agents) => {
+      const profiles = await Promise.all(
+        agents.map((agent) => buildFrontierRiderProfileForAgentId(agent.id)),
+      );
+      return profiles.sort(sortFrontierProfiles).slice(0, 6);
+    }),
+    db.listRecentTransactions(8).then((receipts) =>
+      Promise.all(receipts.map((receipt) => buildFrontierChainActivity(receipt))),
+    ),
+  ]);
 
   return {
     matches,
     riderProfiles,
     recentResults,
+    leaders,
+    chainActivity,
+  };
+});
+
+app.get("/frontier/riders/:id", async (request, reply) => {
+  const agentId = (request.params as { id: string }).id;
+  const agent = await db.getAgentById(agentId);
+
+  if (!agent) {
+    return reply.status(404).send({ error: "Rider dossier not found" });
+  }
+
+  const [profile, matches, receipts] = await Promise.all([
+    buildFrontierRiderProfileForAgentId(agent.id),
+    db.listMatchesForAgent(agent.id),
+    db.listAgentTransactions(agent.id),
+  ]);
+
+  return {
+    dossier: {
+      profile,
+      recentMatches: matches
+        .map((match) => buildAgentMatchRecord(agent.id, match))
+        .filter((record): record is NonNullable<typeof record> => Boolean(record))
+        .slice(0, 5),
+      recentReceipts: receipts.slice(0, 5),
+    },
   };
 });
 

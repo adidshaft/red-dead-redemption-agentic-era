@@ -391,6 +391,33 @@ export class Database {
     );
   }
 
+  async listRecentTransactions(limit = 8) {
+    const result = await this.pool.query<{ payload: OnchainReceipt }>(
+      `
+        SELECT payload
+        FROM transactions
+        WHERE status = 'confirmed'
+        ORDER BY COALESCE(confirmed_at, created_at) DESC
+        LIMIT $1
+      `,
+      [limit],
+    );
+    return result.rows.map((row) => row.payload);
+  }
+
+  async listFrontierAgents(limit = 12) {
+    const result = await this.pool.query<DbAgentRow>(
+      `
+        SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, created_at
+        FROM agents
+        ORDER BY created_at DESC
+        LIMIT $1
+      `,
+      [limit],
+    );
+    return result.rows.map(mapAgentRow);
+  }
+
   async createAutonomyPass(agentId: string, validUntil: Date, paymentTxHash?: string | null) {
     await this.pool.query(
       `
