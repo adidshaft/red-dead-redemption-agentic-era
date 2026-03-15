@@ -334,6 +334,31 @@ export function GameShell() {
       premium: publicRiders.filter((profile) => profile.premiumPassActive).length,
     };
   }, [liveRiderProfiles, sortedLiveMatches]);
+  const frontierHeatProfiles = useMemo(() => {
+    const recentWins = new Map<string, number>();
+    for (const result of recentFrontierResults) {
+      if (result.winnerAgentId) {
+        recentWins.set(
+          result.winnerAgentId,
+          (recentWins.get(result.winnerAgentId) ?? 0) + 1,
+        );
+      }
+    }
+
+    return frontierLeaders
+      .map((profile) => ({
+        profile,
+        recentWins: recentWins.get(profile.agentId) ?? 0,
+      }))
+      .filter(({ recentWins, profile }) => recentWins > 0 || profile.currentStreak > 0)
+      .sort(
+        (left, right) =>
+          right.recentWins - left.recentWins ||
+          right.profile.currentStreak - left.profile.currentStreak ||
+          right.profile.wins - left.profile.wins,
+      )
+      .slice(0, 3);
+  }, [frontierLeaders, recentFrontierResults]);
   const selectedFrontierLiveMatch = useMemo(
     () =>
       selectedFrontierDossier
@@ -5053,6 +5078,34 @@ export function GameShell() {
             </div>
           </div>
         </div>
+        {frontierHeatProfiles.length > 0 && (
+          <div className="mb-4 rounded-[24px] border border-[#d5752d]/16 bg-[#d5752d]/6 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-amber-100/62">
+                  Heat check
+                </div>
+                <div className="mt-1 text-sm text-stone-200/72">
+                  The riders currently stringing wins together and pulling the frontier toward them.
+                </div>
+              </div>
+              <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/60">
+                Last {recentFrontierResults.length} closed runs
+              </span>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {frontierHeatProfiles.map(({ profile, recentWins }) => (
+                <FrontierHeatCard
+                  key={profile.agentId}
+                  profile={profile}
+                  recentWins={recentWins}
+                  busy={frontierDossierBusyId === profile.agentId}
+                  onOpen={() => handleOpenFrontierDossier(profile.agentId)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         {selectedFrontierDossier && (
           <div className="mb-4 rounded-[24px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -5936,6 +5989,51 @@ function FrontierLeaderCard({
         onClick={onOpen}
         disabled={busy}
         className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/8 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] text-[#d9f7ee] transition hover:bg-[#7ed2b4]/14 disabled:opacity-60"
+      >
+        {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
+        Open dossier
+      </button>
+    </div>
+  );
+}
+
+function FrontierHeatCard({
+  profile,
+  recentWins,
+  onOpen,
+  busy = false,
+}: {
+  profile: FrontierRiderProfile;
+  recentWins: number;
+  onOpen: () => void;
+  busy?: boolean;
+}) {
+  return (
+    <div className="rounded-[18px] border border-white/8 bg-black/16 px-3 py-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.16em] text-amber-100/62">
+            {recentWins} recent wins
+          </div>
+          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+            {profile.displayName}
+          </div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-stone-300/56">
+            {profile.campaignTierLabel} • {profile.currentStreak} streak
+          </div>
+        </div>
+        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/62">
+          {formatWeiToOkb(BigInt(profile.careerPayoutWei))}
+        </span>
+      </div>
+      <div className="mt-3 text-xs leading-relaxed text-stone-200/68">
+        {profile.latestResultLabel}
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={busy}
+        className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/12 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] text-white/76 transition hover:border-white/22 hover:text-white disabled:opacity-60"
       >
         {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
         Open dossier

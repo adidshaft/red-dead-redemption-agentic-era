@@ -58,6 +58,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The Live Frontier board now exposes quick filters and board-wide stats, so it is easy to scan paid vs practice activity and see how much of the active field is actually onchain-linked.
 - The Live Frontier board now includes a recent winners rail, so closed rounds keep feeding social proof back into the public product surface even after the live match has ended.
 - The Live Frontier board now adds a public leaders rail and a chain pulse feed, so viewers can see which riders are hot and which receipts are moving the frontier economy without digging into private tabs.
+- A Heat Check rail now calls out the riders winning the last cluster of frontier rounds, giving the public board a stronger rivalry and “one more run” pull.
 - Every public rider can now open a dossier with recent runs, recent receipts, streak context, treasury linkage, and a live spectate hook if that rider is currently in the field.
 - Live match cards are now flatter and faster to scan: the dossier keeps the deep stats off-demand while the board itself stays readable during spectating.
 - Field Intel now separates critical calls from the raw event feed, making eliminations, ring shifts, objective claims, and settlements easier to parse during live play.
