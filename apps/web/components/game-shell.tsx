@@ -46,6 +46,7 @@ import {
   type AgentProfile,
   type AutonomyPlan,
   type ArenaCommand,
+  type FrontierRiderProfile,
   type MatchEvent,
   type MatchSnapshot,
   type OnchainReceipt,
@@ -187,6 +188,9 @@ export function GameShell() {
   const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(null);
   const [recentEvents, setRecentEvents] = useState<MatchEvent[]>([]);
   const [liveMatches, setLiveMatches] = useState<MatchSnapshot[]>([]);
+  const [liveRiderProfiles, setLiveRiderProfiles] = useState<
+    FrontierRiderProfile[]
+  >([]);
   const [autonomyPlan, setAutonomyPlan] = useState<AutonomyPlan | null>(null);
   const [campaignStats, setCampaignStats] = useState<AgentCampaignStats | null>(null);
   const [matchHistory, setMatchHistory] = useState<AgentMatchRecord[]>([]);
@@ -289,6 +293,10 @@ export function GameShell() {
     [liveMatches],
   );
   const spotlightMatch = sortedLiveMatches[0] ?? null;
+  const liveRiderProfilesById = useMemo(
+    () => new Map(liveRiderProfiles.map((profile) => [profile.agentId, profile])),
+    [liveRiderProfiles],
+  );
   const arenaFocusAgentId =
     selectedSnapshotPlayer?.alive
       ? selectedAgent?.id
@@ -1910,42 +1918,30 @@ export function GameShell() {
       return;
     }
 
-    let cancelled = false;
     void loadAgents();
-    void fetchLiveMatches().then((response) => {
-      if (!cancelled) {
-        setLiveMatches(response.matches);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
   }, [authToken]);
 
   useEffect(() => {
-    if (!authToken) {
-      return;
-    }
-
     let cancelled = false;
     const syncLiveMatches = async () => {
       try {
         const response = await fetchLiveMatches();
         if (!cancelled) {
           setLiveMatches(response.matches);
+          setLiveRiderProfiles(response.riderProfiles);
         }
       } catch {
         // Live frontier remains best-effort in the background.
       }
     };
 
+    void syncLiveMatches();
     const intervalId = window.setInterval(syncLiveMatches, 8_000);
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [authToken]);
+  }, []);
 
   useEffect(() => {
     if (!authToken) {
@@ -2066,6 +2062,9 @@ export function GameShell() {
             if (cancelled) {
               return;
             }
+
+            setLiveMatches(live.matches);
+            setLiveRiderProfiles(live.riderProfiles);
 
             const focusedAgentId = selectedAgentRef.current?.id;
             const recoveredMatch = live.matches.find(
@@ -2946,20 +2945,19 @@ export function GameShell() {
   }
 
   function handleSpectateMatch(match: MatchSnapshot, options?: { followLeader?: boolean }) {
-    if (!authToken || !socketRef.current) {
-      setStatus("Sign in first to spectate a live frontier match.");
-      return;
-    }
-
     setSpectatorFollowLeader(Boolean(options?.followLeader));
-    socketRef.current.emit("match:join", { matchId: match.matchId });
+    if (authToken && socketRef.current) {
+      socketRef.current.emit("match:join", { matchId: match.matchId });
+    }
     setSnapshot(match);
     setRecentEvents(match.events.slice(-8));
     setQueueState(null);
     setStatus(
       options?.followLeader
         ? `Leader cam active for match ${match.matchId.slice(-6)}.`
-        : `Spectating live match ${match.matchId.slice(-6)}.`,
+        : authToken
+          ? `Spectating live match ${match.matchId.slice(-6)}.`
+          : `Public spectate active for match ${match.matchId.slice(-6)}.`,
     );
   }
 
@@ -4793,12 +4791,16 @@ export function GameShell() {
             <h2 className="mt-1 text-2xl font-semibold text-[#f6ead7]">
               Live Frontier
             </h2>
+            <p className="mt-1 text-sm text-stone-200/68">
+              Public frontier board with live rounds, rider history, and linked onchain footing.
+            </p>
           </div>
           <button
             type="button"
             onClick={async () => {
               const response = await fetchLiveMatches();
               setLiveMatches(response.matches);
+              setLiveRiderProfiles(response.riderProfiles);
             }}
             className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/75 transition hover:border-white/22 hover:text-white"
           >
@@ -4816,16 +4818,21 @@ export function GameShell() {
                   Match {spotlightMatch.matchId.slice(-6)} • {spotlightMatch.paid ? "Paid" : "Practice"}
                 </div>
                 <div className="mt-1 text-sm text-stone-200/72">
-                  {spotlightMatch.players[0]
-                    ? `${spotlightMatch.players[0].displayName} and the field are active in the dust circuit.`
-                    : "A live frontier round is available to spectate."}
+                  {(() => {
+                    const leader = [...spotlightMatch.players].sort(
+                      (left, right) => right.score - left.score,
+                    )[0];
+                    return leader
+                      ? `${leader.displayName} leads on ${getFrontierMap(spotlightMatch.mapId ?? "dust_circuit").name}. Watch the field, the live prize, and the onchain riders underneath.`
+                      : "A live frontier round is available to spectate.";
+                  })()}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => handleSpectateMatch(spotlightMatch)}
-                  disabled={!canSpectateLiveMatch || !authToken}
+                  disabled={!canSpectateLiveMatch}
                   className="rounded-full border border-white/12 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white/80 transition hover:border-white/24 hover:text-white disabled:opacity-50"
                 >
                   Watch Spotlight
@@ -4833,7 +4840,7 @@ export function GameShell() {
                 <button
                   type="button"
                   onClick={() => handleSpectateMatch(spotlightMatch, { followLeader: true })}
-                  disabled={!canSpectateLiveMatch || !authToken}
+                  disabled={!canSpectateLiveMatch}
                   className="rounded-full border border-[#7ed2b4]/25 bg-[#7ed2b4]/10 px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#c5f4e9] transition hover:bg-[#7ed2b4]/16 disabled:opacity-50"
                 >
                   Leader Cam
@@ -4849,7 +4856,11 @@ export function GameShell() {
           {sortedLiveMatches.map((match, index) => (
             <div
               key={match.matchId}
-              className="rounded-[22px] border border-white/8 bg-black/10 p-4"
+              className={`rounded-[22px] border p-4 ${
+                snapshot?.matchId === match.matchId
+                  ? "border-[#7ed2b4]/22 bg-[#7ed2b4]/8"
+                  : "border-white/8 bg-black/10"
+              }`}
             >
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0">
@@ -4949,12 +4960,29 @@ export function GameShell() {
                       }
                     />
                   </div>
+                  <div className="mt-3">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                      Frontier riders
+                    </div>
+                    <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                      {[...match.players]
+                        .sort((left, right) => right.score - left.score)
+                        .map((player) => (
+                          <FrontierRiderCard
+                            key={player.agentId}
+                            player={player}
+                            profile={liveRiderProfilesById.get(player.agentId)}
+                            active={snapshot?.matchId === match.matchId && selectedAgent?.id === player.agentId}
+                          />
+                        ))}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => handleSpectateMatch(match)}
-                    disabled={!canSpectateLiveMatch || !authToken}
+                    disabled={!canSpectateLiveMatch}
                     className="rounded-full border border-white/12 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white/80 transition hover:border-white/24 hover:text-white disabled:opacity-50"
                   >
                     Watch
@@ -4962,7 +4990,7 @@ export function GameShell() {
                   <button
                     type="button"
                     onClick={() => handleSpectateMatch(match, { followLeader: true })}
-                    disabled={!canSpectateLiveMatch || !authToken}
+                    disabled={!canSpectateLiveMatch}
                     className="rounded-full border border-[#7ed2b4]/20 bg-[#7ed2b4]/8 px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#c5f4e9] transition hover:bg-[#7ed2b4]/14 disabled:opacity-50"
                   >
                     Leader Cam
@@ -5341,6 +5369,101 @@ function ObserverPulseCard({
       </div>
       <div className="mt-1 font-semibold text-[#f6ead7]">{value}</div>
       <div className="mt-1 text-xs text-stone-200/66">{detail}</div>
+    </div>
+  );
+}
+
+function FrontierRiderCard({
+  player,
+  profile,
+  active = false,
+}: {
+  player: MatchSnapshot["players"][number];
+  profile?: FrontierRiderProfile;
+  active?: boolean;
+}) {
+  const isHouseBot = profile?.kind === "house_bot" || !profile;
+
+  return (
+    <div
+      className={`rounded-[18px] border px-3 py-3 ${
+        active
+          ? "border-[#7ed2b4]/22 bg-[#7ed2b4]/10"
+          : "border-white/8 bg-black/14"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-[#f6ead7]">
+            {player.displayName}
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+            {profile?.campaignTierLabel ?? "LIVE"}
+          </div>
+        </div>
+        <div className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/65">
+          {player.mode === "autonomous" ? "auto" : "manual"}
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] uppercase tracking-[0.14em] text-stone-300/56">
+        <div>
+          <div>Score</div>
+          <div className="mt-1 text-sm font-semibold text-[#f0bf76]">
+            {player.score}
+          </div>
+        </div>
+        <div>
+          <div>HP</div>
+          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+            {player.health}
+          </div>
+        </div>
+        <div>
+          <div>Wins</div>
+          <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
+            {profile?.wins ?? 0}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 text-xs leading-relaxed text-stone-200/70">
+        {profile?.latestResultLabel ??
+          "Live round in progress. Frontier record will show up after the first closed run."}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-stone-300/58">
+        <span className="rounded-full border border-white/10 px-2 py-1">
+          {profile?.currentStreak ?? 0} streak
+        </span>
+        <span className="rounded-full border border-white/10 px-2 py-1">
+          {profile?.settlements ?? 0} settles
+        </span>
+        <span className="rounded-full border border-white/10 px-2 py-1">
+          {profile?.skillPurchases ?? 0} upgrades
+        </span>
+        <span className="rounded-full border border-white/10 px-2 py-1">
+          {isHouseBot
+            ? "bot"
+            : profile?.premiumPassActive
+              ? "premium on"
+              : "premium off"}
+        </span>
+      </div>
+      {!isHouseBot && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-stone-300/56">
+          <span className="rounded-full border border-[#7ed2b4]/18 bg-[#7ed2b4]/8 px-2 py-1 text-[#d9f7ee]">
+            {profile?.onchainLinked ? "treasury linked" : "treasury pending"}
+          </span>
+          {profile?.lastReceiptPurpose && (
+            <span className="rounded-full border border-white/10 px-2 py-1">
+              {formatReceiptPurpose(profile.lastReceiptPurpose)}
+            </span>
+          )}
+          {profile?.walletAddress && (
+            <span className="rounded-full border border-white/10 px-2 py-1">
+              {truncateAddress(profile.walletAddress)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -881,6 +881,37 @@ export const agentMatchRecordSchema = z.object({
 
 export type AgentMatchRecord = z.infer<typeof agentMatchRecordSchema>;
 
+export const frontierRiderProfileSchema = z.object({
+  agentId: z.string(),
+  displayName: z.string(),
+  kind: z.enum(["player", "house_bot"]),
+  mode: agentModeSchema,
+  walletAddress: z.string().nullable(),
+  onchainLinked: z.boolean(),
+  campaignTierLabel: z.string(),
+  wins: z.number().int().nonnegative(),
+  matchesPlayed: z.number().int().nonnegative(),
+  currentStreak: z.number().int().nonnegative(),
+  bestScore: z.number().int().nonnegative(),
+  careerPayoutWei: z.string(),
+  skillPurchases: z.number().int().nonnegative(),
+  paidEntries: z.number().int().nonnegative(),
+  settlements: z.number().int().nonnegative(),
+  premiumPassActive: z.boolean(),
+  latestPlacement: z.number().int().positive().nullable(),
+  latestResultLabel: z.string(),
+  lastReceiptPurpose: transactionPurposeSchema.nullable(),
+});
+
+export type FrontierRiderProfile = z.infer<typeof frontierRiderProfileSchema>;
+
+export const liveFrontierResponseSchema = z.object({
+  matches: z.array(matchSnapshotSchema),
+  riderProfiles: z.array(frontierRiderProfileSchema),
+});
+
+export type LiveFrontierResponse = z.infer<typeof liveFrontierResponseSchema>;
+
 export const createAgentInputSchema = z.object({
   baseName: z
     .string()

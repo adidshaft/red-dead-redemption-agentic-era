@@ -22,7 +22,9 @@ import {
   calculateSkillPurchasePrice,
   createAgentInputSchema,
   createNonceInputSchema,
+  type FrontierRiderProfile,
   gameConfig,
+  type MatchPlayerState,
   queueForMatchInputSchema,
   registerAgentInputSchema,
   setAgentModeInputSchema,
@@ -189,6 +191,103 @@ function unauthorizedReply() {
     body: {
       error: "Unauthorized",
     },
+  };
+}
+
+async function buildFrontierRiderProfile(
+  player: MatchPlayerState,
+): Promise<FrontierRiderProfile> {
+  const isHouseBot =
+    player.agentId.toLowerCase().startsWith("house-bot-") ||
+    player.displayName.startsWith(gameConfig.houseBotPrefix);
+
+  if (isHouseBot) {
+    return {
+      agentId: player.agentId,
+      displayName: player.displayName,
+      kind: "house_bot",
+      mode: player.mode,
+      walletAddress: null,
+      onchainLinked: false,
+      campaignTierLabel: "HOUSE BOT",
+      wins: 0,
+      matchesPlayed: 0,
+      currentStreak: 0,
+      bestScore: player.score,
+      careerPayoutWei: "0",
+      skillPurchases: 0,
+      paidEntries: 0,
+      settlements: 0,
+      premiumPassActive: false,
+      latestPlacement: null,
+      latestResultLabel: "Operator-managed sparring bot",
+      lastReceiptPurpose: null,
+    };
+  }
+
+  const agent = await db.getAgentById(player.agentId);
+  if (!agent) {
+    return {
+      agentId: player.agentId,
+      displayName: player.displayName,
+      kind: "player",
+      mode: player.mode,
+      walletAddress: null,
+      onchainLinked: false,
+      campaignTierLabel: "UNSYNCED",
+      wins: 0,
+      matchesPlayed: 0,
+      currentStreak: 0,
+      bestScore: player.score,
+      careerPayoutWei: "0",
+      skillPurchases: 0,
+      paidEntries: 0,
+      settlements: 0,
+      premiumPassActive: false,
+      latestPlacement: null,
+      latestResultLabel: "Live rider record unavailable",
+      lastReceiptPurpose: null,
+    };
+  }
+
+  const [matches, receipts, premiumPassActive] = await Promise.all([
+    db.listMatchesForAgent(agent.id),
+    db.listAgentTransactions(agent.id),
+    db.hasActiveAutonomyPass(agent.id),
+  ]);
+
+  const campaign = buildCampaignStats(agent.id, matches);
+  const latestRecord = matches
+    .map((match) => buildAgentMatchRecord(agent.id, match))
+    .find((record): record is NonNullable<typeof record> => Boolean(record));
+
+  return {
+    agentId: agent.id,
+    displayName: agent.displayName,
+    kind: "player",
+    mode: agent.mode,
+    walletAddress: agent.walletAddress,
+    onchainLinked: Boolean(agent.walletAddress),
+    campaignTierLabel: campaign.campaignTier.toUpperCase(),
+    wins: campaign.wins,
+    matchesPlayed: campaign.matchesPlayed,
+    currentStreak: campaign.currentStreak,
+    bestScore: campaign.bestScore,
+    careerPayoutWei: campaign.careerPayoutWei,
+    skillPurchases: receipts.filter((receipt) => receipt.purpose === "skill_purchase")
+      .length,
+    paidEntries: receipts.filter((receipt) => receipt.purpose === "match_entry")
+      .length,
+    settlements: receipts.filter((receipt) => receipt.purpose === "match_settlement")
+      .length,
+    premiumPassActive,
+    latestPlacement: latestRecord?.placement ?? null,
+    latestResultLabel: latestRecord
+      ? latestRecord.won
+        ? "Won last showdown"
+        : `Placed #${latestRecord.placement} last run`
+      : "No closed run yet",
+    lastReceiptPurpose: receipts[0]?.purpose ?? null,
   };
 }
 
@@ -626,9 +725,27 @@ app.get("/matches/queue-status", async (request, reply) => {
   return coordinator.getQueueStatus(address);
 });
 
-app.get("/matches/live", async () => ({
-  matches: coordinator.getAllLiveMatches(),
-}));
+app.get("/matches/live", async () => {
+  const matches = coordinator.getAllLiveMatches();
+  const uniquePlayers = new Map<string, MatchPlayerState>();
+
+  for (const match of matches) {
+    for (const player of match.players) {
+      uniquePlayers.set(player.agentId, player);
+    }
+  }
+
+  const riderProfiles = await Promise.all(
+    Array.from(uniquePlayers.values()).map((player) =>
+      buildFrontierRiderProfile(player),
+    ),
+  );
+
+  return {
+    matches,
+    riderProfiles,
+  };
+});
 
 app.get("/matches/:id", async (request, reply) => {
   const matchId = (request.params as { id: string }).id;

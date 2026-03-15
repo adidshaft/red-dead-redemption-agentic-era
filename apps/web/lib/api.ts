@@ -4,6 +4,7 @@ import type {
   AgentProfile,
   AutonomyPlan,
   ArenaCommand,
+  FrontierRiderProfile,
   MatchSnapshot,
   OnchainReceipt,
   SkillKey,
@@ -201,7 +202,10 @@ export async function fetchMatchSnapshot(matchId: string) {
 }
 
 export async function fetchLiveMatches() {
-  return apiRequest<{ matches: MatchSnapshot[] }>("/matches/live");
+  return apiRequest<{
+    matches: MatchSnapshot[];
+    riderProfiles: FrontierRiderProfile[];
+  }>("/matches/live");
 }
 
 export async function requestAutonomyPass(
