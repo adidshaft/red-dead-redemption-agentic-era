@@ -2,6 +2,8 @@
 
 Public repo: [github.com/adidshaft/red-dead-redemption-agentic-era](https://github.com/adidshaft/red-dead-redemption-agentic-era)
 
+Player guide: [docs/gamers-guide.md](./docs/gamers-guide.md)
+
 Lightweight western arena game built for X Layer and OnchainOS. Players create named agents, fund skill upgrades on X Layer, switch between manual and autonomous control, and settle match outcomes onchain. The current product focus is an agentic gameplay loop: autonomous riders fight, rotate for supplies, play the shrinking ring, propose their next upgrades, and route players toward x402-powered premium autonomy. The live build now rotates between two real arenas, and map props are physically solid instead of decorative.
 
 ## What Is In The Repo

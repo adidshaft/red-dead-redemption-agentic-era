@@ -1,0 +1,86 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="140" y1="60" x2="1140" y2="660" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2B1A12"/>
+      <stop offset="1" stop-color="#120B08"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#2F2118" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#18100C" stop-opacity="0.98"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F0BF76"/>
+      <stop offset="1" stop-color="#D5752D"/>
+    </linearGradient>
+    <filter id="shadow" x="-40" y="-40" width="1360" height="800" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" rx="28" fill="url(#bg)"/>
+  <rect x="28" y="28" width="1224" height="664" rx="24" stroke="#F0BF76" stroke-opacity="0.18" stroke-width="2"/>
+  <text x="78" y="106" fill="#F0BF76" font-size="16" font-family="Arial, sans-serif" letter-spacing="4">PLAYER GUIDE</text>
+  <text x="78" y="154" fill="#F6EAD7" font-size="40" font-weight="700" font-family="Arial, sans-serif">How a frontier run works</text>
+  <text x="78" y="194" fill="#DCCCB7" font-size="20" font-family="Arial, sans-serif">
+    Create a rider, pick manual or Autopilot, enter the arena, survive the town, and loop the winnings back into the next run.
+  </text>
+
+  <g filter="url(#shadow)">
+    <rect x="78" y="254" width="214" height="208" rx="26" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <circle cx="132" cy="316" r="28" fill="#1A2D29" stroke="#7ED2B4" stroke-opacity="0.35" stroke-width="2"/>
+    <text x="118" y="324" fill="#D9F7EE" font-size="20" font-weight="700" font-family="Arial, sans-serif">1</text>
+    <text x="78" y="370" fill="#F6EAD7" font-size="26" font-weight="700" font-family="Arial, sans-serif">Connect + Sign In</text>
+    <text x="78" y="404" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">Connect an X Layer wallet and sign once.</text>
+    <text x="78" y="432" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">This unlocks your rider roster, match queue,</text>
+    <text x="78" y="460" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">and the live frontier board.</text>
+
+    <rect x="322" y="254" width="214" height="208" rx="26" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <circle cx="376" cy="316" r="28" fill="#2B1C12" stroke="#F0BF76" stroke-opacity="0.45" stroke-width="2"/>
+    <text x="362" y="324" fill="#F6EAD7" font-size="20" font-weight="700" font-family="Arial, sans-serif">2</text>
+    <text x="322" y="370" fill="#F6EAD7" font-size="26" font-weight="700" font-family="Arial, sans-serif">Mint a Rider</text>
+    <text x="322" y="404" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">Choose a name. The game appends a unique</text>
+    <text x="322" y="432" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">suffix and creates a treasury-linked rider</text>
+    <text x="322" y="460" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">with five starter skills.</text>
+
+    <rect x="566" y="254" width="214" height="208" rx="26" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <circle cx="620" cy="316" r="28" fill="#1E1B2F" stroke="#9CE9FF" stroke-opacity="0.4" stroke-width="2"/>
+    <text x="606" y="324" fill="#DFF9FF" font-size="20" font-weight="700" font-family="Arial, sans-serif">3</text>
+    <text x="566" y="370" fill="#F6EAD7" font-size="26" font-weight="700" font-family="Arial, sans-serif">Pick a Mode</text>
+    <text x="566" y="404" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">Manual means you move, shoot, dodge,</text>
+    <text x="566" y="432" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">and reload. Autopilot means the rider takes</text>
+    <text x="566" y="460" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">over once the match reaches DRAW.</text>
+
+    <rect x="810" y="254" width="214" height="208" rx="26" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <circle cx="864" cy="316" r="28" fill="#2B1C12" stroke="#D5752D" stroke-opacity="0.45" stroke-width="2"/>
+    <text x="850" y="324" fill="#F6EAD7" font-size="20" font-weight="700" font-family="Arial, sans-serif">4</text>
+    <text x="810" y="370" fill="#F6EAD7" font-size="26" font-weight="700" font-family="Arial, sans-serif">Queue a Run</text>
+    <text x="810" y="404" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">Practice is fast. Paid runs lock an onchain</text>
+    <text x="810" y="432" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">entry on X Layer testnet and create a real</text>
+    <text x="810" y="460" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">pot for settlement.</text>
+
+    <rect x="1054" y="254" width="148" height="208" rx="26" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <circle cx="1108" cy="316" r="28" fill="#232012" stroke="#F0BF76" stroke-opacity="0.45" stroke-width="2"/>
+    <text x="1094" y="324" fill="#F6EAD7" font-size="20" font-weight="700" font-family="Arial, sans-serif">5</text>
+    <text x="1054" y="370" fill="#F6EAD7" font-size="24" font-weight="700" font-family="Arial, sans-serif">Fight</text>
+    <text x="1054" y="404" fill="#DCCCB7" font-size="17" font-family="Arial, sans-serif">Survive the ring, use cover,</text>
+    <text x="1054" y="430" fill="#DCCCB7" font-size="17" font-family="Arial, sans-serif">grab drops, and outscore</text>
+    <text x="1054" y="456" fill="#DCCCB7" font-size="17" font-family="Arial, sans-serif">the field.</text>
+  </g>
+
+  <path d="M292 358H322" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M536 358H566" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M780 358H810" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M1024 358H1054" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+  <polygon points="318,351 332,358 318,365" fill="#F0BF76"/>
+  <polygon points="562,351 576,358 562,365" fill="#F0BF76"/>
+  <polygon points="806,351 820,358 806,365" fill="#F0BF76"/>
+  <polygon points="1050,351 1064,358 1050,365" fill="#F0BF76"/>
+
+  <rect x="78" y="518" width="1124" height="124" rx="24" fill="#120C09" stroke="#FFFFFF" stroke-opacity="0.07"/>
+  <text x="108" y="564" fill="#F0BF76" font-size="16" font-family="Arial, sans-serif" letter-spacing="3">THE HOOK</text>
+  <text x="108" y="604" fill="#F6EAD7" font-size="24" font-weight="700" font-family="Arial, sans-serif">
+    Win a run -> earn a payout -> upgrade the rider -> re-enter with a stronger build.
+  </text>
+  <text x="108" y="634" fill="#DCCCB7" font-size="18" font-family="Arial, sans-serif">
+    The addictive loop comes from cleaner runs, better skills, better timing, hotter streaks, and a public frontier board that remembers who is winning.
+  </text>
+</svg>
