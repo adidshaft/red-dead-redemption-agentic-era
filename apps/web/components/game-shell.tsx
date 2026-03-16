@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -231,6 +232,7 @@ export function GameShell() {
   const [recentSkillUpgrade, setRecentSkillUpgrade] = useState<RecentSkillUpgrade | null>(
     null,
   );
+  const [hasHydrated, setHasHydrated] = useState(false);
   const x402Fetch = useMemo(() => {
     if (!walletClient?.account) {
       return null;
@@ -261,12 +263,20 @@ export function GameShell() {
   const selectedAgentRef = useRef<AgentProfile | null>(null);
   const seenTxHashesRef = useRef<Set<string>>(new Set());
   const txRevealTimersRef = useRef<Map<string, number>>(new Map());
+  const hydratedIsConnected = hasHydrated && isConnected;
+  const hydratedIsConnecting = hasHydrated && isConnecting;
+  const hydratedAddress = hasHydrated ? address : undefined;
+  const hydratedChainId = hasHydrated ? chainId : undefined;
 
   const selectedAgent = useMemo(
     () =>
       agents.find((agent) => agent.id === selectedAgentId) ?? agents[0] ?? null,
     [agents, selectedAgentId],
   );
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
   const selectedSnapshotPlayer = useMemo(
     () =>
       snapshot && selectedAgent
@@ -3247,10 +3257,16 @@ export function GameShell() {
               <p className="inline-flex rounded-full border border-amber-300/20 bg-amber-200/8 px-4 py-1 text-xs uppercase tracking-[0.28em] text-amber-100/80">
                 X Layer • OnchainOS • Agent Arena
               </p>
-              <div className="space-y-3">
-                <h1 className="font-[var(--font-heading)] text-4xl leading-none text-[#f6dfb7] md:text-6xl">
-                  Red Dead Redemption: Agentic Era
-                </h1>
+              <div className="space-y-4">
+                <Image
+                  src="/branding/rdr-logo.svg"
+                  alt="Red Dead Redemption: Agentic Era"
+                  width={1600}
+                  height={520}
+                  priority
+                  className="h-auto w-full max-w-[780px]"
+                />
+                <h1 className="sr-only">Red Dead Redemption: Agentic Era</h1>
                 <p className="max-w-2xl text-base text-stone-200/78 md:text-lg">
                   Name your outlaw, forge a treasury-backed subwallet, buy skill
                   upgrades on X Layer, then fight manual or fully autonomous
@@ -3258,7 +3274,7 @@ export function GameShell() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
-                {!isConnected ? (
+                {!hydratedIsConnected ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -3269,7 +3285,7 @@ export function GameShell() {
                     }}
                     className="inline-flex items-center gap-2 rounded-full bg-[#d5752d] px-5 py-3 font-medium text-black transition hover:bg-[#eb9150]"
                   >
-                    {isConnecting ? (
+                    {hydratedIsConnecting ? (
                       <LoaderCircle className="h-4 w-4 animate-spin" />
                     ) : (
                       <Wallet className="h-4 w-4" />
@@ -3308,12 +3324,12 @@ export function GameShell() {
                 <StatCard
                   icon={<Wallet className="h-4 w-4" />}
                   label="Wallet"
-                  value={address ? truncateAddress(address) : "Disconnected"}
+                  value={hydratedAddress ? truncateAddress(hydratedAddress) : "Disconnected"}
                 />
                 <StatCard
                   icon={<RadioTower className="h-4 w-4" />}
                   label="Chain"
-                  value={chainId ? `#${chainId}` : "Not ready"}
+                  value={hydratedChainId ? `#${hydratedChainId}` : "Not ready"}
                 />
                 <StatCard
                   icon={<ShieldPlus className="h-4 w-4" />}
@@ -3334,7 +3350,7 @@ export function GameShell() {
                 </div>
                 <Bot className="h-8 w-8 text-[#f0bf76]" />
               </div>
-              {isConnected ? (
+              {hydratedIsConnected ? (
                 <div className="mt-4 grid gap-2 text-sm text-stone-200/72">
                   <QuickBriefRow
                     step={authToken ? "Ready" : "1"}
