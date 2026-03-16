@@ -33,6 +33,8 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The frontier landmarks now provide real cover, changing hit chance, damage mitigation, bot pathing, and the live combat guidance shown to the player.
 - Dust Circuit props are now physically solid, so riders cannot phase through saloon fronts, wagons, fences, crates, towers, or corral structures.
 - A second arena, `Deadrock Gulch`, now rotates into live matches with its own landmark graph, caravan lanes, and collision layout.
+- A third arena, `Ironwood Crossing`, now rotates in with depot, mill, freight-line, and stock-pen cover so the frontier feels denser and less repetitive.
+- Player and spectator guidance now stays short: the wallet briefing, rider setup, Field Intel, and Live Frontier board all use tighter copy and fewer repeated panels.
 - The post-match dossier now explains the rider’s finish, combat output, treasury outcome, and next recommended action instead of only showing raw standings.
 - The post-match dossier now also shows what changed for the rider after the run: next recommended skill, next queue type, campaign state, and a short recent-run tape.
 - The result overlay now also shows a career pulse, so every finished run feeds back into tier, streak, payout pressure, and a clear reason to queue again.

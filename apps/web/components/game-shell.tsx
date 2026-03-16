@@ -622,22 +622,22 @@ export function GameShell() {
     () => [
       {
         label: "Cover",
-        detail: "Hide near a named landmark to take less damage.",
+        detail: "Named spots reduce incoming damage.",
         icon: <ShieldPlus className="h-3.5 w-3.5" />,
       },
       {
         label: "Signal Drop",
-        detail: "Orange flare. Grab it for health, ammo, and score.",
+        detail: "Orange flare for HP, ammo, and score.",
         icon: <Gem className="h-3.5 w-3.5" />,
       },
       {
         label: "Stagecoach",
-        detail: "Shoot the moving coach itself for ammo and score.",
+        detail: "Hit the moving coach for bonus ammo and score.",
         icon: <Landmark className="h-3.5 w-3.5" />,
       },
       {
         label: "Bounty + Ring",
-        detail: "Marked rider pays bonus score. Outside the ring burns HP.",
+        detail: "Marked rider pays bonus. Ring edge burns HP.",
         icon: <AlertTriangle className="h-3.5 w-3.5" />,
       },
     ],
@@ -724,29 +724,42 @@ export function GameShell() {
     if (selectedAgent.mode === "manual") {
       return {
         label: "Manual control",
-        title: "You drive every combat action",
         detail:
-          "After DRAW, movement, shots, dodge, and reload are fully yours.",
+          "You control movement, shots, dodge, and reload after DRAW.",
         steps: [
-          "Queue the rider and stay on the arena screen for the countdown.",
-          "Once DRAW hits, use WASD to move, click to shoot, Space to dodge, and R to reload.",
-          "Skill upgrades still matter here because they change your damage, accuracy, dodge, and survival math.",
+          "Stay on the arena screen for the countdown.",
+          "Use WASD, click, Space, and R once the bell hits.",
         ],
       };
     }
 
     return {
       label: "Autopilot",
-      title: "The rider fights for you once DRAW starts",
       detail:
-        "Queue the rider, stay on the match screen, and the agent will move, aim, dodge, reload, chase drops, and react to ring pressure on its own.",
+        "The rider takes over after DRAW and handles aim, movement, dodge, reload, and pressure calls.",
       steps: [
-        "You still choose the rider, buy skills, and approve paid queue entry.",
-        "Autopilot only takes over inside the live match, not in the lobby.",
-        "Watch the cyan YOU rider and the live Autopilot call to see what it is doing next.",
+        "You still pick the rider, buy skills, and approve paid entry.",
+        "Watch the cyan YOU marker and live calls during the fight.",
       ],
     };
   }, [selectedAgent]);
+  const spectatorQuickSteps = useMemo(
+    () => [
+      {
+        label: "Watch",
+        detail: "Open Spotlight to jump into the clearest live match.",
+      },
+      {
+        label: "Open dossier",
+        detail: "Click a rider to see wins, streaks, and recent receipts.",
+      },
+      {
+        label: "Track chain",
+        detail: "Use Chain Pulse to follow fresh X Layer and x402 motion.",
+      },
+    ],
+    [],
+  );
   const recentSkillUpgradeLabel = useMemo(() => {
     if (!selectedAgent || !recentSkillUpgrade || recentSkillUpgrade.agentId !== selectedAgent.id) {
       return null;
@@ -3325,11 +3338,11 @@ export function GameShell() {
                 <div className="mt-4 grid gap-2 text-sm text-stone-200/72">
                   <QuickBriefRow
                     step={authToken ? "Ready" : "1"}
-                    title={authToken ? "Session active" : "Sign the session"}
+                    title={authToken ? "Session active" : "Sign once"}
                     body={
                       authToken
-                        ? "You are ready. Pick a rider below, choose a mode, and queue a run."
-                        : "Approve one wallet signature to unlock riders, queueing, and onchain receipts."
+                        ? "You are in. Pick a rider below and queue a run."
+                        : "Approve one wallet signature to unlock riders, queueing, and receipts."
                     }
                   />
                   <QuickBriefRow
@@ -3337,37 +3350,20 @@ export function GameShell() {
                     title={selectedAgent ? "Rider selected" : "Choose a rider"}
                     body={
                       selectedAgent
-                        ? `${selectedAgent.displayName} is active. Choose manual or Autopilot before you queue.`
-                        : "Select a rider or mint one below. Each rider gets five core skills and a linked treasury."
+                        ? `${selectedAgent.displayName} is active. Pick manual or Autopilot, then queue.`
+                        : "Select a rider or mint one below. Every rider gets five skills and a linked treasury."
                     }
                   />
                   <QuickBriefRow
                     step="3"
-                    title="Win and settle"
-                    body="Stay inside the dust ring, grab supplies, outlast the field, and collect the X Layer payout."
+                    title="Survive the round"
+                    body="Stay in the ring, grab drops, outlast the field, and settle the win on X Layer."
                   />
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-stone-200/72">
                   Connect a wallet first. The game will then show the shortest path from sign-in to your first showdown.
                 </p>
-              )}
-              {selectedAgent && (
-                <div className="mt-4 rounded-[22px] border border-white/8 bg-white/5 px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
-                        Active rider
-                      </div>
-                      <div className="mt-1 text-lg font-semibold text-[#f6ead7]">
-                        {selectedAgent.displayName}
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-stone-200/72">
-                      {selectedAgent.mode}
-                    </span>
-                  </div>
-                </div>
               )}
             </div>
           </div>
@@ -3443,7 +3439,7 @@ export function GameShell() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.18em] text-stone-300/58">
-                      Active rider
+                      Queue setup
                     </p>
                     <h3 className="mt-1 text-lg font-semibold text-[#f6ead7]">
                       {selectedAgent ? selectedAgent.displayName : "No rider selected"}
@@ -3480,7 +3476,7 @@ export function GameShell() {
                 </div>
                 <div className="mt-3 text-sm text-stone-200/72">
                   {selectedAgent
-                    ? "Pick the rider you want in the next showdown. Queue buttons are in the arena section below."
+                    ? "This is the rider that will enter your next showdown."
                     : "Select a rider from the list or mint a new one to continue."}
                 </div>
                 {selectedModeGuide && (
@@ -3488,13 +3484,10 @@ export function GameShell() {
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
                       {selectedModeGuide.label}
                     </div>
-                    <div className="mt-1 text-sm font-semibold text-[#f6ead7]">
-                      {selectedModeGuide.title}
-                    </div>
                     <div className="mt-1 text-sm text-stone-200/72">
                       {selectedModeGuide.detail}
                     </div>
-                    <div className="mt-3 grid gap-2">
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {selectedModeGuide.steps.map((step) => (
                         <div
                           key={step}
@@ -3557,7 +3550,7 @@ export function GameShell() {
                 Plan the next move
               </h2>
               <p className="mt-2 max-w-2xl text-sm text-stone-200/68">
-                Check the rider loop, autopilot plan, and X Layer receipts when you want the next simple action.
+                Open a tab only when you want the next rider, autopilot, or chain action.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -4920,13 +4913,13 @@ export function GameShell() {
                 </div>
               </div>
 	              <div className="rounded-[24px] border border-[var(--panel-border)] bg-black/20 p-4 shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)]">
-	                <div className="mb-3 flex items-center justify-between gap-3">
+	                  <div className="mb-3 flex items-center justify-between gap-3">
 	                  <div>
 	                    <p className="font-[var(--font-heading)] text-base font-bold text-[var(--foreground)]">
 	                      Field Intel
 	                    </p>
 	                    <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-stone-300/52">
-	                      {activeArenaMap.name} • solid props block movement
+	                      {activeArenaMap.name} • props and buildings are solid cover
 	                    </div>
 	                  </div>
 	                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--circuit-line)]">
@@ -4939,7 +4932,7 @@ export function GameShell() {
                 />
                 <div className="mt-3 rounded-[18px] border border-[#7ed2b4]/12 bg-[#7ed2b4]/8 px-3 py-3">
                   <div className="text-[10px] uppercase tracking-[0.18em] text-[#bfeee0]/70">
-                    What matters now
+                    Right now
                   </div>
                   <div className="mt-1 font-semibold text-[#f6ead7]">
                     {intelPrimaryFocus.title}
@@ -4958,23 +4951,27 @@ export function GameShell() {
                     ))}
                   </div>
                 </div>
-                <div className="mt-3 rounded-[18px] border border-white/8 bg-black/14 px-3 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
-                    What these systems do
-                  </div>
-                  <div className="mt-2 space-y-2">
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {intelLegendCards.map((card) => (
-                    <IntelLegendRow
+                    <div
                       key={card.label}
-                      icon={card.icon}
-                      label={card.label}
-                      detail={card.detail}
-                      compact
-                    />
+                      className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-3"
+                    >
+                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/60">
+                        <span className="text-[#f0bf76]">{card.icon}</span>
+                        {card.label}
+                      </div>
+                      <div className="mt-1 text-[11px] leading-relaxed text-stone-200/68">
+                        {card.detail}
+                      </div>
+                    </div>
                   ))}
-                  </div>
                 </div>
-                <div className="mt-3 space-y-2">
+                <div className="mt-3">
+                  <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                    Live calls
+                  </div>
+                  <div className="space-y-2">
                   {criticalEvents.length === 0 ? (
                     <EmptyState label="Live calls land here when the first drop, bounty, coach, or elimination hits." compact />
                   ) : (
@@ -4992,6 +4989,7 @@ export function GameShell() {
                       </div>
                     ))
                   )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -5008,7 +5006,7 @@ export function GameShell() {
               Live Frontier
             </h2>
             <p className="mt-1 text-sm text-stone-200/68">
-              Public frontier board with live rounds, rider history, and linked onchain footing.
+              Watch live rounds, open rider dossiers, and follow onchain momentum.
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-300/58">
               <span className="rounded-full border border-white/10 px-2.5 py-1">
@@ -5056,6 +5054,21 @@ export function GameShell() {
             </button>
           </div>
         </div>
+        <div className="mb-4 grid gap-2 md:grid-cols-3">
+          {spectatorQuickSteps.map((step) => (
+            <div
+              key={step.label}
+              className="rounded-[18px] border border-white/8 bg-black/12 px-3 py-3"
+            >
+              <div className="text-[10px] uppercase tracking-[0.16em] text-stone-300/56">
+                {step.label}
+              </div>
+              <div className="mt-1 text-xs leading-relaxed text-stone-200/70">
+                {step.detail}
+              </div>
+            </div>
+          ))}
+        </div>
         {spotlightMatch && (
           <div className="mb-4 rounded-[24px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/6 px-4 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -5072,7 +5085,7 @@ export function GameShell() {
                       (left, right) => right.score - left.score,
                     )[0];
                     return leader
-                      ? `${leader.displayName} leads on ${getFrontierMap(spotlightMatch.mapId ?? "dust_circuit").name}. Watch the field, the live prize, and the onchain riders underneath.`
+                      ? `${leader.displayName} leads on ${getFrontierMap(spotlightMatch.mapId ?? "dust_circuit").name}. Use Spotlight to follow the cleanest live round.`
                       : "A live frontier round is available to spectate.";
                   })()}
                 </div>
@@ -5106,7 +5119,7 @@ export function GameShell() {
                   Frontier leaders
                 </div>
                 <div className="mt-1 text-sm text-stone-200/70">
-                  The riders currently setting the pace across wins, streaks, and treasury pressure.
+                  Top riders by wins, streak, and payout pressure.
                 </div>
               </div>
               <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/60">
@@ -5138,7 +5151,7 @@ export function GameShell() {
                   Chain pulse
                 </div>
                 <div className="mt-1 text-sm text-stone-200/70">
-                  Recent X Layer and x402 activity from riders currently shaping the frontier.
+                  Latest X Layer and x402 confirmations from active riders.
                 </div>
               </div>
               <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/60">
@@ -5164,7 +5177,7 @@ export function GameShell() {
                   Heat check
                 </div>
                 <div className="mt-1 text-sm text-stone-200/72">
-                  The riders currently stringing wins together and pulling the frontier toward them.
+                  Riders on the hottest recent streaks.
                 </div>
               </div>
               <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-stone-200/60">
@@ -5391,49 +5404,31 @@ export function GameShell() {
                     </span>
                   </div>
                   <div className="mt-3 grid gap-2 md:grid-cols-3">
-                    <ObserverPulseCard
-                      label="Hot rider"
-                      value={
-                        [...match.players].sort(
-                          (left, right) => right.score - left.score,
-                        )[0]?.displayName ?? "—"
-                      }
-                      detail={`${
-                        [...match.players].sort(
-                          (left, right) => right.score - left.score,
-                        )[0]?.score ?? 0
-                      } score on the ledger`}
-                    />
-                    <ObserverPulseCard
-                      label="Live prize"
-                      value={
-                        match.objective
-                          ? match.objective.label
-                          : match.caravan
-                            ? match.caravan.label
-                            : match.bounty
-                              ? `Bounty ${match.bounty.displayName}`
-                              : "Open duel"
-                      }
-                      detail={
-                        match.objective
-                          ? match.objective.rewardLabel
-                          : match.caravan
-                            ? match.caravan.rewardLabel
-                            : match.bounty
-                              ? `Worth +${match.bounty.bonusScore} score`
-                              : "No live side prize right now"
-                      }
-                    />
-                    <ObserverPulseCard
-                      label="Field state"
-                      value={`${match.players.filter((player) => player.alive).length} alive`}
-                      detail={
-                        match.status === "queued"
-                          ? "Waiting for the draw"
-                          : `${Math.round(match.safeZone.radius)}px ring`
-                      }
-                    />
+                    <div className="md:col-span-3 rounded-[18px] border border-white/8 bg-black/14 px-4 py-3 text-sm text-stone-200/72">
+                      <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
+                        Match read
+                      </div>
+                      <div className="mt-2 text-[#f6ead7]">
+                        {(() => {
+                          const leader = [...match.players].sort(
+                            (left, right) => right.score - left.score,
+                          )[0];
+                          const livePrize = match.objective
+                            ? `${match.objective.label} active`
+                            : match.caravan
+                              ? `${match.caravan.label} rolling`
+                              : match.bounty
+                                ? `Bounty on ${match.bounty.displayName}`
+                                : "No side prize active";
+                          const aliveCount = match.players.filter((player) => player.alive).length;
+                          const fieldState =
+                            match.status === "queued"
+                              ? "Waiting for DRAW"
+                              : `${aliveCount} alive in a ${Math.round(match.safeZone.radius)}px ring`;
+                          return `${leader?.displayName ?? "No leader yet"} sets the pace. ${livePrize}. ${fieldState}.`;
+                        })()}
+                      </div>
+                    </div>
                   </div>
                   <div className="mt-3">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-stone-300/56">
@@ -6254,44 +6249,6 @@ function SkillInfoTooltip({
       </button>
       <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-64 rounded-[16px] border border-white/10 bg-[#140d0a]/95 px-3 py-3 text-xs leading-relaxed text-stone-100/84 opacity-0 shadow-[0_16px_40px_rgba(0,0,0,0.45)] transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
         {detail}
-      </div>
-    </div>
-  );
-}
-
-function IntelLegendRow({
-  icon,
-  label,
-  detail,
-  compact = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  detail: string;
-  compact?: boolean;
-}) {
-  return (
-    <div
-      className={`flex items-start gap-3 rounded-[16px] border border-white/8 bg-black/14 ${
-        compact ? "px-3 py-2.5" : "px-3 py-3"
-      }`}
-    >
-      <div
-        className={`mt-0.5 rounded-full border border-white/10 bg-white/6 text-[var(--accent-soft)] ${
-          compact ? "p-1.5" : "p-2"
-        }`}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-300/58">
-          {label}
-        </div>
-        <div
-          className={`mt-1 text-stone-200/74 ${compact ? "text-[11px] leading-snug" : "text-xs leading-relaxed"}`}
-        >
-          {detail}
-        </div>
       </div>
     </div>
   );

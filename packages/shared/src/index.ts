@@ -50,7 +50,11 @@ export const gameConfig = {
   houseBotPrefix: "HouseBot",
 } as const;
 
-export const frontierMapIds = ["dust_circuit", "deadrock_gulch"] as const;
+export const frontierMapIds = [
+  "dust_circuit",
+  "deadrock_gulch",
+  "ironwood_crossing",
+] as const;
 export type FrontierMapId = (typeof frontierMapIds)[number];
 
 export type FrontierSolid =
@@ -435,6 +439,178 @@ export const frontierMaps: Record<FrontierMapId, FrontierMap> = {
       {
         id: "south-gulch",
         y: 570,
+        startX: -140,
+        endX: gameConfig.arenaSize.width + 140,
+      },
+    ],
+  },
+  ironwood_crossing: {
+    id: "ironwood_crossing",
+    name: "Ironwood Crossing",
+    landmarks: [
+      {
+        id: "depot",
+        label: "Depot",
+        x: 250,
+        y: 192,
+        coverRadius: 122,
+        obstacleId: "depot",
+      },
+      {
+        id: "feed-mill",
+        label: "Feed Mill",
+        x: 1270,
+        y: 190,
+        coverRadius: 124,
+        obstacleId: "feed-mill",
+      },
+      {
+        id: "pump-tower",
+        label: "Pump Tower",
+        x: 1005,
+        y: 226,
+        coverRadius: 98,
+        obstacleId: "pump-tower",
+      },
+      {
+        id: "freight-yard",
+        label: "Freight Yard",
+        x: 800,
+        y: 302,
+        coverRadius: 108,
+        obstacleId: "freight-yard",
+      },
+      {
+        id: "boarding-house",
+        label: "Boarding House",
+        x: 240,
+        y: 660,
+        coverRadius: 122,
+        obstacleId: "boarding-house",
+      },
+      {
+        id: "stock-pens",
+        label: "Stock Pens",
+        x: 1195,
+        y: 620,
+        coverRadius: 110,
+        obstacleId: "stock-pens",
+      },
+      {
+        id: "west-fence",
+        label: "West Fence",
+        x: 500,
+        y: 610,
+        coverRadius: 88,
+        obstacleId: "west-fence",
+      },
+      {
+        id: "east-yard",
+        label: "East Yard",
+        x: 920,
+        y: 560,
+        coverRadius: 92,
+        obstacleId: "east-yard",
+      },
+    ],
+    obstacles: [
+      {
+        id: "depot",
+        label: "Depot",
+        x: 160,
+        y: 148,
+        solid: { shape: "rect", width: 240, height: 118 },
+      },
+      {
+        id: "feed-mill",
+        label: "Feed Mill",
+        x: 1210,
+        y: 146,
+        solid: { shape: "rect", width: 240, height: 118 },
+      },
+      {
+        id: "pump-tower",
+        label: "Pump Tower",
+        x: 1005,
+        y: 226,
+        solid: { shape: "circle", radius: 54 },
+      },
+      {
+        id: "freight-yard",
+        label: "Freight Cars",
+        x: 800,
+        y: 280,
+        solid: { shape: "rect", width: 180, height: 70 },
+      },
+      {
+        id: "boarding-house",
+        label: "Boarding House",
+        x: 160,
+        y: 648,
+        solid: { shape: "rect", width: 250, height: 126 },
+      },
+      {
+        id: "stock-pens",
+        label: "Stock Pens",
+        x: 1180,
+        y: 600,
+        solid: { shape: "rect", width: 190, height: 104 },
+      },
+      {
+        id: "west-fence",
+        label: "West Fence",
+        x: 500,
+        y: 610,
+        solid: { shape: "rect", width: 170, height: 24 },
+      },
+      {
+        id: "east-fence",
+        label: "East Fence",
+        x: 980,
+        y: 575,
+        solid: { shape: "rect", width: 150, height: 24 },
+      },
+      {
+        id: "east-yard",
+        label: "East Yard Crates",
+        x: 920,
+        y: 560,
+        solid: { shape: "circle", radius: 42 },
+      },
+      {
+        id: "west-crates",
+        label: "West Crates",
+        x: 610,
+        y: 330,
+        solid: { shape: "circle", radius: 40 },
+      },
+      {
+        id: "south-stack",
+        label: "South Stack",
+        x: 760,
+        y: 635,
+        solid: { shape: "circle", radius: 38 },
+      },
+    ],
+    spawnPoints: [
+      { x: 320, y: 320 },
+      { x: gameConfig.arenaSize.width - 320, y: 320 },
+      { x: 360, y: gameConfig.arenaSize.height - 220 },
+      {
+        x: gameConfig.arenaSize.width - 360,
+        y: gameConfig.arenaSize.height - 220,
+      },
+    ],
+    caravanLanes: [
+      {
+        id: "north-crossing",
+        y: 308,
+        startX: -140,
+        endX: gameConfig.arenaSize.width + 140,
+      },
+      {
+        id: "south-crossing",
+        y: 600,
         startX: -140,
         endX: gameConfig.arenaSize.width + 140,
       },

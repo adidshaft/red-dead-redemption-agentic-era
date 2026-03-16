@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import {
   getFrontierMap,
   type ArenaCommand,
+  type FrontierMapId,
   type MatchSnapshot,
 } from "@rdr/shared";
 
@@ -939,7 +940,72 @@ export function ArenaCanvas({
           });
         }
 
-        private buildFrontierBackdrop(mapId: "dust_circuit" | "deadrock_gulch") {
+        private buildFrontierBackdrop(mapId: FrontierMapId) {
+          if (mapId === "ironwood_crossing") {
+            this.add.rectangle(800, 130, 1600, 260, 0x554031, 1);
+            this.add.rectangle(800, 215, 1600, 180, 0x96714f, 0.32);
+            this.add.ellipse(1190, 160, 470, 160, 0xe2ba79, 0.16);
+
+            const ridge = this.add.graphics();
+            ridge.fillStyle(0x312019, 0.9);
+            ridge.fillPoints(
+              [
+                { x: 0, y: 248 },
+                { x: 120, y: 218 },
+                { x: 250, y: 238 },
+                { x: 390, y: 206 },
+                { x: 540, y: 246 },
+                { x: 720, y: 214 },
+                { x: 920, y: 252 },
+                { x: 1120, y: 208 },
+                { x: 1320, y: 242 },
+                { x: 1510, y: 214 },
+                { x: 1600, y: 234 },
+                { x: 1600, y: 320 },
+                { x: 0, y: 320 },
+              ],
+              true,
+            );
+
+            this.add.rectangle(800, 640, 1600, 520, 0x24170f, 1);
+            this.add.rectangle(800, 610, 1460, 540, 0x372314, 0.94);
+            this.add.rectangle(800, 455, 1120, 520, 0x6f5030, 0.82);
+            this.add.rectangle(800, 455, 1040, 420, 0xa67d4d, 0.1);
+            this.add.rectangle(800, 304, 1180, 52, 0x2b1d14, 0.48);
+            this.add.rectangle(800, 596, 1240, 58, 0x2b1d14, 0.4);
+
+            const railMarks = this.add.graphics();
+            railMarks.lineStyle(4, 0x1c130d, 0.72);
+            railMarks.lineBetween(150, 288, 1450, 288);
+            railMarks.lineBetween(150, 320, 1450, 320);
+            railMarks.lineBetween(120, 580, 1480, 580);
+            railMarks.lineBetween(120, 612, 1480, 612);
+            railMarks.lineStyle(2, 0x815a3f, 0.44);
+            for (let x = 180; x <= 1420; x += 42) {
+              railMarks.lineBetween(x, 284, x, 324);
+              railMarks.lineBetween(x, 576, x, 616);
+            }
+            railMarks.lineStyle(2, 0xd8b27a, 0.18);
+            railMarks.strokeRoundedRect(220, 180, 1160, 560, 42);
+            railMarks.lineStyle(1, 0xf3d8ab, 0.05);
+            for (let x = 260; x <= 1340; x += 110) {
+              railMarks.moveTo(x, 180);
+              railMarks.lineTo(x, 740);
+            }
+            for (let y = 220; y <= 700; y += 96) {
+              railMarks.moveTo(220, y);
+              railMarks.lineTo(1380, y);
+            }
+            railMarks.strokePath();
+
+            const centerMark = this.add.graphics();
+            centerMark.lineStyle(3, 0xf0bf76, 0.1);
+            centerMark.strokeCircle(800, 455, 118);
+            centerMark.lineStyle(1, 0x9ce9ff, 0.18);
+            centerMark.strokeCircle(800, 455, 40);
+            return;
+          }
+
           if (mapId === "deadrock_gulch") {
             this.add.rectangle(800, 140, 1600, 280, 0x3f2419, 1);
             this.add.rectangle(800, 250, 1600, 220, 0x72482e, 0.38);
@@ -1047,7 +1113,28 @@ export function ArenaCanvas({
           centerMark.strokeCircle(800, 455, 36);
         }
 
-        private buildFrontierLandmarks(mapId: "dust_circuit" | "deadrock_gulch") {
+        private buildFrontierLandmarks(mapId: FrontierMapId) {
+          if (mapId === "ironwood_crossing") {
+            this.drawBuilding(160, 148, 240, 118, "DEPOT");
+            this.drawBuilding(1210, 146, 240, 118, "MILL");
+            this.drawWaterTower(1005, 226);
+            this.drawWagon(800, 280);
+            this.drawPropStack(720, 286);
+            this.drawPropStack(880, 286);
+            this.drawBuilding(160, 648, 250, 126, "BOARDING");
+            this.drawCorral(1180, 600, 190, 104);
+            this.drawFence(500, 610, 170);
+            this.drawFence(980, 575, 150);
+            this.drawPropStack(610, 330);
+            this.drawPropStack(920, 560);
+            this.drawPropStack(760, 635);
+            this.addLandmarkPlaque(800, 350, "FREIGHT LINE");
+            this.addLandmarkPlaque(500, 665, "WEST FENCE");
+            this.addLandmarkPlaque(1035, 306, "PUMP TOWER");
+            this.addLandmarkPlaque(1190, 728, "STOCK PENS");
+            return;
+          }
+
           if (mapId === "deadrock_gulch") {
             this.drawBuilding(210, 158, 220, 116, "SHERIFF");
             this.drawBuilding(1260, 170, 230, 122, "DRY STORE");
