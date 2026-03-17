@@ -2065,11 +2065,6 @@ export function GameShell() {
   }, [selectedAgent]);
 
   useEffect(() => {
-    const existing = window.localStorage.getItem(authStorageKey);
-    if (existing) {
-      setAuthToken(existing);
-    }
-
     return () => {
       txRevealTimersRef.current.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
@@ -2081,6 +2076,33 @@ export function GameShell() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    const storedToken = window.localStorage.getItem(authStorageKey);
+    const storedAddress = window.localStorage.getItem(authAddressStorageKey);
+
+    if (!hydratedIsConnected || !address) {
+      setAuthToken(null);
+      resetPrivateState();
+      return;
+    }
+
+    if (
+      storedToken &&
+      storedAddress &&
+      storedAddress.toLowerCase() === address.toLowerCase()
+    ) {
+      setAuthToken(storedToken);
+      return;
+    }
+
+    setAuthToken(null);
+    resetPrivateState();
+  }, [address, hasHydrated, hydratedIsConnected]);
 
   useEffect(() => {
     if (!isConnected || !address || !authToken) {
@@ -2476,10 +2498,7 @@ export function GameShell() {
     await switchChainAsync({ chainId: xLayerMainnetChain.id });
   }
 
-  function clearSession(nextStatus?: string) {
-    window.localStorage.removeItem(authStorageKey);
-    window.localStorage.removeItem(authAddressStorageKey);
-    setAuthToken(null);
+  function resetPrivateState(nextStatus?: string) {
     setAgents([]);
     setSelectedAgentId(undefined);
     setTransactions([]);
@@ -2503,6 +2522,13 @@ export function GameShell() {
     if (nextStatus) {
       setStatus(nextStatus);
     }
+  }
+
+  function clearSession(nextStatus?: string) {
+    window.localStorage.removeItem(authStorageKey);
+    window.localStorage.removeItem(authAddressStorageKey);
+    setAuthToken(null);
+    resetPrivateState(nextStatus);
   }
 
   function dismissTxReveal(id: string) {
