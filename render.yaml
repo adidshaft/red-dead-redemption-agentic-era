@@ -76,7 +76,7 @@ services:
     runtime: node
     plan: free
     autoDeploy: true
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @rdr/web build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @rdr/shared build && pnpm --filter @rdr/web build
     startCommand: pnpm --filter @rdr/web start
     envVars:
       - key: NEXT_PUBLIC_SERVER_URL
