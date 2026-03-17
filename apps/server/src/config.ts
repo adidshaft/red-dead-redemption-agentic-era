@@ -28,6 +28,8 @@ if (existsSync(rootEnvPath)) {
   }
 }
 
+const resolvedServerPort = process.env.SERVER_PORT ?? process.env.PORT;
+
 const envSchema = z.object({
   DATABASE_URL: z
     .string()
@@ -78,4 +80,7 @@ const envSchema = z.object({
     .default("rdr-wallet-encryption-dev-secret"),
 });
 
-export const config = envSchema.parse(process.env);
+export const config = envSchema.parse({
+  ...process.env,
+  SERVER_PORT: resolvedServerPort,
+});

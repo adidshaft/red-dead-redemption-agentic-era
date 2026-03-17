@@ -1,0 +1,97 @@
+services:
+  - type: web
+    name: rdr-api
+    runtime: node
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @rdr/shared build && pnpm --filter @rdr/server build
+    startCommand: node apps/server/dist/index.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: PUBLIC_APP_URL
+        value: https://REPLACE_WITH_RENDER_WEB_URL.onrender.com
+      - key: NEXT_PUBLIC_SERVER_URL
+        value: https://REPLACE_WITH_RENDER_API_URL.onrender.com
+      - key: NEXT_PUBLIC_XLAYER_TESTNET_CHAIN_ID
+        value: "1952"
+      - key: NEXT_PUBLIC_XLAYER_TESTNET_RPC_URL
+        value: https://testrpc.xlayer.tech/terigon
+      - key: NEXT_PUBLIC_XLAYER_EXPLORER_URL
+        value: https://www.okx.com/web3/explorer/xlayer-test
+      - key: NEXT_PUBLIC_XLAYER_MAINNET_CHAIN_ID
+        value: "196"
+      - key: NEXT_PUBLIC_XLAYER_MAINNET_RPC_URL
+        value: https://rpc.xlayer.tech
+      - key: NEXT_PUBLIC_XLAYER_MAINNET_EXPLORER_URL
+        value: https://www.okx.com/web3/explorer/xlayer
+      - key: NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+      - key: ONCHAIN_OS_API_KEY
+        sync: false
+      - key: ONCHAIN_OS_API_SECRET
+        sync: false
+      - key: ONCHAIN_OS_API_PASSPHRASE
+        sync: false
+      - key: ONCHAIN_OS_PROJECT_ID
+        sync: false
+      - key: ONCHAIN_OS_WALLET_BASE_URL
+        value: https://web3.okx.com
+      - key: OKX_PAYMENTS_BASE_URL
+        value: https://web3.okx.com
+      - key: ARENA_OPERATOR_PRIVATE_KEY
+        sync: false
+      - key: XLAYER_TESTNET_RPC_URL
+        value: https://testrpc.xlayer.tech/terigon
+      - key: XLAYER_TESTNET_CHAIN_ID
+        value: "1952"
+      - key: XLAYER_MAINNET_RPC_URL
+        value: https://rpc.xlayer.tech
+      - key: XLAYER_MAINNET_CHAIN_ID
+        value: "196"
+      - key: X402_AUTONOMY_ASSET
+        value: 0x74b7f16337b8972027f6196a17a631ac6de26d22
+      - key: X402_AUTONOMY_ASSET_NAME
+        value: USD Coin
+      - key: X402_AUTONOMY_ASSET_VERSION
+        value: "2"
+      - key: X402_AUTONOMY_AMOUNT
+        value: "1000000"
+      - key: X402_AUTONOMY_TIMEOUT_SECONDS
+        value: "300"
+      - key: APP_TREASURY_ADDRESS
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: WALLET_ENCRYPTION_SECRET
+        generateValue: true
+
+  - type: web
+    name: rdr-web
+    runtime: node
+    plan: free
+    autoDeploy: true
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @rdr/web build
+    startCommand: pnpm --filter @rdr/web start
+    envVars:
+      - key: NEXT_PUBLIC_SERVER_URL
+        value: https://REPLACE_WITH_RENDER_API_URL.onrender.com
+      - key: NEXT_PUBLIC_XLAYER_TESTNET_CHAIN_ID
+        value: "1952"
+      - key: NEXT_PUBLIC_XLAYER_TESTNET_RPC_URL
+        value: https://testrpc.xlayer.tech/terigon
+      - key: NEXT_PUBLIC_XLAYER_EXPLORER_URL
+        value: https://www.okx.com/web3/explorer/xlayer-test
+      - key: NEXT_PUBLIC_XLAYER_MAINNET_CHAIN_ID
+        value: "196"
+      - key: NEXT_PUBLIC_XLAYER_MAINNET_RPC_URL
+        value: https://rpc.xlayer.tech
+      - key: NEXT_PUBLIC_XLAYER_MAINNET_EXPLORER_URL
+        value: https://www.okx.com/web3/explorer/xlayer
+      - key: NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS
+        sync: false
