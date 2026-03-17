@@ -30,10 +30,11 @@ import {
   useWalletClient,
 } from "wagmi";
 import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
-import { formatEther, keccak256, stringToHex, type Address } from "viem";
+import { formatEther, keccak256, parseEther, stringToHex, type Address } from "viem";
 import {
   arenaEconomyAbi,
   calculateSkillPurchasePrice,
+  createDefaultAgentBudgetPolicy,
   gameConfig,
   getFrontierMap,
   mapSkillToId,
@@ -42,6 +43,7 @@ import {
   skillLabels,
   toExplorerTxUrl,
   winnerShareBasisPoints,
+  type AgentBudgetPolicy,
   type AgentCampaignStats,
   type AgentMatchRecord,
   type AgentProfile,
@@ -74,6 +76,7 @@ import {
   registerSkillPurchase,
   requestAutonomyPass,
   sendArenaCommand,
+  updateAgentBudgetPolicy,
   updateAgentMode,
   verifySignature,
   type QueueUpdate,
@@ -123,6 +126,16 @@ type RecentSkillUpgrade = {
   agentId: string;
   skill: SkillKey;
   nextValue: number;
+};
+
+type BudgetPolicyDraft = {
+  enabled: boolean;
+  skillBudgetOkb: string;
+  maxSingleSkillBuyOkb: string;
+  reserveMatchEntries: number;
+  queueDiscipline: AgentBudgetPolicy["queueDiscipline"];
+  autoPromptSkillBuy: boolean;
+  autoQueuePractice: boolean;
 };
 
 const skillImpactGuides: Record<
@@ -232,6 +245,9 @@ export function GameShell() {
   const [recentSkillUpgrade, setRecentSkillUpgrade] = useState<RecentSkillUpgrade | null>(
     null,
   );
+  const [budgetDraft, setBudgetDraft] = useState<BudgetPolicyDraft>(() =>
+    buildBudgetPolicyDraft(createDefaultAgentBudgetPolicy()),
+  );
   const [hasHydrated, setHasHydrated] = useState(false);
   const x402Fetch = useMemo(() => {
     if (!walletClient?.account) {
@@ -263,6 +279,10 @@ export function GameShell() {
   const selectedAgentRef = useRef<AgentProfile | null>(null);
   const seenTxHashesRef = useRef<Set<string>>(new Set());
   const txRevealTimersRef = useRef<Map<string, number>>(new Map());
+  const autoBuyHandledRef = useRef<Set<string>>(new Set());
+  const autoPracticeHandledRef = useRef<Set<string>>(new Set());
+  const pendingAutoPracticeRef = useRef<string | null>(null);
+  const pendingAutoPracticeAgentRef = useRef<string | null>(null);
   const hydratedIsConnected = hasHydrated && isConnected;
   const hydratedIsConnecting = hasHydrated && isConnecting;
   const hydratedAddress = hasHydrated ? address : undefined;
@@ -277,6 +297,13 @@ export function GameShell() {
   useEffect(() => {
     setHasHydrated(true);
   }, []);
+  useEffect(() => {
+    setBudgetDraft(
+      buildBudgetPolicyDraft(
+        selectedAgent?.budgetPolicy ?? createDefaultAgentBudgetPolicy(),
+      ),
+    );
+  }, [selectedAgent?.id, selectedAgent?.budgetPolicy]);
   const selectedSnapshotPlayer = useMemo(
     () =>
       snapshot && selectedAgent
@@ -1666,6 +1693,36 @@ export function GameShell() {
     autonomyPlan?.autonomyPassActive,
     autonomyQuote,
   ]);
+  const currentBudgetPolicy =
+    selectedAgent?.budgetPolicy ?? createDefaultAgentBudgetPolicy();
+  const parsedBudgetDraft = useMemo(
+    () => parseBudgetPolicyDraft(budgetDraft),
+    [budgetDraft],
+  );
+  const budgetPolicyDirty = useMemo(
+    () =>
+      JSON.stringify(parsedBudgetDraft) !== JSON.stringify(currentBudgetPolicy),
+    [currentBudgetPolicy, parsedBudgetDraft],
+  );
+  const autonomyBudgetSummary = useMemo(() => {
+    if (!selectedAgent || !autonomyPlan) {
+      return null;
+    }
+
+    return {
+      title: currentBudgetPolicy.enabled
+        ? "Budget autopilot is armed"
+        : "Budget autopilot is off",
+      detail: currentBudgetPolicy.enabled
+        ? autonomyPlan.budgetDirective
+        : "Turn this on if you want the rider to stay inside a spend cap and automatically tee up the next budget-approved move.",
+      chips: [
+        `Budget ${formatWeiToOkb(BigInt(currentBudgetPolicy.skillBudgetWei))}`,
+        `Cap ${formatWeiToOkb(BigInt(currentBudgetPolicy.maxSingleSkillBuyWei))}`,
+        `${currentBudgetPolicy.reserveMatchEntries} entry reserve`,
+      ],
+    };
+  }, [autonomyPlan, currentBudgetPolicy, selectedAgent]);
   const transactionCounts = useMemo(
     () => ({
       registrations: transactions.filter((receipt) => receipt.purpose === "agent_registration").length,
@@ -1847,9 +1904,19 @@ export function GameShell() {
     const items: AgentOperation[] = [
       {
         id: "skill",
-        label: `Approve ${skillLabels[autonomyPlan.nextSkill]}`,
-        detail: autonomyPlan.nextSkillReason,
-        status: canBuyNextSkill ? "ready" : "locked",
+        label: autonomyPlan.autoBuyReady
+          ? `Approve budgeted ${skillLabels[autonomyPlan.nextSkill]}`
+          : `Approve ${skillLabels[autonomyPlan.nextSkill]}`,
+        detail: autonomyPlan.autoBuyReady
+          ? `${autonomyPlan.nextSkillReason} This one fits the rider's spend cap right now.`
+          : autonomyPlan.autoBuyBlockedReason ?? autonomyPlan.nextSkillReason,
+        status:
+          canBuyNextSkill &&
+          (autonomyPlan.autoBuyReady || !selectedAgent.budgetPolicy.enabled)
+            ? "ready"
+            : canBuyNextSkill
+              ? "locked"
+              : "locked",
         action: "buy_skill",
       },
     ];
@@ -1873,8 +1940,13 @@ export function GameShell() {
           : "Run a practice frontier cycle",
       detail:
         autonomyPlan.recommendedQueue === "paid"
-          ? `Current readiness is ${autonomyPlan.readinessScore}%. Use the queue when the frontier is clear.`
-          : "Build another finish before risking more treasury cadence.",
+          ? autonomyPlan.paidQueueApprovalNeeded
+            ? `Current readiness is ${autonomyPlan.readinessScore}%. Paid queue still needs your wallet approval.`
+            : `Current readiness is ${autonomyPlan.readinessScore}%. Use the queue when the frontier is clear.`
+          : autonomyPlan.autoPracticeReady
+            ? "The rider can auto-stage this practice run under its budget guardrails."
+            : autonomyPlan.autoPracticeBlockedReason ??
+              "Build another finish before risking more treasury cadence.",
       status: queueLocked ? "queued" : "ready",
       action:
         autonomyPlan.recommendedQueue === "paid" ? "queue_paid" : "queue_practice",
@@ -1917,7 +1989,7 @@ export function GameShell() {
     return [
       autonomyPlan.summary,
       autonomyPlan.combatDirective,
-      autonomyPlan.objectiveDirective,
+      autonomyPlan.budgetDirective,
     ];
   }, [autonomyEvents, autonomyPlan]);
   const autopilotStatusCards = useMemo(() => {
@@ -1934,7 +2006,7 @@ export function GameShell() {
             : "Available if you want it",
         detail:
           selectedAgent.mode === "autonomous"
-            ? "Moves, aims, dodges, reloads, takes cover, and reacts to drops, bounty calls, and the dust ring."
+            ? "Moves, aims, dodges, reloads, takes cover, reacts to drops, bounty calls, and can tee up a budget-approved next upgrade."
             : "Switch this rider to Autopilot if you want the match played for you after DRAW.",
       },
       {
@@ -1944,7 +2016,7 @@ export function GameShell() {
             ? "Right after DRAW"
             : "Only if you switch it on",
         detail:
-          "Autopilot does not play the lobby. You still sign in, buy skills, and approve paid queue entry yourself.",
+          "Autopilot does not play the lobby. You still sign in and approve paid queue entry. Budget autopilot can stage the next skill buy inside its cap.",
       },
       {
         label: "What happens next",
@@ -1954,7 +2026,7 @@ export function GameShell() {
             : "Manual stays in your hands",
         detail:
           selectedAgent.mode === "autonomous"
-            ? "The live call updates whenever the rider changes its immediate plan."
+            ? "The live call updates whenever the rider changes its immediate plan or spend posture."
             : "You control movement, shots, dodge, and reload until you change modes.",
       },
     ];
@@ -1979,9 +2051,11 @@ export function GameShell() {
       },
       {
         label: "After run",
-        detail: autonomyPlan.autonomyPassActive
-          ? `Review the result, then decide whether to buy ${skillLabels[autonomyPlan.nextSkill]} next.`
-          : `Review the result, then decide whether to buy ${skillLabels[autonomyPlan.nextSkill]} or unlock premium planning.`,
+        detail: autonomyPlan.autoBuyReady
+          ? `The rider can prompt a budgeted ${skillLabels[autonomyPlan.nextSkill]} buy right after the result screen.`
+          : autonomyPlan.autonomyPassActive
+            ? `Review the result, then decide whether to buy ${skillLabels[autonomyPlan.nextSkill]} next.`
+            : `Review the result, then decide whether to buy ${skillLabels[autonomyPlan.nextSkill]} or unlock premium planning.`,
       },
     ];
   }, [autonomyPlan, selectedAgent?.mode]);
@@ -1995,7 +2069,7 @@ export function GameShell() {
         label: "You still do",
         value: "Choose, upgrade, approve",
         detail:
-          "You pick the rider, decide manual vs Autopilot, buy skills, and approve paid queue entry.",
+          "You pick the rider, decide manual vs Autopilot, set the spend cap, and approve paid queue entry.",
       },
       {
         label: "Agent does",
@@ -2004,7 +2078,7 @@ export function GameShell() {
             ? "Fight after DRAW"
             : "Ready if switched on",
         detail:
-          "Once the match starts it can move, shoot, dodge, reload, rotate through the ring, and chase drops on its own.",
+          "Once the match starts it can move, shoot, dodge, reload, rotate through the ring, chase drops, and queue up a budget-approved next buy.",
       },
       {
         label: "Watch for",
@@ -2484,6 +2558,78 @@ export function GameShell() {
     lastCountdownValueRef.current = matchCountdown;
   }, [matchCountdown, snapshot?.matchId, snapshot?.status]);
 
+  useEffect(() => {
+    if (
+      !authToken ||
+      !selectedAgent ||
+      selectedAgent.mode !== "autonomous" ||
+      !autonomyPlan ||
+      snapshot?.status !== "finished" ||
+      busyAction
+    ) {
+      return;
+    }
+
+    const matchKey = `${selectedAgent.id}:${snapshot.matchId}`;
+    if (autonomyPlan.autoBuyReady && !autoBuyHandledRef.current.has(matchKey)) {
+      autoBuyHandledRef.current.add(matchKey);
+      void handleBuySkill(autonomyPlan.nextSkill, {
+        source: "autonomy",
+        queuePracticeAfter: autonomyPlan.autoPracticeReady,
+        originMatchKey: matchKey,
+      });
+      return;
+    }
+
+    if (
+      autonomyPlan.autoPracticeReady &&
+      !autoPracticeHandledRef.current.has(matchKey) &&
+      !queueLocked
+    ) {
+      autoPracticeHandledRef.current.add(matchKey);
+      setStatus(
+        `${selectedAgent.displayName} is auto-queuing another practice run under its budget policy.`,
+      );
+      void handleQueue(false);
+    }
+  }, [
+    authToken,
+    autonomyPlan,
+    busyAction,
+    queueLocked,
+    selectedAgent,
+    snapshot?.matchId,
+    snapshot?.status,
+  ]);
+
+  useEffect(() => {
+    const pendingMatchKey = pendingAutoPracticeRef.current;
+    const pendingAgentId = pendingAutoPracticeAgentRef.current;
+    if (
+      !pendingMatchKey ||
+      !pendingAgentId ||
+      !authToken ||
+      busyAction ||
+      queueLocked ||
+      !selectedAgent ||
+      selectedAgent.id !== pendingAgentId
+    ) {
+      return;
+    }
+
+    pendingAutoPracticeRef.current = null;
+    pendingAutoPracticeAgentRef.current = null;
+    if (autoPracticeHandledRef.current.has(pendingMatchKey)) {
+      return;
+    }
+
+    autoPracticeHandledRef.current.add(pendingMatchKey);
+    setStatus(
+      `${selectedAgent.displayName} finished the budgeted upgrade and is rolling straight into a practice run.`,
+    );
+    void handleQueue(false);
+  }, [authToken, busyAction, queueLocked, selectedAgent]);
+
   async function ensureXLayer() {
     if (chainId === xLayerTestnetChain.id) {
       return;
@@ -2515,6 +2661,10 @@ export function GameShell() {
     lastQueueStatusRef.current = "idle";
     frontierCueMatchIdRef.current = null;
     seenTxHashesRef.current = new Set();
+    autoBuyHandledRef.current = new Set();
+    autoPracticeHandledRef.current = new Set();
+    pendingAutoPracticeRef.current = null;
+    pendingAutoPracticeAgentRef.current = null;
     txRevealTimersRef.current.forEach((timeoutId) => {
       window.clearTimeout(timeoutId);
     });
@@ -2944,7 +3094,44 @@ export function GameShell() {
     }
   }
 
-  async function handleBuySkill(skill: SkillKey) {
+  async function handleBudgetPolicySave() {
+    if (!authToken || !selectedAgent) {
+      return;
+    }
+
+    setBusyAction("budget-policy");
+    try {
+      const response = await updateAgentBudgetPolicy(
+        authToken,
+        selectedAgent.id,
+        parsedBudgetDraft,
+      );
+      setAgents((current) =>
+        current.map((agent) =>
+          agent.id === response.agent.id ? response.agent : agent,
+        ),
+      );
+      await loadAutonomyPlan(response.agent.id);
+      setStatus(
+        response.agent.budgetPolicy.enabled
+          ? `${response.agent.displayName} now has budget guardrails for autonomous upgrades and follow-up practice runs.`
+          : `${response.agent.displayName} is back on manual economy control.`,
+      );
+    } catch (error) {
+      setStatus(normalizeUiError(error, "Budget policy update failed."));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleBuySkill(
+    skill: SkillKey,
+    options?: {
+      source?: "manual" | "autonomy";
+      queuePracticeAfter?: boolean;
+      originMatchKey?: string;
+    },
+  ) {
     if (
       !selectedAgent ||
       !authToken ||
@@ -2974,6 +3161,7 @@ export function GameShell() {
         selectedAgent.id,
         skill,
         hash,
+        options?.source ?? "manual",
       );
       pushTxReveal(
         response.receipt,
@@ -2992,10 +3180,18 @@ export function GameShell() {
       );
       await loadTransactions(selectedAgent.id);
       await loadAutonomyPlan(selectedAgent.id);
+      if (options?.queuePracticeAfter && options.originMatchKey) {
+        pendingAutoPracticeRef.current = options.originMatchKey;
+        pendingAutoPracticeAgentRef.current = selectedAgent.id;
+      }
       setStatus(
-        `${skillLabels[skill]} improved for ${selectedAgent.displayName}. ${skillImpactGuides[skill].impactSummary(
-          response.agent.skills[skill],
-        )}.`,
+        options?.source === "autonomy"
+          ? `${selectedAgent.displayName} used its budget lane to buy ${skillLabels[skill]}. ${skillImpactGuides[skill].impactSummary(
+              response.agent.skills[skill],
+            )}.`
+          : `${skillLabels[skill]} improved for ${selectedAgent.displayName}. ${skillImpactGuides[skill].impactSummary(
+              response.agent.skills[skill],
+            )}.`,
       );
     } catch (error) {
       setStatus(normalizeUiError(error, "Skill purchase failed."));
@@ -3014,6 +3210,8 @@ export function GameShell() {
     setRecentEvents([]);
     setSpectatorFollowLeader(false);
     setMatchCountdown(null);
+    pendingAutoPracticeRef.current = null;
+    pendingAutoPracticeAgentRef.current = null;
     queuedMatchIdRef.current = null;
     startedMatchIdRef.current = null;
     frontierCueMatchIdRef.current = null;
@@ -3156,7 +3354,9 @@ export function GameShell() {
     switch (operation.action) {
       case "buy_skill":
         if (autonomyPlan) {
-          await handleBuySkill(autonomyPlan.nextSkill);
+          await handleBuySkill(autonomyPlan.nextSkill, {
+            source: "autonomy",
+          });
         }
         break;
       case "queue_paid":
@@ -3765,6 +3965,29 @@ export function GameShell() {
                       <EmptyState label="No finished run logged yet." compact />
                     )}
                   </div>
+                  {autonomyBudgetSummary && (
+                    <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/[0.05] p-4">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-[#bfeee0]/70">
+                        Budget Autopilot
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                        {autonomyBudgetSummary.title}
+                      </div>
+                      <div className="mt-2 text-sm text-stone-200/72">
+                        {autonomyBudgetSummary.detail}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-stone-200/62">
+                        {autonomyBudgetSummary.chips.map((chip) => (
+                          <span
+                            key={chip}
+                            className="rounded-full border border-white/10 px-2.5 py-1"
+                          >
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : activeConsoleTab === "autonomy" ? (
@@ -3866,6 +4089,186 @@ export function GameShell() {
                         />
                       ))}
                     </div>
+                  </div>
+                  <div className="rounded-[24px] border border-[#7ed2b4]/14 bg-[#7ed2b4]/[0.05] p-4">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-[#bfeee0]/70">
+                      Budget guardrails
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-[#f6ead7]">
+                      Tell the rider how much it can spend
+                    </div>
+                    <div className="mt-2 text-sm text-stone-200/72">
+                      This only affects autonomous follow-up actions. Paid queue still needs your wallet approval.
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      <label className="flex items-center justify-between gap-3 rounded-[16px] border border-white/8 bg-black/14 px-3 py-3 text-sm text-stone-200/72">
+                        <span>
+                          <span className="font-semibold text-[#f6ead7]">Enable budget autopilot</span>
+                          <span className="mt-1 block text-xs text-stone-300/58">
+                            Let the rider stay inside a spend cap and tee up the next move.
+                          </span>
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={budgetDraft.enabled}
+                          onChange={(event) =>
+                            setBudgetDraft((current) => ({
+                              ...current,
+                              enabled: event.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-white/20 bg-black/30 text-[#7ed2b4] focus:ring-[#7ed2b4]"
+                        />
+                      </label>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="space-y-2">
+                          <span className="text-[11px] uppercase tracking-[0.16em] text-stone-300/56">
+                            Total upgrade budget
+                          </span>
+                          <input
+                            value={budgetDraft.skillBudgetOkb}
+                            onChange={(event) =>
+                              setBudgetDraft((current) => ({
+                                ...current,
+                                skillBudgetOkb: event.target.value,
+                              }))
+                            }
+                            className="w-full rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm outline-none focus:border-[#7ed2b4]/35"
+                            inputMode="decimal"
+                            placeholder="0.006"
+                          />
+                        </label>
+                        <label className="space-y-2">
+                          <span className="text-[11px] uppercase tracking-[0.16em] text-stone-300/56">
+                            Single-buy cap
+                          </span>
+                          <input
+                            value={budgetDraft.maxSingleSkillBuyOkb}
+                            onChange={(event) =>
+                              setBudgetDraft((current) => ({
+                                ...current,
+                                maxSingleSkillBuyOkb: event.target.value,
+                              }))
+                            }
+                            className="w-full rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm outline-none focus:border-[#7ed2b4]/35"
+                            inputMode="decimal"
+                            placeholder="0.002"
+                          />
+                        </label>
+                        <label className="space-y-2">
+                          <span className="text-[11px] uppercase tracking-[0.16em] text-stone-300/56">
+                            Paid entry reserve
+                          </span>
+                          <select
+                            value={budgetDraft.reserveMatchEntries}
+                            onChange={(event) =>
+                              setBudgetDraft((current) => ({
+                                ...current,
+                                reserveMatchEntries: Number(event.target.value),
+                              }))
+                            }
+                            className="w-full rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm outline-none focus:border-[#7ed2b4]/35"
+                          >
+                            {[0, 1, 2, 3].map((count) => (
+                              <option key={count} value={count} className="bg-[#140f0b]">
+                                {count} paid {count === 1 ? "entry" : "entries"}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="space-y-2">
+                          <span className="text-[11px] uppercase tracking-[0.16em] text-stone-300/56">
+                            Queue posture
+                          </span>
+                          <select
+                            value={budgetDraft.queueDiscipline}
+                            onChange={(event) =>
+                              setBudgetDraft((current) => ({
+                                ...current,
+                                queueDiscipline: event.target.value as AgentBudgetPolicy["queueDiscipline"],
+                              }))
+                            }
+                            className="w-full rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm outline-none focus:border-[#7ed2b4]/35"
+                          >
+                            <option value="practice_first" className="bg-[#140f0b]">
+                              Practice first
+                            </option>
+                            <option value="balanced" className="bg-[#140f0b]">
+                              Balanced
+                            </option>
+                            <option value="paid_only" className="bg-[#140f0b]">
+                              Paid only
+                            </option>
+                          </select>
+                        </label>
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="flex items-center justify-between gap-3 rounded-[14px] border border-white/8 bg-black/14 px-3 py-2 text-sm text-stone-200/72">
+                          <span>
+                            <span className="font-semibold text-[#f6ead7]">Auto-prompt the next skill buy</span>
+                            <span className="mt-1 block text-xs text-stone-300/58">
+                              Opens the wallet prompt after a finished autonomous run when the next skill fits the cap.
+                            </span>
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={budgetDraft.autoPromptSkillBuy}
+                            onChange={(event) =>
+                              setBudgetDraft((current) => ({
+                                ...current,
+                                autoPromptSkillBuy: event.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 rounded border-white/20 bg-black/30 text-[#7ed2b4] focus:ring-[#7ed2b4]"
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 rounded-[14px] border border-white/8 bg-black/14 px-3 py-2 text-sm text-stone-200/72">
+                          <span>
+                            <span className="font-semibold text-[#f6ead7]">Auto-queue practice follow-up</span>
+                            <span className="mt-1 block text-xs text-stone-300/58">
+                              Rolls straight into the next practice run when the planner wants more reps.
+                            </span>
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={budgetDraft.autoQueuePractice}
+                            onChange={(event) =>
+                              setBudgetDraft((current) => ({
+                                ...current,
+                                autoQueuePractice: event.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 rounded border-white/20 bg-black/30 text-[#7ed2b4] focus:ring-[#7ed2b4]"
+                          />
+                        </label>
+                      </div>
+                      {autonomyPlan && (
+                        <div className="rounded-[16px] border border-white/8 bg-black/14 px-3 py-3 text-sm text-stone-200/72">
+                          <div className="font-semibold text-[#f6ead7]">
+                            {autonomyPlan.autoBuyReady
+                              ? `Next budgeted move: ${skillLabels[autonomyPlan.nextSkill]}`
+                              : autonomyPlan.autoPracticeReady
+                                ? "Next budgeted move: another practice run"
+                                : "Budget lane is waiting"}
+                          </div>
+                          <div className="mt-1 text-xs leading-relaxed text-stone-300/60">
+                            {autonomyPlan.autoBuyReady
+                              ? `${formatWeiToOkb(BigInt(autonomyPlan.nextSkillPriceWei))} fits the cap, and the rider is ready to prompt the upgrade after the next autonomous finish.`
+                              : autonomyPlan.autoBuyBlockedReason ??
+                                autonomyPlan.autoPracticeBlockedReason ??
+                                autonomyPlan.budgetDirective}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleBudgetPolicySave()}
+                      disabled={!budgetPolicyDirty || busyAction !== null}
+                      className="mt-4 rounded-full border border-[#7ed2b4]/22 bg-[#7ed2b4]/10 px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#d9f7ee] transition hover:bg-[#7ed2b4]/16 disabled:opacity-45"
+                    >
+                      Save budget policy
+                    </button>
                   </div>
                   <div className="rounded-[24px] border border-[#df6c39]/18 bg-[#df6c39]/6 p-4">
                     <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/76">
@@ -6310,6 +6713,60 @@ function EmptyState({
       {label}
     </div>
   );
+}
+
+function buildBudgetPolicyDraft(policy: AgentBudgetPolicy): BudgetPolicyDraft {
+  return {
+    enabled: policy.enabled,
+    skillBudgetOkb: formatBudgetInput(policy.skillBudgetWei),
+    maxSingleSkillBuyOkb: formatBudgetInput(policy.maxSingleSkillBuyWei),
+    reserveMatchEntries: policy.reserveMatchEntries,
+    queueDiscipline: policy.queueDiscipline,
+    autoPromptSkillBuy: policy.autoPromptSkillBuy,
+    autoQueuePractice: policy.autoQueuePractice,
+  };
+}
+
+function parseBudgetPolicyDraft(draft: BudgetPolicyDraft): AgentBudgetPolicy {
+  const fallback = createDefaultAgentBudgetPolicy();
+  return {
+    enabled: draft.enabled,
+    skillBudgetWei: parseBudgetInputToWei(draft.skillBudgetOkb) ?? fallback.skillBudgetWei,
+    maxSingleSkillBuyWei:
+      parseBudgetInputToWei(draft.maxSingleSkillBuyOkb) ??
+      fallback.maxSingleSkillBuyWei,
+    reserveMatchEntries: Math.max(0, Math.min(5, draft.reserveMatchEntries)),
+    queueDiscipline: draft.queueDiscipline,
+    autoPromptSkillBuy: draft.autoPromptSkillBuy,
+    autoQueuePractice: draft.autoQueuePractice,
+  };
+}
+
+function formatBudgetInput(valueWei: string) {
+  try {
+    return trimDecimalInput(formatEther(BigInt(valueWei)));
+  } catch {
+    return trimDecimalInput(
+      formatEther(BigInt(createDefaultAgentBudgetPolicy().skillBudgetWei)),
+    );
+  }
+}
+
+function parseBudgetInputToWei(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    return parseEther(trimmed).toString();
+  } catch {
+    return null;
+  }
+}
+
+function trimDecimalInput(value: string) {
+  return value.replace(/(\.\d*?[1-9])0+$/u, "$1").replace(/\.0+$/u, "");
 }
 
 function truncateAddress(value: string) {

@@ -2,8 +2,20 @@ import crypto from "node:crypto";
 
 import { Pool } from "pg";
 
-import { gameConfig, matchSnapshotSchema } from "@rdr/shared";
-import type { AgentMode, AgentProfile, MatchEvent, MatchSnapshot, OnchainReceipt, SkillSet } from "@rdr/shared";
+import {
+  createDefaultAgentBudgetPolicy,
+  gameConfig,
+  matchSnapshotSchema,
+} from "@rdr/shared";
+import type {
+  AgentBudgetPolicy,
+  AgentMode,
+  AgentProfile,
+  MatchEvent,
+  MatchSnapshot,
+  OnchainReceipt,
+  SkillSet,
+} from "@rdr/shared";
 
 type DbAgentRow = {
   id: string;
@@ -15,6 +27,8 @@ type DbAgentRow = {
   is_starter: boolean;
   wallet_address: string;
   skills: SkillSet;
+  budget_policy: AgentBudgetPolicy | null;
+  auto_spend_wei: string;
   created_at: Date;
 };
 
@@ -161,6 +175,14 @@ export class Database {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+
+    await this.pool.query(`
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS budget_policy JSONB;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS auto_spend_wei TEXT NOT NULL DEFAULT '0';
+      UPDATE agents
+      SET budget_policy = $1::jsonb
+      WHERE budget_policy IS NULL
+    `, [JSON.stringify(createDefaultAgentBudgetPolicy())]);
   }
 
   async upsertUser(address: string, nonce?: string) {
@@ -206,13 +228,14 @@ export class Database {
     walletAccountId?: string | null;
     encryptedPrivateKey?: string | null;
     skills: SkillSet;
+    budgetPolicy: AgentBudgetPolicy;
   }) {
     await this.pool.query(
       `
         INSERT INTO agents (
-          id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, wallet_account_id, encrypted_private_key, skills
+          id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, wallet_account_id, encrypted_private_key, skills, budget_policy, auto_spend_wei
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13
         )
       `,
       [
@@ -227,6 +250,8 @@ export class Database {
         input.walletAccountId ?? null,
         input.encryptedPrivateKey ?? null,
         JSON.stringify(input.skills),
+        JSON.stringify(input.budgetPolicy),
+        "0",
       ],
     );
 
@@ -245,7 +270,7 @@ export class Database {
 
   async listAgentsByOwner(ownerAddress: string) {
     const result = await this.pool.query<DbAgentRow>(
-      `SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, created_at FROM agents WHERE owner_address = $1 ORDER BY created_at ASC`,
+      `SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, budget_policy, auto_spend_wei, created_at FROM agents WHERE owner_address = $1 ORDER BY created_at ASC`,
       [ownerAddress.toLowerCase()],
     );
     return result.rows.map(mapAgentRow);
@@ -253,7 +278,7 @@ export class Database {
 
   async getAgentById(agentId: string) {
     const result = await this.pool.query<DbAgentRow>(
-      `SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, created_at FROM agents WHERE id = $1`,
+      `SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, budget_policy, auto_spend_wei, created_at FROM agents WHERE id = $1`,
       [agentId],
     );
     const row = result.rows[0];
@@ -270,6 +295,22 @@ export class Database {
       agentId,
       JSON.stringify(skills),
     ]);
+    return this.getAgentById(agentId);
+  }
+
+  async updateAgentBudgetPolicy(agentId: string, budgetPolicy: AgentBudgetPolicy) {
+    await this.pool.query(
+      `UPDATE agents SET budget_policy = $2::jsonb, updated_at = NOW() WHERE id = $1`,
+      [agentId, JSON.stringify(budgetPolicy)],
+    );
+    return this.getAgentById(agentId);
+  }
+
+  async incrementAgentAutoSpend(agentId: string, amountWei: string) {
+    await this.pool.query(
+      `UPDATE agents SET auto_spend_wei = (COALESCE(auto_spend_wei, '0')::numeric + $2::numeric)::text, updated_at = NOW() WHERE id = $1`,
+      [agentId, amountWei],
+    );
     return this.getAgentById(agentId);
   }
 
@@ -476,6 +517,8 @@ function mapAgentRow(row: DbAgentRow): AgentProfile {
     isStarter: row.is_starter,
     walletAddress: row.wallet_address,
     skills: row.skills,
+    budgetPolicy: row.budget_policy ?? createDefaultAgentBudgetPolicy(),
+    autoSpendWei: row.auto_spend_wei ?? "0",
     createdAt: row.created_at.toISOString(),
   };
 }

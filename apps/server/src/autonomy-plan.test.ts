@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { AgentProfile, OnchainReceipt } from "@rdr/shared";
+import {
+  createDefaultAgentBudgetPolicy,
+  type AgentProfile,
+  type OnchainReceipt,
+} from "@rdr/shared";
 
 import { buildAutonomyPlan } from "./autonomy-plan.js";
 
@@ -14,6 +18,8 @@ function createAgent(overrides?: Partial<AgentProfile>): AgentProfile {
     mode: "autonomous",
     isStarter: true,
     walletAddress: "0x0000000000000000000000000000000000000001",
+    budgetPolicy: createDefaultAgentBudgetPolicy(),
+    autoSpendWei: "0",
     skills: {
       quickdraw: 36,
       grit: 24,
@@ -60,6 +66,8 @@ describe("buildAutonomyPlan", () => {
     expect(plan.objectiveDirective.toLowerCase()).toContain("objective");
     expect(plan.readinessScore).toBeGreaterThan(0);
     expect(plan.confidenceBand).toBe("low");
+    expect(plan.autoBuyReady).toBe(false);
+    expect(plan.autoBuyBlockedReason).toContain("Budget autopilot is off");
   });
 
   it("switches economy guidance when the x402 autonomy pass is active", () => {
@@ -74,5 +82,27 @@ describe("buildAutonomyPlan", () => {
     expect(plan.autonomyPassValidUntil).toBe("2026-03-15T10:00:00.000Z");
     expect(plan.x402Directive.toLowerCase()).toContain("premium autonomy");
     expect(plan.confidenceBand).toBe("low");
+  });
+
+  it("arms budget-aware auto-buy when the next skill fits the spend policy", () => {
+    const plan = buildAutonomyPlan(
+      createAgent({
+        budgetPolicy: {
+          ...createDefaultAgentBudgetPolicy(),
+          enabled: true,
+          autoPromptSkillBuy: true,
+          autoQueuePractice: true,
+        },
+      }),
+      [],
+      false,
+      null,
+    );
+
+    expect(plan.autoBuyReady).toBe(true);
+    expect(plan.autoBuyBlockedReason).toBeNull();
+    expect(plan.budgetRemainingWei).toBe("6000000000000000");
+    expect(plan.nextSkillPriceWei).toBe("2000000000000000");
+    expect(plan.autoPracticeReady).toBe(true);
   });
 });

@@ -20,6 +20,7 @@ import {
   arenaCommandSchema,
   buySkillInputSchema,
   calculateSkillPurchasePrice,
+  createDefaultAgentBudgetPolicy,
   createAgentInputSchema,
   createNonceInputSchema,
   type FrontierChainActivity,
@@ -34,6 +35,7 @@ import {
   setAgentModeInputSchema,
   settleWebhookInputSchema,
   toExplorerTxUrl,
+  updateBudgetPolicyInputSchema,
   verifySignatureInputSchema,
   winnerShareBasisPoints,
   x402AutonomyPassInputSchema,
@@ -580,6 +582,7 @@ app.post("/agents", async (request, reply) => {
     walletAccountId: wallet.walletAccountId,
     encryptedPrivateKey: wallet.encryptedPrivateKey,
     skills: createStarterSkills(),
+    budgetPolicy: createDefaultAgentBudgetPolicy(),
   });
 
   if (!agent) {
@@ -656,6 +659,31 @@ app.post("/agents/:id/mode", async (request, reply) => {
   };
 });
 
+app.post("/agents/:id/budget-policy", async (request, reply) => {
+  const address = await requireAddress(request);
+  if (!address) {
+    return reply.status(401).send(unauthorizedReply().body);
+  }
+
+  const agentId = (request.params as { id: string }).id;
+  const agent = await db.getAgentById(agentId);
+  if (!agent || agent.ownerAddress !== address) {
+    return reply.status(404).send({ error: "Agent not found" });
+  }
+
+  const parsed = updateBudgetPolicyInputSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply
+      .status(400)
+      .send({ error: "Invalid request", details: parsed.error.flatten() });
+  }
+
+  const updated = await db.updateAgentBudgetPolicy(agentId, parsed.data);
+  return {
+    agent: updated,
+  };
+});
+
 app.get("/agents/:id/transactions", async (request, reply) => {
   const address = await requireAddress(request);
   if (!address) {
@@ -707,7 +735,13 @@ app.post("/agents/:id/skills", async (request, reply) => {
   }
 
   const updatedSkills = applySkillUpgrade(agent.skills, parsed.data.skill);
-  const updatedAgent = await db.updateAgentSkills(agentId, updatedSkills);
+  let updatedAgent = await db.updateAgentSkills(agentId, updatedSkills);
+  if (parsed.data.source === "autonomy" && agent.budgetPolicy.enabled) {
+    const spentAmountWei = calculateSkillPurchasePrice(
+      agent.skills[parsed.data.skill],
+    ).toString();
+    updatedAgent = await db.incrementAgentAutoSpend(agentId, spentAmountWei);
+  }
   await db.createOrUpdateTransaction(receipt);
 
   return {

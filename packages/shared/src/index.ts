@@ -793,6 +793,36 @@ export type SkillSet = z.infer<typeof skillSetSchema>;
 export const agentModeSchema = z.enum(["manual", "autonomous"]);
 export type AgentMode = z.infer<typeof agentModeSchema>;
 
+export const queueDisciplineSchema = z.enum([
+  "practice_first",
+  "balanced",
+  "paid_only",
+]);
+export type QueueDiscipline = z.infer<typeof queueDisciplineSchema>;
+
+export const agentBudgetPolicySchema = z.object({
+  enabled: z.boolean(),
+  skillBudgetWei: z.string().min(1),
+  maxSingleSkillBuyWei: z.string().min(1),
+  reserveMatchEntries: z.number().int().min(0).max(5),
+  queueDiscipline: queueDisciplineSchema,
+  autoPromptSkillBuy: z.boolean(),
+  autoQueuePractice: z.boolean(),
+});
+export type AgentBudgetPolicy = z.infer<typeof agentBudgetPolicySchema>;
+
+export function createDefaultAgentBudgetPolicy(): AgentBudgetPolicy {
+  return {
+    enabled: false,
+    skillBudgetWei: "6000000000000000",
+    maxSingleSkillBuyWei: "2000000000000000",
+    reserveMatchEntries: 1,
+    queueDiscipline: "balanced",
+    autoPromptSkillBuy: true,
+    autoQueuePractice: false,
+  };
+}
+
 export const agentProfileSchema = z.object({
   id: z.string().min(1),
   ownerAddress: z.string().min(1),
@@ -803,6 +833,8 @@ export const agentProfileSchema = z.object({
   isStarter: z.boolean(),
   walletAddress: z.string().min(1),
   skills: skillSetSchema,
+  budgetPolicy: agentBudgetPolicySchema,
+  autoSpendWei: z.string().min(1),
   createdAt: z.string(),
 });
 
@@ -989,6 +1021,7 @@ export type MatchPlayerState = z.infer<typeof matchPlayerStateSchema>;
 export const autonomyPlanSchema = z.object({
   agentId: z.string(),
   mode: agentModeSchema,
+  budgetPolicy: agentBudgetPolicySchema,
   doctrine: z.string(),
   summary: z.string(),
   nextSkill: z.enum(skillKeys),
@@ -997,6 +1030,7 @@ export const autonomyPlanSchema = z.object({
   combatDirective: z.string(),
   objectiveDirective: z.string(),
   economyDirective: z.string(),
+  budgetDirective: z.string(),
   x402Directive: z.string(),
   missionTitle: z.string(),
   missionDetail: z.string(),
@@ -1018,6 +1052,13 @@ export const autonomyPlanSchema = z.object({
   skillPurchases: z.number().int().nonnegative(),
   paidEntries: z.number().int().nonnegative(),
   settlements: z.number().int().nonnegative(),
+  budgetRemainingWei: z.string(),
+  nextSkillPriceWei: z.string(),
+  autoBuyReady: z.boolean(),
+  autoBuyBlockedReason: z.string().nullable(),
+  autoPracticeReady: z.boolean(),
+  autoPracticeBlockedReason: z.string().nullable(),
+  paidQueueApprovalNeeded: z.boolean(),
 });
 
 export type AutonomyPlan = z.infer<typeof autonomyPlanSchema>;
@@ -1140,6 +1181,8 @@ export const setAgentModeInputSchema = z.object({
   mode: agentModeSchema,
 });
 
+export const updateBudgetPolicyInputSchema = agentBudgetPolicySchema;
+
 export const queueForMatchInputSchema = z.object({
   agentId: z.string().min(1),
   paid: z.boolean().default(true),
@@ -1166,6 +1209,7 @@ export const buySkillInputSchema = z.object({
   agentId: z.string().min(1),
   skill: z.enum(skillKeys),
   txHash: z.string().min(1),
+  source: z.enum(["manual", "autonomy"]).optional().default("manual"),
 });
 
 export const registerAgentInputSchema = z.object({

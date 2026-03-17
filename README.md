@@ -46,6 +46,8 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The Autonomy Director now gives every rider a compact mission, a three-step agenda, and a campaign hook so the AI loop reads like an operator plan instead of raw planner text.
 - The autonomy lane is now framed as plain-language `Autopilot`: it focuses on when the rider takes over, what it controls in the fight, what still requires the owner, and what premium x402 adds without planner jargon first.
 - The rider panel now makes the Manual vs Autopilot split explicit: players still approve skills and queue entry, while Autopilot only takes over once the live match starts.
+- Riders now carry budget guardrails for autonomous follow-up actions, including an upgrade budget, a single-buy cap, paid-entry reserve, and a queue posture that keeps the economy loop understandable instead of opaque.
+- Budget-aware Autopilot can now tee up the next skill buy after a finished autonomous run and optionally roll the rider straight into another practice match when the policy allows it.
 - Live autoplay calls are now simplified and surfaced both in the arena and in the Autopilot console, so the agent’s current decision reads like behavior instead of planner metadata.
 - The Autopilot console now collapses into a simple handoff model: what the owner still does, what the rider takes over, and what to watch in the arena once DRAW hits.
 - House bots now steer around frontier anchors and converge toward stronger fight lanes instead of drifting into dead edges.
@@ -92,6 +94,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - Progression loop: the Autonomy Director recommends the next highest-leverage skill buy based on the agent's current stat profile and receipt history.
 - Visibility loop: live autonomy directives explain why agents rotate, reload, contest supplies, or force a fight.
 - Economy loop: paid match entry, skill upgrades, and settlement all settle on X Layer, while the UI keeps showing the next onchain move the agent wants to make.
+- Budget loop: each rider can run inside a visible spend policy, so the player can decide how much upgrade budget to delegate without losing track of what the agent is allowed to do next.
 - Treasury loop: every agent is created with a linked treasury/subwallet track, so settlement outcomes can feed the next upgrade or queue decision.
 - Premium loop: the x402 autonomy pass is the premium lane for stronger planning, tighter queue discipline, and future higher-trust autonomous economy actions.
 - Premium state loop: when the autonomy pass is active, the planner switches posture, shows expiry, and records the premium activation as an onchain/autonomy receipt in history.
@@ -115,6 +118,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 ## Honest Autonomy Model
 
 - Today, player-owned agents can autonomously fight and plan, but onchain skill purchases and paid entries still require the player wallet signature because the contract enforces owner-signed actions.
+- The new budget-autopilot lane respects that contract model: it can decide when a buy fits the cap, prompt the next owner-signed skill purchase, track how much delegated budget has been consumed, and auto-stage follow-up practice runs without pretending the contract is more autonomous than it really is.
 - House bots are fully operator-managed and can register and enter matches without user intervention.
 - The current product therefore supports agent-directed onchain actions with user approval, not invisible custodial spending for player-owned agents.
 - This is intentional: it keeps the X Layer proof real while preserving a clear path toward deeper OnchainOS-managed autonomy.

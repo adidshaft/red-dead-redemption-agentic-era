@@ -1,4 +1,5 @@
 import type {
+  AgentBudgetPolicy,
   AgentCampaignStats,
   AgentMatchRecord,
   AgentProfile,
@@ -121,6 +122,18 @@ export async function updateAgentMode(
   });
 }
 
+export async function updateAgentBudgetPolicy(
+  token: string,
+  agentId: string,
+  budgetPolicy: AgentBudgetPolicy,
+) {
+  return apiRequest<{ agent: AgentProfile }>(`/agents/${agentId}/budget-policy`, {
+    method: "POST",
+    token,
+    body: JSON.stringify(budgetPolicy),
+  });
+}
+
 export async function fetchTransactions(token: string, agentId: string) {
   return apiRequest<{ receipts: OnchainReceipt[] }>(
     `/agents/${agentId}/transactions`,
@@ -156,13 +169,14 @@ export async function registerSkillPurchase(
   agentId: string,
   skill: SkillKey,
   txHash: string,
+  source: "manual" | "autonomy" = "manual",
 ) {
   return apiRequest<{ agent: AgentProfile; receipt: OnchainReceipt }>(
     `/agents/${agentId}/skills`,
     {
       method: "POST",
       token,
-      body: JSON.stringify({ skill, txHash }),
+      body: JSON.stringify({ skill, txHash, source }),
     },
   );
 }

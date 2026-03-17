@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { AgentProfile, MatchSnapshot } from "@rdr/shared";
+import {
+  createDefaultAgentBudgetPolicy,
+  type AgentProfile,
+  type MatchSnapshot,
+} from "@rdr/shared";
 
 import { chooseFallbackCommand } from "./autonomy.js";
 
@@ -14,6 +18,8 @@ function createContext(overrides?: Partial<AgentProfile>, snapshotOverrides?: Pa
     mode: "autonomous",
     isStarter: true,
     walletAddress: "0x0000000000000000000000000000000000000001",
+    budgetPolicy: createDefaultAgentBudgetPolicy(),
+    autoSpendWei: "0",
     skills: {
       quickdraw: 30,
       grit: 25,
