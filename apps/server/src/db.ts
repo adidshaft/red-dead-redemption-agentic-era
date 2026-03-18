@@ -30,6 +30,7 @@ type DbAgentRow = {
   budget_policy: AgentBudgetPolicy | null;
   auto_spend_wei: string;
   created_at: Date;
+  deleted_at?: Date | null;
 };
 
 export type MatchRecord = {
@@ -194,6 +195,9 @@ export class Database {
     await this.pool.query(`
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS auto_spend_wei TEXT NOT NULL DEFAULT '0'
     `);
+    await this.pool.query(`
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+    `);
     await this.pool.query(
       `
         UPDATE agents
@@ -229,9 +233,10 @@ export class Database {
   }
 
   async countAgentsByOwner(ownerAddress: string) {
-    const result = await this.pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM agents WHERE owner_address = $1`, [
-      ownerAddress.toLowerCase(),
-    ]);
+    const result = await this.pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM agents WHERE owner_address = $1 AND deleted_at IS NULL`,
+      [ownerAddress.toLowerCase()],
+    );
     return Number(result.rows[0]?.count ?? "0");
   }
 
@@ -289,19 +294,35 @@ export class Database {
 
   async listAgentsByOwner(ownerAddress: string) {
     const result = await this.pool.query<DbAgentRow>(
-      `SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, budget_policy, auto_spend_wei, created_at FROM agents WHERE owner_address = $1 ORDER BY created_at ASC`,
+      `SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, budget_policy, auto_spend_wei, created_at, deleted_at FROM agents WHERE owner_address = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
       [ownerAddress.toLowerCase()],
     );
     return result.rows.map(mapAgentRow);
   }
 
-  async getAgentById(agentId: string) {
+  async getAgentById(
+    agentId: string,
+    options?: { includeDeleted?: boolean },
+  ) {
     const result = await this.pool.query<DbAgentRow>(
-      `SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, budget_policy, auto_spend_wei, created_at FROM agents WHERE id = $1`,
+      `SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, budget_policy, auto_spend_wei, created_at, deleted_at FROM agents WHERE id = $1 ${options?.includeDeleted ? "" : "AND deleted_at IS NULL"}`,
       [agentId],
     );
     const row = result.rows[0];
     return row ? mapAgentRow(row) : null;
+  }
+
+  async softDeleteAgent(agentId: string) {
+    const result = await this.pool.query<{ id: string }>(
+      `
+        UPDATE agents
+        SET deleted_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND deleted_at IS NULL
+        RETURNING id
+      `,
+      [agentId],
+    );
+    return Boolean(result.rows[0]?.id);
   }
 
   async updateAgentMode(agentId: string, mode: AgentMode) {
@@ -468,8 +489,9 @@ export class Database {
   async listFrontierAgents(limit = 12) {
     const result = await this.pool.query<DbAgentRow>(
       `
-        SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, created_at
+        SELECT id, owner_address, base_name, display_name, unique_suffix, mode, is_starter, wallet_address, skills, budget_policy, auto_spend_wei, created_at, deleted_at
         FROM agents
+        WHERE deleted_at IS NULL
         ORDER BY created_at DESC
         LIMIT $1
       `,

@@ -18,6 +18,7 @@ import {
   RotateCcw,
   ShieldPlus,
   Sword,
+  Trash2,
   Wallet,
 } from "lucide-react";
 import {
@@ -61,6 +62,7 @@ import {
 
 import {
   createAgent,
+  deleteAgent,
   fetchAgents,
   fetchAgentMatches,
   fetchAutonomyPlan,
@@ -3084,6 +3086,50 @@ export function GameShell() {
     }
   }
 
+  async function handleDeleteAgent() {
+    if (!authToken || !selectedAgent) {
+      return;
+    }
+
+    if (queueLocked) {
+      setStatus("Finish the current queue or live run before retiring this rider.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Retire ${selectedAgent.displayName} from your active rider deck?\n\nThis removes the rider from your private deck, but keeps match history and onchain receipts on the frontier ledger.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const deletedAgent = selectedAgent;
+    setBusyAction("delete-agent");
+    try {
+      await deleteAgent(authToken, deletedAgent.id);
+      const remainingAgents = agents.filter((agent) => agent.id !== deletedAgent.id);
+      setAgents(remainingAgents);
+      setSelectedAgentId(remainingAgents[0]?.id);
+      setTransactions([]);
+      setAutonomyPlan(null);
+      setCampaignStats(null);
+      setMatchHistory([]);
+      setRecentSkillUpgrade((current) =>
+        current?.agentId === deletedAgent.id ? null : current,
+      );
+      setSelectedFrontierDossier((current) =>
+        current?.profile.agentId === deletedAgent.id ? null : current,
+      );
+      setStatus(
+        `${deletedAgent.displayName} was retired from your active rider deck. Historical receipts and match results remain visible in the frontier ledger.`,
+      );
+    } catch (error) {
+      setStatus(normalizeUiError(error, "Could not retire this rider."));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function handleModeChange(mode: "manual" | "autonomous") {
     if (!authToken || !selectedAgent) {
       return;
@@ -3765,6 +3811,33 @@ export function GameShell() {
                           {step}
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+                {selectedAgent && (
+                  <div className="mt-3 rounded-[18px] border border-[#df6c39]/18 bg-[#df6c39]/[0.06] px-3 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.18em] text-[#ffd0ae]/68">
+                          Retire rider
+                        </div>
+                        <div className="mt-1 text-sm text-stone-200/72">
+                          Remove this rider from your active deck. Match history and receipts stay on the frontier ledger.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleDeleteAgent}
+                        disabled={busyAction !== null || queueLocked}
+                        className="inline-flex items-center gap-2 rounded-full border border-[#df6c39]/22 bg-[#df6c39]/10 px-3 py-2 text-xs font-medium text-[#ffd0ae] transition hover:bg-[#df6c39]/16 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {busyAction === "delete-agent" ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Delete rider
+                      </button>
                     </div>
                   </div>
                 )}

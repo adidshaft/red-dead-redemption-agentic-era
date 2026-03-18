@@ -247,7 +247,7 @@ async function buildFrontierRiderProfileForAgentId(
     });
   }
 
-  const agent = await db.getAgentById(agentId);
+  const agent = await db.getAgentById(agentId, { includeDeleted: true });
   if (!agent) {
     return {
       agentId,
@@ -368,7 +368,9 @@ function buildFrontierRecentResult(match: Awaited<ReturnType<Database["listRecen
 async function buildFrontierChainActivity(
   receipt: OnchainReceipt,
 ): Promise<FrontierChainActivity> {
-  const agent = receipt.agentId ? await db.getAgentById(receipt.agentId) : null;
+  const agent = receipt.agentId
+    ? await db.getAgentById(receipt.agentId, { includeDeleted: true })
+    : null;
   return {
     txHash: receipt.txHash,
     purpose: receipt.purpose,
@@ -592,6 +594,35 @@ app.post("/agents", async (request, reply) => {
   return {
     agent,
     registrationRequired: Boolean(config.NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS),
+  };
+});
+
+app.delete("/agents/:id", async (request, reply) => {
+  const address = await requireAddress(request);
+  if (!address) {
+    return reply.status(401).send(unauthorizedReply().body);
+  }
+
+  const agentId = (request.params as { id: string }).id;
+  const agent = await db.getAgentById(agentId);
+  if (!agent || agent.ownerAddress !== address) {
+    return reply.status(404).send({ error: "Agent not found" });
+  }
+
+  if (coordinator.isAgentBusy(agentId)) {
+    return reply.status(409).send({
+      error:
+        "This rider is queued or in a live match. Let the run finish before retiring it.",
+    });
+  }
+
+  const deleted = await db.softDeleteAgent(agentId);
+  if (!deleted) {
+    return reply.status(404).send({ error: "Agent not found" });
+  }
+
+  return {
+    deletedAgentId: agentId,
   };
 });
 
@@ -907,7 +938,7 @@ app.get("/matches/live", async () => {
 
 app.get("/frontier/riders/:id", async (request, reply) => {
   const agentId = (request.params as { id: string }).id;
-  const agent = await db.getAgentById(agentId);
+  const agent = await db.getAgentById(agentId, { includeDeleted: true });
 
   if (!agent) {
     return reply.status(404).send({ error: "Rider dossier not found" });

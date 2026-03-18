@@ -552,6 +552,31 @@ export class ArenaCoordinator {
     return Array.from(this.matches.values()).map((runtime) => runtime.snapshot);
   }
 
+  isAgentBusy(agentId: string) {
+    if (this.practiceQueue.some((entry) => entry.agent.id === agentId)) {
+      return true;
+    }
+
+    for (const pendingMatch of this.pendingPaidMatches.values()) {
+      if (
+        pendingMatch.entrants.some((entry) => entry.agent.id === agentId) ||
+        Array.from(pendingMatch.reservations.values()).some(
+          (reservation) => reservation.agentId === agentId,
+        )
+      ) {
+        return true;
+      }
+    }
+
+    for (const runtime of this.matches.values()) {
+      if (runtime.players.has(agentId)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   getQueueStatus(userAddress: string): QueueStatus {
     const normalizedAddress = userAddress.toLowerCase();
     const totalSlots = 4;

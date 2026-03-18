@@ -122,6 +122,13 @@ export async function updateAgentMode(
   });
 }
 
+export async function deleteAgent(token: string, agentId: string) {
+  return apiRequest<{ deletedAgentId: string }>(`/agents/${agentId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function updateAgentBudgetPolicy(
   token: string,
   agentId: string,
