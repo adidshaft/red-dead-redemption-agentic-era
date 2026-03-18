@@ -249,6 +249,7 @@ export function GameShell() {
     buildBudgetPolicyDraft(createDefaultAgentBudgetPolicy()),
   );
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [walletEngaged, setWalletEngaged] = useState(false);
   const x402Fetch = useMemo(() => {
     if (!walletClient?.account) {
       return null;
@@ -288,8 +289,9 @@ export function GameShell() {
   const hydratedIsConnecting = hasHydrated && isConnecting;
   const hydratedAddress = hasHydrated ? address : undefined;
   const hydratedChainId = hasHydrated ? chainId : undefined;
-  const visibleWalletAddress = hydratedIsConnected ? hydratedAddress : undefined;
-  const visibleChainId = hydratedIsConnected ? hydratedChainId : undefined;
+  const frontierIsConnected = hydratedIsConnected && walletEngaged;
+  const visibleWalletAddress = frontierIsConnected ? hydratedAddress : undefined;
+  const visibleChainId = frontierIsConnected ? hydratedChainId : undefined;
 
   const selectedAgent = useMemo(
     () =>
@@ -2161,12 +2163,10 @@ export function GameShell() {
 
     initialLandingResetRef.current = true;
     clearPersistedFrontierSession();
+    setWalletEngaged(false);
     setAuthToken(null);
     resetPrivateState("Connect a wallet on X Layer testnet to enter the frontier.");
-    if (isConnected) {
-      disconnect();
-    }
-  }, [disconnect, hasHydrated, isConnected]);
+  }, [hasHydrated]);
 
   useEffect(() => {
     if (!hasHydrated) {
@@ -2176,7 +2176,7 @@ export function GameShell() {
     const storedToken = window.localStorage.getItem(authStorageKey);
     const storedAddress = window.localStorage.getItem(authAddressStorageKey);
 
-    if (!hydratedIsConnected || !address) {
+    if (!frontierIsConnected || !address) {
       setAuthToken(null);
       resetPrivateState();
       return;
@@ -2193,10 +2193,10 @@ export function GameShell() {
 
     setAuthToken(null);
     resetPrivateState();
-  }, [address, hasHydrated, hydratedIsConnected]);
+  }, [address, frontierIsConnected, hasHydrated]);
 
   useEffect(() => {
-    if (!isConnected || !address || !authToken) {
+    if (!frontierIsConnected || !address || !authToken) {
       return;
     }
 
@@ -2207,13 +2207,13 @@ export function GameShell() {
     ) {
       clearSession("Wallet changed. Sign in again to continue.");
     }
-  }, [address, authToken, isConnected]);
+  }, [address, authToken, frontierIsConnected]);
 
   useEffect(() => {
-    if (isConnected && !authToken) {
+    if (frontierIsConnected && !authToken) {
       setStatus("Wallet connected. Sign in with a wallet signature to mint an agent.");
     }
-  }, [isConnected, authToken]);
+  }, [frontierIsConnected, authToken]);
 
   useEffect(() => {
     if (!selectedAgent && agents[0]) {
@@ -3516,10 +3516,16 @@ export function GameShell() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
-                {!hydratedIsConnected ? (
+                {!frontierIsConnected ? (
                   <button
                     type="button"
                     onClick={() => {
+                      setWalletEngaged(true);
+                      if (hydratedIsConnected) {
+                        setStatus("Wallet connected. Sign in with a wallet signature to mint an agent.");
+                        return;
+                      }
+
                       const connector = connectors[0];
                       if (connector) {
                         connect({ connector });
@@ -3552,6 +3558,7 @@ export function GameShell() {
                     <button
                       type="button"
                       onClick={() => {
+                        setWalletEngaged(false);
                         disconnect();
                         clearSession("Wallet disconnected.");
                       }}
@@ -3596,7 +3603,7 @@ export function GameShell() {
                 </div>
                 <Bot className="h-8 w-8 text-[#f0bf76]" />
               </div>
-              {hydratedIsConnected ? (
+              {frontierIsConnected ? (
                 <div className="mt-4 grid gap-2 text-sm text-stone-200/72">
                   <QuickBriefRow
                     step={authToken ? "Ready" : "1"}
@@ -6792,7 +6799,6 @@ function trimDecimalInput(value: string) {
 function clearPersistedFrontierSession() {
   window.localStorage.removeItem(authStorageKey);
   window.localStorage.removeItem(authAddressStorageKey);
-  window.localStorage.removeItem("wagmi.store");
 }
 
 function truncateAddress(value: string) {
