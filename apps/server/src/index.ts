@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 import cors from "@fastify/cors";
-import Fastify, { type FastifyRequest } from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import { Server } from "socket.io";
 import {
   decodePaymentSignatureHeader,
@@ -598,7 +598,10 @@ app.post("/agents", async (request, reply) => {
   };
 });
 
-app.delete("/agents/:id", async (request, reply) => {
+async function handleDeleteAgentRequest(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
   const address = await requireAddress(request);
   if (!address) {
     return reply.status(401).send(unauthorizedReply().body);
@@ -625,7 +628,10 @@ app.delete("/agents/:id", async (request, reply) => {
   return {
     deletedAgentId: agentId,
   };
-});
+}
+
+app.delete("/agents/:id", handleDeleteAgentRequest);
+app.post("/agents/:id/delete", handleDeleteAgentRequest);
 
 app.post("/agents/:id/register", async (request, reply) => {
   const address = await requireAddress(request);

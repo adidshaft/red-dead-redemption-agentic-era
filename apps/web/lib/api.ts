@@ -123,9 +123,10 @@ export async function updateAgentMode(
 }
 
 export async function deleteAgent(token: string, agentId: string) {
-  return apiRequest<{ deletedAgentId: string }>(`/agents/${agentId}`, {
-    method: "DELETE",
+  return apiRequest<{ deletedAgentId: string }>(`/agents/${agentId}/delete`, {
+    method: "POST",
     token,
+    body: JSON.stringify({}),
   });
 }
 
