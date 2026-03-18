@@ -4,7 +4,7 @@ Public repo: [github.com/adidshaft/red-dead-redemption-agentic-era](https://gith
 
 Player guide: [docs/gamers-guide.md](./docs/gamers-guide.md)
 
-Lightweight western arena game built for X Layer and OnchainOS. Players create named agents, fund skill upgrades on X Layer, switch between manual and autonomous control, and settle match outcomes onchain. The current product focus is an agentic gameplay loop: autonomous riders fight, rotate for supplies, play the shrinking ring, propose their next upgrades, and route players toward x402-powered premium autonomy. The live build now rotates between two real arenas, and map props are physically solid instead of decorative.
+Lightweight western arena game built for X Layer and OnchainOS. Players create named agents, fund skill upgrades on X Layer, switch between manual and autonomous control, and settle paid match outcomes onchain. The current product focus is an agentic gameplay loop: autonomous riders fight, rotate for supplies, play the shrinking ring, stage budget-aware follow-up actions, propose their next upgrades, and route players toward x402-powered premium autonomy. The live build now rotates across three real arenas, and map props are physically solid instead of decorative.
 
 ## What Is In The Repo
 
@@ -12,6 +12,66 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - `apps/server`: Fastify + Socket.IO backend with wallet-signature auth, Postgres persistence, autonomous decisioning, queueing, and X Layer receipt reconciliation.
 - `packages/shared`: shared ABI, game rules, chain config, and API schemas.
 - `packages/contracts`: Hardhat contract package for `ArenaEconomy` and its tests.
+
+## Architecture Diagram
+
+```mermaid
+flowchart LR
+  Player["Player"] --> Web["apps/web\nNext.js + Wagmi + Phaser"]
+
+  Web <--> Server["apps/server\nFastify + Socket.IO"]
+  Web <--> Shared["packages/shared\nABI + schemas + game rules"]
+  Server <--> Shared
+  Contracts["packages/contracts\nArenaEconomy"] --> Shared
+
+  Web -->|Wallet signature auth| Server
+  Web -->|Register agent / buy skill / enter paid match| XLayerTestnet["X Layer Testnet\nCore game economy"]
+  XLayerTestnet -->|Receipts / explorer links| Web
+  XLayerTestnet -->|Event verification / settlement reconciliation| Server
+
+  Server <--> Postgres["Postgres\nAgents + matches + receipts + budget policy"]
+  Server -->|Queue + match sim + AI logic + live snapshots| Web
+
+  Web -->|x402 payment client| X402["x402 on X Layer Mainnet\nPremium autonomy pass"]
+  X402 -->|402 challenge / payment settlement| Server
+  Server -->|Premium autonomy status + receipts| Web
+```
+
+The web app handles wallet connection, signed auth, contract writes, and live arena rendering. The server owns queueing, match simulation, AI decisions, campaign state, budget-policy follow-ups, and transaction reconciliation. Core gameplay economy actions run on X Layer testnet, while the premium autonomy lane is unlocked through x402 on X Layer mainnet.
+
+## Live Network Snapshot
+
+### ArenaEconomy on X Layer Testnet
+
+- Contract address: `0x31a44d5dcA53A0BFB13C79d8dF5ED3148f08DB97`
+- Deployment tx: `0xf6573f85ca2dfdc1e4cfee1a027782a1c620d918e3ce984280c12dacb268386a`
+- Deployer: `0x1620e0aEd0215Add62EF51A109De35455D35B6A1`
+- App treasury: `0x1620e0aEd0215Add62EF51A109De35455D35B6A1`
+- Network: `xlayerTestnet`
+- Chain ID: `1952`
+- RPC: `https://testrpc.xlayer.tech/terigon`
+- Explorer: [OKX X Layer Testnet Explorer](https://www.okx.com/web3/explorer/xlayer-test)
+- Deployment block: `25006326`
+- Deployed at: `2026-03-14T05:12:43.260Z`
+- Artifact: [`packages/contracts/deployments/xlayerTestnet.json`](/Users/amanpandey/Desktop/rdr/packages/contracts/deployments/xlayerTestnet.json)
+
+### Premium x402 Lane on X Layer Mainnet
+
+- Chain ID: `196`
+- RPC: `https://rpc.xlayer.tech`
+- Explorer: [OKX X Layer Mainnet Explorer](https://www.okx.com/web3/explorer/xlayer)
+- Default asset from `.env.example`: `USD Coin`
+- Default asset address: `0x74b7f16337b8972027f6196a17a631ac6de26d22`
+- Default quote amount: `1000000` base units
+
+### Captured Proof Transactions
+
+- Agent registration: [`0x879412e6086b9c3a07191f21fa7af0adae73fcc133233ae63264ce5f0adb290a`](https://www.okx.com/web3/explorer/xlayer-test/tx/0x879412e6086b9c3a07191f21fa7af0adae73fcc133233ae63264ce5f0adb290a)
+- Skill purchase: [`0x9f4d343091a57050501bc63a0a0af0c337b1e26fc0dc14da407611e0d7a3fae0`](https://www.okx.com/web3/explorer/xlayer-test/tx/0x9f4d343091a57050501bc63a0a0af0c337b1e26fc0dc14da407611e0d7a3fae0)
+- Match entry: [`0x889943b9c505a6258438c9ad7f630b64822d89f283dc919d8c9b2eb774018d8b`](https://www.okx.com/web3/explorer/xlayer-test/tx/0x889943b9c505a6258438c9ad7f630b64822d89f283dc919d8c9b2eb774018d8b)
+- Match settlement: [`0xdb2b0690c42598c0d40840896e73661f7d012120d0cc55bb6739ab182a49c8cf`](https://www.okx.com/web3/explorer/xlayer-test/tx/0xdb2b0690c42598c0d40840896e73661f7d012120d0cc55bb6739ab182a49c8cf)
+
+The longer-form proof context and reproduction notes live in [docs/proof.md](/Users/amanpandey/Desktop/rdr/docs/proof.md).
 
 ## Core Features
 
@@ -106,6 +166,7 @@ Lightweight western arena game built for X Layer and OnchainOS. Players create n
 - The server returns a real `402 Payment Required` response from `POST /payments/x402/autonomy-pass` when the agent has not yet settled the premium lane.
 - The browser now uses an x402-capable fetch client to sign the premium quote and retry the request automatically.
 - The premium quote is intentionally on X Layer mainnet, while gameplay skill buys, paid entry, and settlement remain on X Layer testnet.
+- The default repo config points the x402 lane at `USD Coin` on X Layer mainnet with asset address `0x74b7f16337b8972027f6196a17a631ac6de26d22` and a default quote amount of `1000000` base units.
 - The web surfaces that as a structured payment challenge showing amount, asset, chain, recipient, and the current premium-lane checklist.
 - Once the payment settles through the configured OKX/OnchainOS flow, the app:
   - creates an `autonomy_pass` receipt,
@@ -136,6 +197,8 @@ pnpm install
 ```bash
 cp .env.example .env
 ```
+
+At minimum, fill the X Layer testnet values, `NEXT_PUBLIC_ARENA_ECONOMY_ADDRESS`, the operator key / treasury pair, and the OnchainOS + OKX payment credentials if you want to exercise the premium x402 lane.
 
 3. Start Postgres.
 
@@ -197,20 +260,24 @@ pnpm test
 
 - ArenaEconomy address: `0x31a44d5dcA53A0BFB13C79d8dF5ED3148f08DB97`
 - Deployment tx: `0xf6573f85ca2dfdc1e4cfee1a027782a1c620d918e3ce984280c12dacb268386a`
+- Deployer: `0x1620e0aEd0215Add62EF51A109De35455D35B6A1`
+- App treasury: `0x1620e0aEd0215Add62EF51A109De35455D35B6A1`
 - Network: `xlayerTestnet`
 - Chain ID: `1952`
 - RPC: `https://testrpc.xlayer.tech/terigon`
 - Explorer: [OKX X Layer Testnet Explorer](https://www.okx.com/web3/explorer/xlayer-test)
+- Deployment block: `25006326`
+- Deployed at: `2026-03-14T05:12:43.260Z`
 - Deployment artifact: `packages/contracts/deployments/xlayerTestnet.json`
 
 ## Submission Proof
 
 Confirmed live X Layer testnet proof captured so far:
 
-- Agent registration: `0x879412e6086b9c3a07191f21fa7af0adae73fcc133233ae63264ce5f0adb290a`
-- Skill purchase: `0x9f4d343091a57050501bc63a0a0af0c337b1e26fc0dc14da407611e0d7a3fae0`
-- Match entry: `0x889943b9c505a6258438c9ad7f630b64822d89f283dc919d8c9b2eb774018d8b`
-- Match settlement: `0xdb2b0690c42598c0d40840896e73661f7d012120d0cc55bb6739ab182a49c8cf`
+- Agent registration: [`0x879412e6086b9c3a07191f21fa7af0adae73fcc133233ae63264ce5f0adb290a`](https://www.okx.com/web3/explorer/xlayer-test/tx/0x879412e6086b9c3a07191f21fa7af0adae73fcc133233ae63264ce5f0adb290a)
+- Skill purchase: [`0x9f4d343091a57050501bc63a0a0af0c337b1e26fc0dc14da407611e0d7a3fae0`](https://www.okx.com/web3/explorer/xlayer-test/tx/0x9f4d343091a57050501bc63a0a0af0c337b1e26fc0dc14da407611e0d7a3fae0)
+- Match entry: [`0x889943b9c505a6258438c9ad7f630b64822d89f283dc919d8c9b2eb774018d8b`](https://www.okx.com/web3/explorer/xlayer-test/tx/0x889943b9c505a6258438c9ad7f630b64822d89f283dc919d8c9b2eb774018d8b)
+- Match settlement: [`0xdb2b0690c42598c0d40840896e73661f7d012120d0cc55bb6739ab182a49c8cf`](https://www.okx.com/web3/explorer/xlayer-test/tx/0xdb2b0690c42598c0d40840896e73661f7d012120d0cc55bb6739ab182a49c8cf)
 
 The proof checklist, explorer links, and reproduction notes live in [docs/proof.md](/Users/amanpandey/Desktop/rdr/docs/proof.md).
 
