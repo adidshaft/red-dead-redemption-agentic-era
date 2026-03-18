@@ -288,6 +288,8 @@ export function GameShell() {
   const hydratedIsConnecting = hasHydrated && isConnecting;
   const hydratedAddress = hasHydrated ? address : undefined;
   const hydratedChainId = hasHydrated ? chainId : undefined;
+  const visibleWalletAddress = hydratedIsConnected ? hydratedAddress : undefined;
+  const visibleChainId = hydratedIsConnected ? hydratedChainId : undefined;
 
   const selectedAgent = useMemo(
     () =>
@@ -3564,12 +3566,16 @@ export function GameShell() {
                 <StatCard
                   icon={<Wallet className="h-4 w-4" />}
                   label="Wallet"
-                  value={hydratedAddress ? truncateAddress(hydratedAddress) : "Disconnected"}
+                  value={
+                    visibleWalletAddress
+                      ? truncateAddress(visibleWalletAddress)
+                      : "Disconnected"
+                  }
                 />
                 <StatCard
                   icon={<RadioTower className="h-4 w-4" />}
                   label="Chain"
-                  value={hydratedChainId ? `#${hydratedChainId}` : "Not ready"}
+                  value={visibleChainId ? `#${visibleChainId}` : "Not ready"}
                 />
                 <StatCard
                   icon={<ShieldPlus className="h-4 w-4" />}
