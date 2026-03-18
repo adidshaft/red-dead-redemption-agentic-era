@@ -283,6 +283,7 @@ export function GameShell() {
   const autoPracticeHandledRef = useRef<Set<string>>(new Set());
   const pendingAutoPracticeRef = useRef<string | null>(null);
   const pendingAutoPracticeAgentRef = useRef<string | null>(null);
+  const initialLandingResetRef = useRef(false);
   const hydratedIsConnected = hasHydrated && isConnected;
   const hydratedIsConnecting = hasHydrated && isConnecting;
   const hydratedAddress = hasHydrated ? address : undefined;
@@ -2152,6 +2153,20 @@ export function GameShell() {
   }, []);
 
   useEffect(() => {
+    if (!hasHydrated || initialLandingResetRef.current) {
+      return;
+    }
+
+    initialLandingResetRef.current = true;
+    clearPersistedFrontierSession();
+    setAuthToken(null);
+    resetPrivateState("Connect a wallet on X Layer testnet to enter the frontier.");
+    if (isConnected) {
+      disconnect();
+    }
+  }, [disconnect, hasHydrated, isConnected]);
+
+  useEffect(() => {
     if (!hasHydrated) {
       return;
     }
@@ -2675,8 +2690,7 @@ export function GameShell() {
   }
 
   function clearSession(nextStatus?: string) {
-    window.localStorage.removeItem(authStorageKey);
-    window.localStorage.removeItem(authAddressStorageKey);
+    clearPersistedFrontierSession();
     setAuthToken(null);
     resetPrivateState(nextStatus);
   }
@@ -6767,6 +6781,12 @@ function parseBudgetInputToWei(value: string) {
 
 function trimDecimalInput(value: string) {
   return value.replace(/(\.\d*?[1-9])0+$/u, "$1").replace(/\.0+$/u, "");
+}
+
+function clearPersistedFrontierSession() {
+  window.localStorage.removeItem(authStorageKey);
+  window.localStorage.removeItem(authAddressStorageKey);
+  window.localStorage.removeItem("wagmi.store");
 }
 
 function truncateAddress(value: string) {
