@@ -97,92 +97,111 @@ export class Database {
   }
 
   async init() {
+    const bootstrapStatements = [
+      `
+        CREATE TABLE IF NOT EXISTS users (
+          address TEXT PRIMARY KEY,
+          nonce TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `,
+      `
+        CREATE TABLE IF NOT EXISTS agents (
+          id TEXT PRIMARY KEY,
+          owner_address TEXT NOT NULL REFERENCES users(address),
+          base_name TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          unique_suffix TEXT NOT NULL,
+          mode TEXT NOT NULL,
+          is_starter BOOLEAN NOT NULL DEFAULT FALSE,
+          wallet_address TEXT NOT NULL,
+          wallet_account_id TEXT,
+          encrypted_private_key TEXT,
+          skills JSONB NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `,
+      `
+        CREATE TABLE IF NOT EXISTS agent_wallets (
+          agent_id TEXT PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
+          wallet_address TEXT NOT NULL,
+          wallet_account_id TEXT,
+          encrypted_private_key TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `,
+      `
+        CREATE TABLE IF NOT EXISTS matches (
+          id TEXT PRIMARY KEY,
+          status TEXT NOT NULL,
+          seed INTEGER NOT NULL,
+          payload JSONB NOT NULL,
+          started_at TIMESTAMPTZ,
+          ended_at TIMESTAMPTZ,
+          winner_agent_id TEXT,
+          combat_digest TEXT,
+          settlement_tx_hash TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `,
+      `
+        CREATE TABLE IF NOT EXISTS match_events (
+          id TEXT PRIMARY KEY,
+          match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+          type TEXT NOT NULL,
+          actor_agent_id TEXT,
+          target_agent_id TEXT,
+          message TEXT NOT NULL,
+          payload JSONB,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `,
+      `
+        CREATE TABLE IF NOT EXISTS transactions (
+          id TEXT PRIMARY KEY,
+          tx_hash TEXT NOT NULL UNIQUE,
+          chain_id INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          purpose TEXT NOT NULL,
+          agent_id TEXT,
+          match_id TEXT,
+          explorer_url TEXT,
+          payload JSONB,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          confirmed_at TIMESTAMPTZ
+        )
+      `,
+      `
+        CREATE TABLE IF NOT EXISTS autonomy_passes (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          valid_until TIMESTAMPTZ NOT NULL,
+          payment_tx_hash TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `,
+    ];
+
+    for (const statement of bootstrapStatements) {
+      await this.pool.query(statement);
+    }
+
     await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        address TEXT PRIMARY KEY,
-        nonce TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS agents (
-        id TEXT PRIMARY KEY,
-        owner_address TEXT NOT NULL REFERENCES users(address),
-        base_name TEXT NOT NULL,
-        display_name TEXT NOT NULL,
-        unique_suffix TEXT NOT NULL,
-        mode TEXT NOT NULL,
-        is_starter BOOLEAN NOT NULL DEFAULT FALSE,
-        wallet_address TEXT NOT NULL,
-        wallet_account_id TEXT,
-        encrypted_private_key TEXT,
-        skills JSONB NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS agent_wallets (
-        agent_id TEXT PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
-        wallet_address TEXT NOT NULL,
-        wallet_account_id TEXT,
-        encrypted_private_key TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS matches (
-        id TEXT PRIMARY KEY,
-        status TEXT NOT NULL,
-        seed INTEGER NOT NULL,
-        payload JSONB NOT NULL,
-        started_at TIMESTAMPTZ,
-        ended_at TIMESTAMPTZ,
-        winner_agent_id TEXT,
-        combat_digest TEXT,
-        settlement_tx_hash TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS match_events (
-        id TEXT PRIMARY KEY,
-        match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-        type TEXT NOT NULL,
-        actor_agent_id TEXT,
-        target_agent_id TEXT,
-        message TEXT NOT NULL,
-        payload JSONB,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS transactions (
-        id TEXT PRIMARY KEY,
-        tx_hash TEXT NOT NULL UNIQUE,
-        chain_id INTEGER NOT NULL,
-        status TEXT NOT NULL,
-        purpose TEXT NOT NULL,
-        agent_id TEXT,
-        match_id TEXT,
-        explorer_url TEXT,
-        payload JSONB,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        confirmed_at TIMESTAMPTZ
-      );
-
-      CREATE TABLE IF NOT EXISTS autonomy_passes (
-        id TEXT PRIMARY KEY,
-        agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-        valid_until TIMESTAMPTZ NOT NULL,
-        payment_tx_hash TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS budget_policy JSONB
     `);
-
     await this.pool.query(`
-      ALTER TABLE agents ADD COLUMN IF NOT EXISTS budget_policy JSONB;
-      ALTER TABLE agents ADD COLUMN IF NOT EXISTS auto_spend_wei TEXT NOT NULL DEFAULT '0';
-      UPDATE agents
-      SET budget_policy = $1::jsonb
-      WHERE budget_policy IS NULL
-    `, [JSON.stringify(createDefaultAgentBudgetPolicy())]);
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS auto_spend_wei TEXT NOT NULL DEFAULT '0'
+    `);
+    await this.pool.query(
+      `
+        UPDATE agents
+        SET budget_policy = $1::jsonb
+        WHERE budget_policy IS NULL
+      `,
+      [JSON.stringify(createDefaultAgentBudgetPolicy())],
+    );
   }
 
   async upsertUser(address: string, nonce?: string) {
