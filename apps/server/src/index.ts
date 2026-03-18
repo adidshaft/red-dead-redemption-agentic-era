@@ -422,6 +422,7 @@ async function requireAddress(request: {
 await app.register(cors, {
   origin: config.PUBLIC_APP_URL,
   credentials: true,
+  methods: ["GET", "HEAD", "POST", "DELETE", "OPTIONS"],
 });
 
 app.get("/health", async () => ({
