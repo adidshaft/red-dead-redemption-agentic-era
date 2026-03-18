@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="512" height="512" fill="none">
+  <defs>
+    <filter id="outerShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.34"/>
+    </filter>
+    <filter id="techGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="burntMetal" x1="118" y1="108" x2="354" y2="372" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f4c885"/>
+      <stop offset="45%" stop-color="#d5752d"/>
+      <stop offset="100%" stop-color="#6f2a16"/>
+    </linearGradient>
+    <linearGradient id="sandText" x1="192" y1="68" x2="314" y2="446" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f6ead7"/>
+      <stop offset="100%" stop-color="#f4c885"/>
+    </linearGradient>
+    <radialGradient id="dustGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(250 232) rotate(90) scale(208)">
+      <stop offset="0%" stop-color="#2b1a12"/>
+      <stop offset="65%" stop-color="#120b08"/>
+      <stop offset="100%" stop-color="#0d0a08"/>
+    </radialGradient>
+  </defs>
+
+  <g filter="url(#outerShadow)">
+    <circle cx="250" cy="250" r="230" fill="#0d0a08" stroke="#d5752d" stroke-width="12"/>
+    <circle cx="250" cy="250" r="214" fill="url(#dustGlow)" stroke="#2b1a12" stroke-width="4"/>
+    <circle cx="250" cy="250" r="196" fill="none" stroke="#f4c885" stroke-opacity="0.12" stroke-width="2"/>
+    <circle cx="250" cy="250" r="188" fill="none" stroke="#7ed2b4" stroke-width="2" stroke-dasharray="9 16" opacity="0.45"/>
+
+    <path d="M180 200C180 140 320 140 320 200C320 272 282 295 266 360L250 393L234 360C218 295 180 272 180 200Z" fill="url(#burntMetal)" stroke="#120b08" stroke-width="4"/>
+    <path d="M193 203C193 154 307 154 307 203C307 259 277 281 264 342L250 369L236 342C223 281 193 259 193 203Z" fill="#24150f" opacity="0.34"/>
+
+    <path d="M180 190C119 190 62 162 41 112C92 139 151 149 195 160" fill="none" stroke="url(#burntMetal)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M320 190C381 190 438 162 459 112C408 139 349 149 305 160" fill="none" stroke="url(#burntMetal)" stroke-width="16" stroke-linecap="round"/>
+
+    <polygon points="205,240 226,245 214,257" fill="#7ed2b4" filter="url(#techGlow)"/>
+    <polygon points="295,240 274,245 286,257" fill="#7ed2b4" filter="url(#techGlow)"/>
+
+    <path d="M250 141L250 202M230 170L211 170L205 191M270 170L289 170L295 191" fill="none" stroke="#7ed2b4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+
+    <path d="M147 349H353L374 378L353 407H147L126 378L147 349Z" fill="#120b08" stroke="#d5752d" stroke-width="4" stroke-linejoin="round"/>
+
+    <text x="250" y="96" font-family="Georgia, serif" font-size="72" font-weight="700" fill="url(#sandText)" text-anchor="middle" letter-spacing="6">RDR</text>
+    <text x="250" y="390" font-family="Verdana, Geneva, sans-serif" font-size="34" font-weight="700" fill="#f6dfb7" text-anchor="middle" letter-spacing="4.5">AGENTIC ERA</text>
+  </g>
+</svg>
